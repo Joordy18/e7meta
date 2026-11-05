@@ -2,8 +2,9 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
+import { fetchModes } from './modes';
 import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from './map';
-import type { HeroSnapshot, HeroSummary, Index } from '../../src/shared/types';
+import type { HeroSnapshot, HeroSummary, Index, Period } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
 const LANG = 'en'; // the product is in English; names in the data come in this language
@@ -57,6 +58,18 @@ async function fetchHeroList(client: Client, log: (m: string) => void): Promise<
   return [...byCode.values()];
 }
 
+/** modes.json lives in the period folder; it is refetched when it is missing or was fetched for an older hunt period. */
+async function refreshModes(client: Client, snapDir: string, huntPeriod: Period, log: (m: string) => void, force: boolean) {
+  const path = join(snapDir, 'modes.json');
+  if (!force) {
+    try {
+      if (JSON.parse(await readFile(path, 'utf8'))?.key === huntPeriod.start) return;
+    } catch { /* missing or unreadable: fetch it */ }
+  }
+  const modes = await fetchModes(client, huntPeriod, log);
+  if (modes) await writeJson(path, modes);
+}
+
 export async function collect(opts: {
   outDir: string; client: Client; force?: boolean; log?: (m: string) => void;
 }): Promise<'written' | 'skipped' | 'failed'> {
@@ -70,6 +83,7 @@ export async function collect(opts: {
   // heroes.json is written before the index: a period only counts as collected once the index lists it too
   if (!force && prev.periods.includes(period.start) && (await exists(join(snapDir, 'heroes.json')))) {
     log(`period ${period.start} already collected`);
+    await refreshModes(client, snapDir, huntPeriod, log, false);
     return 'skipped';
   }
 
@@ -132,6 +146,7 @@ export async function collect(opts: {
   const known = prev.valid ? prev.periods : await periodsOnDisk(outDir);
   const periods = [...new Set([period.start, ...known])].sort().reverse();
   await writeJson(indexPath, { periods } satisfies Index);
+  await refreshModes(client, snapDir, huntPeriod, log, true);
   return 'written';
 }
 

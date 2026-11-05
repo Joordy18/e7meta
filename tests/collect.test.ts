@@ -10,7 +10,7 @@ const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
 type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
-  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[] };
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean };
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -24,6 +24,15 @@ function fake(o: Opts = {}) {
         return ok({ ...v, ...(o.wearingStart ? { week_start_date: o.wearingStart } : {}) });
       }
       if (path === 'hunt/last-update-time') return fx('hunt-last-update-time');
+      if (/^(hunt\/hero-ranking|abyss\/hero-ranking|expedition\/ranking)\/all$|^abyss\/last-update-time$|^crack\/info$/.test(path)) {
+        if (o.noModes) throw new Error('modes down');
+        if (path === 'hunt/hero-ranking/all') return fx('mode-hunt');
+        if (path === 'abyss/hero-ranking/all') return fx('mode-abyss');
+        if (path === 'expedition/ranking/all') return fx('mode-expedition');
+        if (path === 'crack/info') return fx('rift-info');
+        return fx('hunt-last-update-time'); // abyss/last-update-time
+      }
+      if (path === 'expedition/last-update-time') throw new Error('API respond 5xx status.'); // as the live API does
       if (path === 'wearing-status/hero-list') {
         const n = o.repeatPage ? 1 : Number(params.current_page);
         if (o.endless) {
@@ -239,5 +248,50 @@ describe('collect', () => {
     expect(snap.detail.combos[0].share).toBe(39.2);
     expect(snap.detail.combos[0].codes).toEqual(['set_immune', 'set_riposte']);
     expect([...langs]).toEqual(['en']); // the product is in English: every localised endpoint is asked in English
+  });
+
+  describe('other game modes', () => {
+    it('writes modes.json: hunts, abyss and expedition lists plus the Rift season', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      const m = read('2026-10-22', 'modes.json');
+      expect(m.key).toBe('2026-10-29');
+      expect(m.lists).toHaveLength(15 + 12 + 15);
+      expect(new Set(m.lists.map((l: { id: string }) => l.id)).size).toBe(42);
+      expect(m.lists[0]).toMatchObject({ id: 'hunt-1-13', mode: 'hunts', title: 'Wyvern Hunt, Hell', period: { start: '2026-10-29', end: '2026-11-04' } });
+      expect(m.lists[0].heroes[0]).toEqual({ code: 'c1145', name: 'Brieg', share: 46.11 });
+      const abyss = m.lists.find((l: { id: string }) => l.id === 'abyss-120');
+      expect(abyss.title).toBe('Abyss, floor 120');
+      expect(abyss.heroes[0].name).toBe('Fenne');
+      const exp = m.lists.find((l: { id: string }) => l.id === 'expedition-5-3');
+      expect(exp).toMatchObject({ mode: 'expedition', title: 'Moroi Expedition, level 3' });
+      expect(exp.period).toBeUndefined(); // the API gives none for expeditions
+      expect(m.rift.title).toBe('Nightmare of the Oceans');
+    });
+
+    it('never blocks the snapshot when the modes endpoints fail', async () => {
+      const logs: string[] = [];
+      expect(await collect({ outDir: dir, client: fake({ noModes: true }).client, log: (x) => logs.push(x) })).toBe('written');
+      expect(existsSync(join(dir, '2026-10-22', 'heroes.json'))).toBe(true);
+      expect(existsSync(join(dir, '2026-10-22', 'modes.json'))).toBe(false);
+      expect(logs.some((x) => /modes/.test(x))).toBe(true);
+    });
+
+    it('a skipped run still fetches modes when they are missing', async () => {
+      await collect({ outDir: dir, client: fake({ noModes: true }).client });
+      expect(await collect({ outDir: dir, client: fake().client })).toBe('skipped');
+      expect(read('2026-10-22', 'modes.json').lists).toHaveLength(42);
+    });
+
+    it('a skipped run refreshes modes fetched for an older hunt period, and leaves current ones alone', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      writeFileSync(join(dir, '2026-10-22', 'modes.json'), JSON.stringify({ key: '2026-10-22', lists: [] }));
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client })).toBe('skipped');
+      expect(read('2026-10-22', 'modes.json').key).toBe('2026-10-29');
+      const again = fake();
+      await collect({ outDir: dir, client: again.client });
+      expect(again.calls.some((c) => c.path.includes('ranking'))).toBe(false);
+      expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(true);
+    });
   });
 });

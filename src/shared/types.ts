@@ -20,3 +20,15 @@ export type HeroSnapshot = {
   detail?: HeroDetail;
 };
 export type Index = { periods: string[] }; // period start dates, newest first
+
+// Other game modes: how often each hero shows up in successful teams (the guide's "success rate" rankings)
+export type ModeEntry = { code: string; name: string; share: number }; // share in %
+export type ModeList = {
+  id: string; // e.g. hunt-1-13, abyss-120, expedition-1-1
+  mode: 'hunts' | 'abyss' | 'expedition';
+  title: string; // e.g. "Wyvern Hunt, Hell"
+  period?: Period; // absent when the API does not say
+  heroes: ModeEntry[]; // highest share first
+};
+export type RiftInfo = { title: string; description: string; start: string; end: string; elements: string[] };
+export type Modes = { key: string; lists: ModeList[]; rift?: RiftInfo }; // key = hunt period start the lists were fetched for

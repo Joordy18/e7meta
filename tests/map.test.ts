@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from '../scripts/collect/map';
+import { mapDetail, mapHeroList, mapModeList, mapPeriod, mapRift, mapSetNames, mapShares } from '../scripts/collect/map';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const heroList = fx('hero-list');
@@ -102,5 +102,29 @@ describe('mapDetail', () => {
   });
   it('returns undefined without equipment and artifact data', () => {
     expect(mapDetail({ code: 0, value: { hero_code: 'c1' } }, period, names)).toBeUndefined();
+  });
+});
+
+describe('mode rankings', () => {
+  it('maps a hunt ranking (share = specific_gravity), highest first', () => {
+    const l = mapModeList(fx('mode-hunt'), 'specific_gravity');
+    expect(l).toHaveLength(5);
+    expect(l[0]).toEqual({ code: 'c1145', name: 'Brieg', share: 46.11 });
+    expect(l.map((h) => h.share)).toEqual([...l.map((h) => h.share)].sort((a, b) => b - a));
+  });
+  it('maps an expedition ranking (share = success_rate)', () => {
+    expect(mapModeList(fx('mode-expedition'), 'success_rate')[0]).toEqual({ code: 'c1145', name: 'Brieg', share: 50.86 });
+  });
+  it('drops zero-share rows and sorts what the API sent out of order', () => {
+    const raw = { code: 0, value: { guide_list: [
+      { hero_code: 'a', hero_name: 'A', specific_gravity: 10 }, { hero_code: 'b', hero_name: 'B', specific_gravity: 0 },
+      { hero_code: 'c', hero_name: 'C', specific_gravity: 30 } ] } };
+    expect(mapModeList(raw, 'specific_gravity').map((h) => h.code)).toEqual(['c', 'a']);
+  });
+  it('maps the Rift season info', () => {
+    expect(mapRift(fx('rift-info'))).toEqual({
+      title: 'Nightmare of the Oceans', description: 'Only Earth elemental Heroes are allowed in this Rift.',
+      start: '2026-01-08', end: '2026-08-27', elements: ['wind'],
+    });
   });
 });

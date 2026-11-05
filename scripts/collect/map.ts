@@ -1,6 +1,6 @@
 import { unwrap } from './api';
 import type {
-  ArtifactEntry, HeroDetail, HeroSummary, Period, SetCombo, ShareEntry, StatDistribution,
+  ArtifactEntry, HeroDetail, HeroSummary, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution,
 } from '../../src/shared/types';
 
 const list = (raw: unknown): any[] => unwrap<any>(raw).guide_list ?? [];
@@ -88,5 +88,21 @@ export function mapDetail(raw: unknown, period: Period, setNames: Record<string,
       .filter((a: any) => a.rank_arti && a.arti_rank_share > 0)
       .map((a: any) => ({ code: a.rank_arti, name: a.rank_arti_name, share: a.arti_rank_share })),
     stats,
+  };
+}
+
+/** A mode's hero ranking. The share field differs by mode: specific_gravity (hunts, abyss), success_rate (expedition). */
+export function mapModeList(raw: unknown, shareField: 'specific_gravity' | 'success_rate'): ModeEntry[] {
+  return list(raw)
+    .map((h) => ({ code: h.hero_code, name: h.hero_name, share: h[shareField] as number }))
+    .filter((h) => h.share > 0)
+    .sort((a, b) => b.share - a.share);
+}
+
+export function mapRift(raw: unknown): RiftInfo {
+  const v = unwrap<any>(raw);
+  return {
+    title: v.crack_title, description: v.crack_desc, start: v.season_start_date, end: v.season_end_date,
+    elements: Array.isArray(v.attribute_code) ? v.attribute_code : [],
   };
 }
