@@ -3,6 +3,7 @@ export type BarItem = { label: string; value: number; title?: string };
 export const formatValue = (v: number, unit = '%') => `${String(v).replace('.', ',')} ${unit}`;
 
 export default function Bars({ items, unit }: { items: BarItem[]; unit?: string }) {
+  if (items.length === 0) return <p>Aucune donnée</p>;
   return (
     <div>
       {items.map((it, i) => (

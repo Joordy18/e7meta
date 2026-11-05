@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Bars from '../components/Bars';
-import { loadHero, loadIndex } from '../lib/data';
+import { NotFoundError, loadHero, loadIndex } from '../lib/data';
 import { STAT_RANGES } from '../shared/stats';
 import type { HeroSnapshot, Period, StatKey } from '../shared/types';
 
@@ -54,7 +54,10 @@ export default function HeroPage({ code }: { code: string }) {
     setState({ status: 'loading' });
     loadHero(period, code)
       .then((hero) => live && setState({ status: 'ok', hero }))
-      .catch((e: unknown) => live && setState({ status: 'error', message: `Erreur de chargement : ${String(e)}` }));
+      .catch((e: unknown) => live && setState({
+        status: 'error',
+        message: e instanceof NotFoundError ? 'Pas de données pour ce héros sur cette période' : `Erreur de chargement : ${String(e)}`,
+      }));
     return () => { live = false; };
   }, [period, code]);
 

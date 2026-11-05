@@ -23,7 +23,7 @@ export default function App() {
     <>
       <header>
         <a href="#/">E7 Meta</a>
-        {latest && <span> — Dernier instantané : {latest}</span>}
+        {latest && <span> — Données : semaine du {latest}</span>}
       </header>
       {code ? <HeroPage code={safeDecode(code)} /> : <HeroList />}
     </>

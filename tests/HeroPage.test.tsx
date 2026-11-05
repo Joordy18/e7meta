@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { loadHero, loadIndex, loadHeroes } from '../src/lib/data';
+import { NotFoundError, loadHero, loadIndex, loadHeroes } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot } from '../src/shared/types';
 
@@ -86,6 +86,25 @@ describe('HeroPage', () => {
     expect(await screen.findByText(/Erreur de chargement : .*boom/)).toBeTruthy();
   });
 
+  it('says there is no data for this hero on this period, selector stays usable', async () => {
+    vi.mocked(loadHero).mockRejectedValueOnce(new NotFoundError('2026-10-29/hero/c1176.json')).mockResolvedValueOnce(snapshot);
+    render(<HeroPage code="c1176" />);
+    expect(await screen.findByText('Pas de données pour ce héros sur cette période')).toBeTruthy();
+    expect(screen.queryByText(/Erreur de chargement/)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Période'), { target: { value: '2026-10-22' } });
+    expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
+  });
+
+  it('shows "Aucune donnée" in blocks whose list is empty', async () => {
+    const empty = { ...snapshot, sets: [], artifacts: [], detail: { ...snapshot.detail!, combos: [], artifacts: [] } };
+    vi.mocked(loadHero).mockResolvedValue(empty);
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    for (const name of ['Sets', 'Artéfacts', 'Combinaisons de sets', 'Artéfacts (chasses)']) {
+      expect(within(region(name)).getByText('Aucune donnée')).toBeTruthy();
+    }
+  });
+
   it('tells how to collect when there is no index', async () => {
     vi.mocked(loadIndex).mockResolvedValue(null);
     render(<HeroPage code="c1176" />);
@@ -101,6 +120,16 @@ describe('HeroPage', () => {
     expect(await screen.findByRole('heading', { name: 'Nouveau' })).toBeTruthy();
     await act(async () => { resolveOld(snapshot); });
     expect(screen.queryByRole('heading', { name: 'Setsuka' })).toBeNull();
+  });
+});
+
+describe('App header', () => {
+  it('labels the latest period as the ranking week', async () => {
+    location.hash = '';
+    vi.mocked(loadHeroes).mockResolvedValue([]);
+    render(<App />);
+    expect(await screen.findByText(/Données : semaine du 2026-10-29/)).toBeTruthy();
+    expect(screen.queryByText(/Dernier instantané/)).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { filterHeroes, loadIndex, normalize } from '../src/lib/data';
+import { NotFoundError, filterHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
 import type { HeroSummary } from '../src/shared/types';
 
 const h = (code: string, name: string, grade: number, job: string, element: string): HeroSummary => ({ code, name, grade, job, element });
@@ -50,5 +50,38 @@ describe('loadIndex', () => {
   it('throws on a JSON body of the wrong shape', async () => {
     stub(json({ nope: 1 }));
     await expect(loadIndex()).rejects.toThrow();
+  });
+});
+
+describe('loadHeroes / loadHero', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  const stub = (res: Response) => { const f = vi.fn().mockResolvedValue(res); vi.stubGlobal('fetch', f); return f; };
+
+  it('treats a 404 as absent (NotFoundError)', async () => {
+    stub(new Response('', { status: 404 }));
+    await expect(loadHero('2026-10-22', 'c1')).rejects.toBeInstanceOf(NotFoundError);
+  });
+  it('treats the vite dev HTML fallback (200 text/html) as absent', async () => {
+    stub(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+    await expect(loadHeroes('2026-10-22')).rejects.toBeInstanceOf(NotFoundError);
+  });
+  it('keeps a generic error for other failures', async () => {
+    stub(new Response('', { status: 500 }));
+    const err = await loadHero('2026-10-22', 'c1').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(NotFoundError);
+  });
+  it('returns the parsed JSON', async () => {
+    stub(new Response(JSON.stringify([{ code: 'c1' }]), { headers: { 'content-type': 'application/json' } }));
+    expect(await loadHeroes('2026-10-22')).toEqual([{ code: 'c1' }]);
+  });
+  it('builds data URLs from the build base', async () => {
+    vi.stubEnv('BASE_URL', '/e7/');
+    const f = stub(new Response('{"periods":[]}', { headers: { 'content-type': 'application/json' } }));
+    await loadIndex();
+    expect(f).toHaveBeenLastCalledWith('/e7/data/index.json');
+    f.mockResolvedValue(new Response('[]', { headers: { 'content-type': 'application/json' } }));
+    await loadHeroes('2026-10-22');
+    expect(f).toHaveBeenLastCalledWith('/e7/data/2026-10-22/heroes.json');
   });
 });
