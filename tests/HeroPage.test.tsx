@@ -159,6 +159,25 @@ describe('HeroPage', () => {
     expect(within(hunts).getAllByRole('link').some((a) => a.getAttribute('href') === '#/artifact/efa29')).toBe(true);
   });
 
+  it('shows who the hero is most often played with, from the best PvE teams', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [
+      { id: 'hunt-2-13', mode: 'hunts', title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
+    ] });
+    vi.mocked(loadTeams).mockResolvedValue({ key: 'k', lists: { 'hunt-2-13': {
+      c1176: [{ share: 8, heroes: ['c1176', 'a', 'b', 'c'] }, { share: 3, heroes: ['c1176', 'a', 'd', 'e'] }],
+    } } });
+    vi.mocked(loadHeroes).mockResolvedValue(['c1176:Setsuka', 'a:Ann', 'b:Bo', 'c:Cy', 'd:Di', 'e:Ed']
+      .map((x) => ({ code: x.split(':')[0], name: x.split(':')[1], grade: 5, job: 'mage', element: 'fire' })));
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Often played with' });
+    const rows = within(panel).getAllByRole('listitem');
+    expect(rows[0].textContent).toContain('Ann');
+    expect(rows[0].textContent).toContain('2 of 2 teams');
+    expect(within(rows[0]).getByRole('link', { name: 'Ann' }).getAttribute('href')).toBe('#/hero/a');
+    expect(rows[1].textContent).toContain('1 of 2 teams');
+  });
+
   it('links each mode a hero is used in to that mode', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [

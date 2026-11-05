@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { HeroFace } from '../components/Art';
+import { HeroFace, HeroIcon } from '../components/Art';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
-import { heroTeams, type HeroTeam } from '../lib/modes';
+import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes';
 import { statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
@@ -86,6 +86,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
   const [teamList, setTeamList] = useState<HeroTeam[]>([]);
+  const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
 
@@ -120,6 +121,7 @@ export default function HeroPage({ code }: { code: string }) {
     let live = true;
     setUsage([]);
     setTeamList([]);
+    setMates([]);
     (async () => {
       const [modes, teams, heroes] = await Promise.all([
         loadModes(period).catch(() => null), loadTeams(period).catch(() => null), loadHeroes(period).catch(() => null),
@@ -127,6 +129,7 @@ export default function HeroPage({ code }: { code: string }) {
       if (!live) return;
       setUsage(modes ? heroModeUsage(modes, code) : []);
       setTeamList(modes && teams ? heroTeams(teams, modes, code, 6) : []);
+      setMates(teams ? teammates(teams, code, 8) : []);
       setNames(new Map((heroes ?? []).map((x) => [x.code, x.name])));
     })();
     return () => { live = false; };
@@ -220,7 +223,7 @@ export default function HeroPage({ code }: { code: string }) {
               </div>
             </section>
           )}
-          {(usage.length > 0 || teamList.length > 0) && (
+          {(usage.length > 0 || teamList.length > 0 || mates.length > 0) && (
             <section aria-label="Other game modes" className="source">
               <header>
                 <h2>Other game modes</h2>
@@ -230,6 +233,21 @@ export default function HeroPage({ code }: { code: string }) {
                 {usage.length > 0 && (
                   <Panel title="Where it is used">
                     <Bars items={top(usage, 8).map((u) => ({ label: `#${u.rank} ${u.title}`, value: u.share, href: `#/modes/${u.id}` }))} />
+                  </Panel>
+                )}
+                {mates.length > 0 && (
+                  <Panel title="Often played with">
+                    <p className="caption">Heroes found most often in the best hunt, abyss and expedition teams that include {h.hero.name}.</p>
+                    <ol className="ranking mates">
+                      {mates.map((m) => (
+                        <li key={m.code} className="rank-row">
+                          <HeroIcon code={m.code} name={names.get(m.code) ?? m.code} decorative />
+                          <a href={`#/hero/${m.code}`}>{names.get(m.code) ?? m.code}</a>
+                          <span className="rank-bar" aria-hidden><span style={{ width: `${(m.teams / m.total) * 100}%` }} /></span>
+                          <strong>{m.teams} of {m.total} teams</strong>
+                        </li>
+                      ))}
+                    </ol>
                   </Panel>
                 )}
                 {teamList.length > 0 && (

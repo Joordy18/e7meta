@@ -43,3 +43,34 @@ export function groupModes(modes: Modes): ModeGroup[] {
   }
   return [...groups.values()];
 }
+
+export type Teammate = { code: string; teams: number; total: number; share: number };
+
+/**
+ * The heroes that most often share a team with `code` in the collected team rankings. A lineup is counted once per mode list,
+ * however many heroes it was listed under; the same lineup in two modes counts twice. Most teams first, then the combined share
+ * of those teams, then code. `total` is how many teams include the hero.
+ */
+export function teammates(teams: Teams, code: string, n: number): Teammate[] {
+  const seen = new Set<string>();
+  const mine: Team[] = [];
+  for (const [listId, byHero] of Object.entries(teams.lists)) {
+    for (const t of Object.values(byHero).flat()) {
+      const key = `${listId}:${teamKey(t)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (t.heroes.includes(code)) mine.push(t);
+    }
+  }
+  const byCode = new Map<string, Teammate>();
+  for (const t of mine) {
+    for (const h of t.heroes) {
+      if (h === code) continue;
+      const e = byCode.get(h) ?? { code: h, teams: 0, total: mine.length, share: 0 };
+      e.teams++;
+      e.share = Math.round((e.share + t.share) * 100) / 100;
+      byCode.set(h, e);
+    }
+  }
+  return [...byCode.values()].sort((a, b) => b.teams - a.teams || b.share - a.share || a.code.localeCompare(b.code)).slice(0, n);
+}
