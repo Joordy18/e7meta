@@ -6,7 +6,7 @@ export type HeroSummary = {
 };
 export type ShareEntry = { code: string; name: string; share: number }; // share in %
 export type ArtifactEntry = ShareEntry & { effect: string };
-export type SetCombo = { sets: string[]; share: number }; // sets = display names
+export type SetCombo = { sets: string[]; codes: string[]; share: number }; // sets = display names, codes = set_<code> (same order, for icons)
 export type StatKey =
   | 'attack' | 'defense' | 'health' | 'speed'
   | 'critChance' | 'critDamage' | 'effectiveness' | 'effectResistance';

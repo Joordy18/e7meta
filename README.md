@@ -1,32 +1,34 @@
 # e7overlay
 
-Statistiques de builds pour Epic Seven : pour chaque héros, les sets d'équipement et les artefacts les plus utilisés, plus la répartition des stats. Un collecteur TypeScript récupère les données et les écrit en JSON statique ; un site React (en français) les affiche.
+Build stats for Epic Seven: for every hero, the gear sets and artifacts players wear most, plus the spread of their stats. A TypeScript collector fetches the data and writes it as static JSON; a React site (in English) shows it, and an always-on-top overlay window puts it next to the game.
 
-## Commandes
+## Commands
 
-- `npm run collect` : récupère les données (environ 1 200 appels séquentiels, plusieurs minutes). Ne fait rien (`skipped`) si la période est déjà collectée ; `-- --force` pour refaire.
-- `npm run dev` : lance le site en local.
-- `npm test` : lance les tests.
-- `npm run overlay` : construit le site puis l'ouvre dans une fenêtre **toujours au premier plan** (par-dessus le jeu en fenêtré ou sans bordure ; pas en plein écran exclusif). `Ctrl+Alt+E` affiche/masque la fenêtre sans lui donner le focus.
-- `npm run overlay:smoke` : vérifie que l'overlay démarre et charge les données (affiche `SMOKE OK`).
+- `npm run collect`: fetch the data (about 1,200 sequential calls, several minutes). Does nothing (`skipped`) while the published week is unchanged; add `-- --force` to redo it.
+- `npm run dev`: run the site locally.
+- `npm run overlay`: build the site and open it in an **always-on-top** window (above a windowed or borderless game, not above exclusive fullscreen). `Ctrl+Alt+E` shows or hides the window without taking focus from the game.
+- `npm run overlay:smoke`: check that the overlay starts and loads the data (prints `SMOKE OK`).
+- `npm test`: run the tests. `npm run build` builds the static site.
 
-(`npm run build` construit le site statique.)
+## Daily collection (Windows)
 
-## Collecte quotidienne (Windows)
-
-Les classements changent une fois par semaine ; une collecte quotidienne ne coûte que 2 appels tant que la semaine est inchangée.
+Rankings change once a week; a daily run costs only 2 API calls while the week is unchanged.
 
 ```
-powershell -File scripts/schedule-collect.ps1 -Time 12:00    # crée la tâche planifiée E7Meta-Collect
-powershell -File scripts/schedule-collect.ps1 -Remove        # la supprime
+powershell -File scripts/schedule-collect.ps1 -Time 12:00    # create the scheduled task E7Meta-Collect
+powershell -File scripts/schedule-collect.ps1 -Remove        # delete it
 ```
 
-Elle lance `scripts/collect-daily.cmd` (sortie dans `collect.log`, ignoré par git). Les nouveaux instantanés arrivent dans `public/data/` ; à toi de les commiter.
+It runs `scripts/collect-daily.cmd` (output in `collect.log`, ignored by git). New snapshots land in `public/data/`; committing them is up to you.
 
-## Données
+## Data
 
-Les snapshots sont dans `public/data/<période>/` (`heroes.json` et `hero/<code>.json`), la liste des périodes dans `public/data/index.json`. Ils sont versionnés dans git.
+Snapshots live in `public/data/<period>/` (`heroes.json` and `hero/<code>.json`); the list of periods is `public/data/index.json`. They are versioned in git.
 
-Elles viennent de l'API publique officielle du jeu (`api.onstove.com`), qui n'est pas documentée : elle peut changer sans préavis. Vérifier ses conditions d'utilisation avant de publier le site.
+The numbers come from the game's official public API (`api.onstove.com`), which is undocumented and may change without notice. Check its terms of use before publishing the site.
 
-Les deux sources n'ont pas la même période : les classements d'équipement/artefacts et les statistiques détaillées (combinaisons, répartition des stats) sont mises à jour séparément, chaque bloc affiche donc sa propre période.
+The two sources do not share a period: gear rankings and the detailed hunt statistics (set combinations, stat spread) are updated separately, so every block shows its own period.
+
+## Images
+
+Hero portraits and set/artifact icons are the game's official art, loaded straight from its public guide CDN (`static-pubcomm.onstove.com`). Nothing is copied into this repository. If an image cannot load, the text next to it still says what it is. The art belongs to its owners: check that you may show it before publishing.

@@ -223,8 +223,10 @@ describe('collect', () => {
   // envelopes hid a double unwrap that crashed the first live run.
   it('runs end to end with the real createClient over a stubbed fetch', async () => {
     const { client: routes } = fake();
+    const langs = new Set<string | null>();
     const fetchFn = async (url: string | URL | Request) => {
       const u = new URL(String(url));
+      if (!u.pathname.endsWith('last-update-time')) langs.add(u.searchParams.get('lang_code'));
       const path = u.pathname.replace('/pub-meta/v1.0/epic7/guide/', '');
       const body = await routes.get(path, Object.fromEntries(u.searchParams));
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
@@ -235,5 +237,7 @@ describe('collect', () => {
     const snap = read('2026-10-22', 'hero', `${code}.json`);
     expect(snap.sets[0].share).toBe(23.86);
     expect(snap.detail.combos[0].share).toBe(39.2);
+    expect(snap.detail.combos[0].codes).toEqual(['set_immune', 'set_riposte']);
+    expect([...langs]).toEqual(['en']); // the product is in English: every localised endpoint is asked in English
   });
 });

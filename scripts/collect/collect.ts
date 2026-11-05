@@ -6,6 +6,7 @@ import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from './map
 import type { HeroSnapshot, HeroSummary, Index } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
+const LANG = 'en'; // the product is in English; names in the data come in this language
 const WEARING = 'wearing-status/';
 const MAX_FAILURE_RATE = 0.05;
 const MAX_PAGES = 20; // 392 heroes = 8 pages of 50; guards against an API that ignores current_page
@@ -41,7 +42,7 @@ async function fetchHeroList(client: Client, log: (m: string) => void): Promise<
   const byCode = new Map<string, HeroSummary>();
   for (let page = 1; page <= MAX_PAGES; page++) {
     const raw = await client.get(`${WEARING}hero-list`, {
-      world_code: 'world_global', lang_code: 'fr', current_page: String(page), is_paging: 'N',
+      world_code: 'world_global', lang_code: LANG, current_page: String(page), is_paging: 'N',
     });
     const heroes = mapHeroList(raw);
     if (heroes.length === 0) break;
@@ -60,7 +61,7 @@ export async function collect(opts: {
   outDir: string; client: Client; force?: boolean; log?: (m: string) => void;
 }): Promise<'written' | 'skipped' | 'failed'> {
   const { outDir, client, force = false, log = () => {} } = opts;
-  const wearingParams = { world_code: 'world_global', lang_code: 'fr', current_page: '1', is_paging: 'N' };
+  const wearingParams = { world_code: 'world_global', lang_code: LANG, current_page: '1', is_paging: 'N' };
   const period = mapPeriod(await client.get(`${WEARING}last-update-time`, {}));
   const huntPeriod = mapPeriod(await client.get('hunt/last-update-time', {}));
   const snapDir = join(outDir, period.start);
@@ -96,7 +97,7 @@ export async function collect(opts: {
       };
       try {
         const detailRaw = await client.get('hunt/hero-detail-for-game', {
-          world_code: 'world_global', stage: '1', lang_code: 'fr', hero_code: hero.code,
+          world_code: 'world_global', stage: '1', lang_code: LANG, hero_code: hero.code,
           strategy_type: '0', boss_type: '1',
         });
         const detail = mapDetail(detailRaw, huntPeriod, setNames ?? {});

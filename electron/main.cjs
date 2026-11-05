@@ -18,7 +18,7 @@ async function waitForText(win, needle, ms) {
 app.whenReady().then(async () => {
   const dist = path.join(__dirname, '..', 'dist');
   if (!fs.existsSync(path.join(dist, 'index.html'))) {
-    console.error('dist/ introuvable: lance `npm run overlay` (il construit le site avant).');
+    console.error('dist/ not found: run `npm run overlay` (it builds the site first).');
     return app.exit(1);
   }
   const server = await serveDir(dist);
@@ -29,10 +29,10 @@ app.whenReady().then(async () => {
   await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
 
   const registered = globalShortcut.register(SHORTCUT, () => (win.isVisible() ? win.hide() : win.showInactive()));
-  if (!registered) console.warn(`Raccourci ${SHORTCUT} indisponible (déjà pris par une autre appli).`);
+  if (!registered) console.warn(`Shortcut ${SHORTCUT} unavailable (already taken by another app).`);
 
   if (smoke) {
-    const text = await waitForText(win, 'héros', 10000);
+    const text = await waitForText(win, 'heroes', 10000);
     console.log(`SMOKE ${text ? 'OK' : 'FAIL'} alwaysOnTop=${win.isAlwaysOnTop()} shortcut=${registered} text=${JSON.stringify((text ?? '').slice(0, 60))}`);
     app.exit(text && registered && win.isAlwaysOnTop() ? 0 : 1);
   }

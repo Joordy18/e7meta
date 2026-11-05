@@ -32,49 +32,49 @@ describe('HeroPage', () => {
     render(<HeroPage code="c1176" />);
     expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
     expect(loadHero).toHaveBeenCalledWith('2026-10-29', 'c1176');
-    expect(screen.getByRole('link', { name: '← Retour à la liste' }).getAttribute('href')).toBe('#/');
+    expect(screen.getByRole('link', { name: '← All heroes' }).getAttribute('href')).toBe('#/');
 
-    const equip = region("Source : classement d'équipement");
-    expect(within(equip).getByText('du 2026-10-22 au 2026-10-28')).toBeTruthy();
+    const equip = region('Source: gear ranking');
+    expect(within(equip).getByText('2026-10-22 to 2026-10-28')).toBeTruthy();
     const sets = within(equip).getByRole('region', { name: 'Sets' });
     expect(within(sets).getAllByRole('meter')).toHaveLength(10);
-    expect(within(within(sets).getAllByRole('meter')[0]).getByText('23,86 %')).toBeTruthy();
-    const arts = within(equip).getByRole('region', { name: 'Artéfacts' });
-    expect(within(arts).getAllByRole('meter')[0].textContent).toContain('77,81 %');
+    expect(within(within(sets).getAllByRole('meter')[0]).getByText('23.86%')).toBeTruthy();
+    const arts = within(equip).getByRole('region', { name: 'Artifacts' });
+    expect(within(arts).getAllByRole('meter')[0].textContent).toContain('77.81%');
     expect(within(arts).getAllByRole('meter')[0].getAttribute('title')).toBeTruthy();
 
-    const hunts = region('Source : chasses');
-    expect(within(hunts).getByText('du 2026-10-29 au 2026-11-04')).toBeTruthy();
+    const hunts = region('Source: hunts');
+    expect(within(hunts).getByText('2026-10-29 to 2026-11-04')).toBeTruthy();
     const combos = within(hunts).getAllByRole('meter').filter((m) => m.textContent?.includes('+'));
     expect(combos).toHaveLength(2);
-    expect(combos[0].textContent).toContain('39,2 %');
-    expect(within(hunts).getByText('91,5 %')).toBeTruthy();
+    expect(combos[0].textContent).toContain('39.2%');
+    expect(within(hunts).getByText('91.5%')).toBeTruthy();
   });
 
   it('draws 8 labelled histograms of 10 buckets with min/max axis labels', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);
-    const attack = await screen.findByRole('group', { name: 'Attaque' });
+    const attack = await screen.findByRole('group', { name: 'Attack' });
     expect(within(attack).getAllByRole('meter')).toHaveLength(10);
     expect(within(attack).getByText('1200')).toBeTruthy();
     expect(within(attack).getByText('5200')).toBeTruthy();
-    const labels = ['Attaque', 'Défense', 'Vitalité', 'Vitesse', 'Chance de critique', 'Dégâts critiques', 'Efficacité', 'Résistance à l\'effet'];
+    const labels = ['Attack', 'Defense', 'Health', 'Speed', 'Crit chance', 'Crit damage', 'Effectiveness', 'Effect resistance'];
     expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(labels);
-    expect(screen.getByText(/répartition en 10 tranches entre min et max \(estimation\)/)).toBeTruthy();
+    expect(screen.getByText(/Distribution in 10 buckets between min and max \(estimate\)/)).toBeTruthy();
   });
 
   it('omits the hunts block when detail is missing but renders the rest', async () => {
     vi.mocked(loadHero).mockResolvedValue({ ...snapshot, detail: undefined });
     render(<HeroPage code="c1176" />);
-    expect(await screen.findByText('23,86 %')).toBeTruthy();
-    expect(screen.queryByText(/Source : chasses/)).toBeNull();
+    expect(await screen.findByText('23.86%')).toBeTruthy();
+    expect(screen.queryByText(/Source: hunts/)).toBeNull();
     expect(screen.queryAllByRole('group')).toHaveLength(0);
   });
 
   it('reloads the hero when the period changes', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);
-    const select = await screen.findByLabelText('Période');
+    const select = await screen.findByLabelText('Period');
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['2026-10-29', '2026-10-22']);
     fireEvent.change(select, { target: { value: '2026-10-22' } });
     await waitFor(() => expect(loadHero).toHaveBeenLastCalledWith('2026-10-22', 'c1176'));
@@ -83,26 +83,34 @@ describe('HeroPage', () => {
   it('shows an explicit error when loading fails', async () => {
     vi.mocked(loadHero).mockRejectedValue(new Error('boom'));
     render(<HeroPage code="c1176" />);
-    expect(await screen.findByText(/Erreur de chargement : .*boom/)).toBeTruthy();
+    expect(await screen.findByText(/Failed to load: .*boom/)).toBeTruthy();
   });
 
   it('says there is no data for this hero on this period, selector stays usable', async () => {
     vi.mocked(loadHero).mockRejectedValueOnce(new NotFoundError('2026-10-29/hero/c1176.json')).mockResolvedValueOnce(snapshot);
     render(<HeroPage code="c1176" />);
-    expect(await screen.findByText('Pas de données pour ce héros sur cette période')).toBeTruthy();
+    expect(await screen.findByText('No data for this hero in this period')).toBeTruthy();
     expect(screen.queryByText(/Erreur de chargement/)).toBeNull();
-    fireEvent.change(screen.getByLabelText('Période'), { target: { value: '2026-10-22' } });
+    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '2026-10-22' } });
     expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
   });
 
-  it('shows "Aucune donnée" in blocks whose list is empty', async () => {
+  it('shows "No data" in blocks whose list is empty', async () => {
     const empty = { ...snapshot, sets: [], artifacts: [], detail: { ...snapshot.detail!, combos: [], artifacts: [] } };
     vi.mocked(loadHero).mockResolvedValue(empty);
     render(<HeroPage code="c1176" />);
     await screen.findByRole('heading', { name: 'Setsuka' });
-    for (const name of ['Sets', 'Artéfacts', 'Combinaisons de sets', 'Artéfacts (chasses)']) {
-      expect(within(region(name)).getByText('Aucune donnée')).toBeTruthy();
+    for (const name of ['Sets', 'Artifacts', 'Set combinations', 'Artifacts (hunts)']) {
+      expect(within(region(name)).getByText('No data')).toBeTruthy();
     }
+  });
+
+  it('still renders a snapshot from before combos carried set codes (older periods stay readable)', async () => {
+    const legacy = { ...snapshot, detail: { ...snapshot.detail!, combos: snapshot.detail!.combos.map(({ sets, share }) => ({ sets, share })) } };
+    vi.mocked(loadHero).mockResolvedValue(legacy as unknown as typeof snapshot);
+    render(<HeroPage code="c1176" />);
+    expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
+    expect(within(region('Set combinations')).getAllByRole('meter')[0].textContent).toContain('39.2%');
   });
 
   it('tells how to collect when there is no index', async () => {
@@ -116,7 +124,7 @@ describe('HeroPage', () => {
     const old = new Promise<HeroSnapshot>((r) => { resolveOld = r; });
     vi.mocked(loadHero).mockReturnValueOnce(old).mockResolvedValueOnce({ ...snapshot, hero: { ...snapshot.hero, name: 'Nouveau' } });
     render(<HeroPage code="c1176" />);
-    fireEvent.change(await screen.findByLabelText('Période'), { target: { value: '2026-10-22' } });
+    fireEvent.change(await screen.findByLabelText('Period'), { target: { value: '2026-10-22' } });
     expect(await screen.findByRole('heading', { name: 'Nouveau' })).toBeTruthy();
     await act(async () => { resolveOld(snapshot); });
     expect(screen.queryByRole('heading', { name: 'Setsuka' })).toBeNull();
@@ -128,7 +136,7 @@ describe('App header', () => {
     location.hash = '';
     vi.mocked(loadHeroes).mockResolvedValue([]);
     render(<App />);
-    expect(await screen.findByText(/Données : semaine du 2026-10-29/)).toBeTruthy();
+    expect(await screen.findByText(/Data: week of 2026-10-29/)).toBeTruthy();
     expect(screen.queryByText(/Dernier instantané/)).toBeNull();
   });
 });
@@ -151,10 +159,10 @@ describe('App hero route', () => {
   });
   it('falls to the list for an empty or nested code', async () => {
     await at('#/hero/');
-    expect(await screen.findByText(/0 héros/)).toBeTruthy();
+    expect(await screen.findByText(/0 heroes/)).toBeTruthy();
     cleanup();
     await at('#/hero/c1/extra');
-    expect(await screen.findByText(/0 héros/)).toBeTruthy();
+    expect(await screen.findByText(/0 heroes/)).toBeTruthy();
     expect(loadHero).not.toHaveBeenCalled();
   });
 });

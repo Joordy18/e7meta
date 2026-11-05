@@ -1,17 +1,19 @@
-export type BarItem = { label: string; value: number; title?: string };
+import { Icon } from './Art';
 
-export const formatValue = (v: number, unit = '%') => `${String(v).replace('.', ',')} ${unit}`;
+export type BarItem = { label: string; value: number; title?: string; icons?: string[] };
+
+export const formatValue = (v: number, unit = '%') => `${v}${unit}`;
 
 export default function Bars({ items, unit }: { items: BarItem[]; unit?: string }) {
-  if (items.length === 0) return <p>Aucune donnée</p>;
+  if (items.length === 0) return <p className="empty">No data</p>;
   return (
-    <div>
+    <div className="bars">
       {items.map((it, i) => (
-        <div key={i} role="meter" aria-valuenow={it.value} aria-valuemin={0} aria-valuemax={100} title={it.title}
-          style={{ position: 'relative', margin: '2px 0', padding: '2px 6px', display: 'flex', justifyContent: 'space-between' }}>
-          <span aria-hidden style={{ position: 'absolute', inset: 0, width: `${Math.min(100, Math.max(0, it.value))}%`, background: '#8ab4f8', opacity: 0.4 }} />
-          <span style={{ position: 'relative' }}>{it.label}</span>
-          <span style={{ position: 'relative' }}>{formatValue(it.value, unit)}</span>
+        <div key={i} className="bar" role="meter" aria-valuenow={it.value} aria-valuemin={0} aria-valuemax={100} title={it.title}>
+          <span className="bar-fill" aria-hidden style={{ width: `${Math.min(100, Math.max(0, it.value))}%` }} />
+          {it.icons?.map((src, j) => <Icon key={j} src={src} />)}
+          <span className="bar-label">{it.label}</span>
+          <span className="bar-value">{formatValue(it.value, unit)}</span>
         </div>
       ))}
     </div>

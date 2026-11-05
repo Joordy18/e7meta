@@ -21,11 +21,11 @@ export default function App() {
   const code = HERO_ROUTE.exec(hash)?.[1];
   return (
     <>
-      <header>
-        <a href="#/">E7 Meta</a>
-        {latest && <span> — Données : semaine du {latest}</span>}
+      <header className="top">
+        <a className="logo" href="#/">E7 Meta</a>
+        {latest && <span className="week">Data: week of {latest}</span>}
       </header>
-      {code ? <HeroPage code={safeDecode(code)} /> : <HeroList />}
+      <main>{code ? <HeroPage code={safeDecode(code)} /> : <HeroList />}</main>
     </>
   );
 }
