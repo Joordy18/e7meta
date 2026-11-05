@@ -29,7 +29,8 @@ export function createClient(opts: { fetchFn?: typeof fetch; delayMs?: number; r
           } catch {
             throw new ApiError(`non-JSON body for ${url}: ${text.slice(0, 100)}`);
           }
-          return unwrap<T>(body);
+          unwrap(body); // validates the envelope (retried on failure); mappers unwrap again
+          return body as T;
         } catch (e) {
           if (attempt >= retries) throw e;
         }

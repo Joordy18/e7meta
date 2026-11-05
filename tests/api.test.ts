@@ -12,13 +12,13 @@ describe('unwrap', () => {
 });
 
 describe('createClient', () => {
-  it('retries failures then returns the value', async () => {
+  it('retries failures then returns the envelope', async () => {
     const fetchFn = vi.fn()
       .mockRejectedValueOnce(new Error('net'))
       .mockResolvedValueOnce(new Response('{"code":500}'))
       .mockResolvedValueOnce(ok({ x: 1 }));
     const c = createClient({ fetchFn: fetchFn as unknown as typeof fetch, delayMs: 0 });
-    expect(await c.get('wearing-status/hero-list', { a: 'b' })).toEqual({ x: 1 });
+    expect(await c.get('wearing-status/hero-list', { a: 'b' })).toEqual({ code: 0, message: 'OK', value: { x: 1 } });
     expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(String(fetchFn.mock.calls[0][0])).toBe(
       'https://api.onstove.com/pub-meta/v1.0/epic7/guide/wearing-status/hero-list?a=b',
