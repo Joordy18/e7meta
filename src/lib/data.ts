@@ -15,6 +15,15 @@ export function filterHeroes(heroes: HeroSummary[], f: HeroFilter): HeroSummary[
   );
 }
 
+export type SortKey = 'name' | 'topSet' | 'topArtifact';
+
+/** New array; name A→Z (accents aside), or by top share, highest first, heroes without a share last, ties by name. */
+export function sortHeroes(heroes: HeroSummary[], key: SortKey): HeroSummary[] {
+  const byName = (a: HeroSummary, b: HeroSummary) => normalize(a.name).localeCompare(normalize(b.name));
+  if (key === 'name') return [...heroes].sort(byName);
+  return [...heroes].sort((a, b) => (b[key] ?? -1) - (a[key] ?? -1) || byName(a, b));
+}
+
 /** A data file that does not exist: 404, or the HTML fallback vite dev serves (200 text/html) for a missing file. */
 export class NotFoundError extends Error {}
 

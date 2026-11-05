@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { filterHeroes, loadHeroes, loadIndex } from '../lib/data';
+import { filterHeroes, loadHeroes, loadIndex, sortHeroes, type SortKey } from '../lib/data';
+import { formatValue } from '../components/Bars';
 import type { HeroSummary } from '../shared/types';
 
 const JOBS: Record<string, string> = {
@@ -17,6 +18,7 @@ export default function HeroList() {
   const [job, setJob] = useState('');
   const [element, setElement] = useState('');
   const [grade, setGrade] = useState('');
+  const [sort, setSort] = useState<SortKey>('name');
 
   useEffect(() => {
     let live = true;
@@ -31,9 +33,9 @@ export default function HeroList() {
 
   const shown = useMemo(
     () => (state.status === 'ok'
-      ? filterHeroes(state.heroes, { text, job: job || undefined, element: element || undefined, grade: grade ? Number(grade) : undefined })
+      ? sortHeroes(filterHeroes(state.heroes, { text, job: job || undefined, element: element || undefined, grade: grade ? Number(grade) : undefined }), sort)
       : []),
-    [state, text, job, element, grade],
+    [state, text, job, element, grade, sort],
   );
 
   if (state.status === 'loading') return <p>Chargement…</p>;
@@ -57,12 +59,18 @@ export default function HeroList() {
         <option value="">Toutes les étoiles</option>
         {[5, 4, 3].map((g) => <option key={g} value={g}>{g} ★</option>)}
       </select>
+      <select aria-label="Trier par" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+        <option value="name">Nom</option>
+        <option value="topSet">Part du set n°1</option>
+        <option value="topArtifact">Part de l’artéfact n°1</option>
+      </select>
       <p>{shown.length} héros</p>
       <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, listStyle: 'none', padding: 0 }}>
         {shown.map((h) => (
           <li key={h.code}>
             <a href={`#/hero/${h.code}`}>{h.name}</a>
             <small> {h.grade}★ · {jobLabel(h.job)} · {elementLabel(h.element)}</small>
+            {sort !== 'name' && h[sort] !== undefined && <small> · {formatValue(h[sort]!)}</small>}
           </li>
         ))}
       </ul>

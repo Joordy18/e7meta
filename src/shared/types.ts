@@ -1,5 +1,9 @@
 export type Period = { start: string; end: string }; // YYYY-MM-DD
-export type HeroSummary = { code: string; name: string; grade: number; job: string; element: string };
+export type HeroSummary = {
+  code: string; name: string; grade: number; job: string; element: string;
+  topSet?: number; // share (%) of the most worn set, used to sort the hero list
+  topArtifact?: number; // share (%) of the most worn artifact
+};
 export type ShareEntry = { code: string; name: string; share: number }; // share in %
 export type ArtifactEntry = ShareEntry & { effect: string };
 export type SetCombo = { sets: string[]; share: number }; // sets = display names

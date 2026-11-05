@@ -29,4 +29,18 @@ describe('HeroList', () => {
     expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(screen.queryByText('Aki')).toBeNull();
   });
+
+  it('sorts by the top set share and shows that share', async () => {
+    vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-11-02'] });
+    vi.mocked(loadHeroes).mockResolvedValue([
+      { code: 'c1', name: 'Abigaëlle', grade: 5, job: 'warrior', element: 'fire', topSet: 12.5, topArtifact: 80 },
+      { code: 'c2', name: 'Aki', grade: 4, job: 'mage', element: 'wind', topSet: 55.25, topArtifact: 30 },
+    ]);
+    render(<HeroList />);
+    await screen.findByText('Abigaëlle');
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Abigaëlle', 'Aki']);
+    fireEvent.change(screen.getByLabelText('Trier par'), { target: { value: 'topSet' } });
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Aki', 'Abigaëlle']);
+    expect(screen.getByText(/55,25 %/)).toBeTruthy();
+  });
 });

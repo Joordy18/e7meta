@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NotFoundError, filterHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
+import { NotFoundError, filterHeroes, sortHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
 import type { HeroSummary } from '../src/shared/types';
 
 const h = (code: string, name: string, grade: number, job: string, element: string): HeroSummary => ({ code, name, grade, job, element });
@@ -11,6 +11,20 @@ const heroes = [
 
 describe('normalize', () => {
   it('lowercases and strips accents', () => expect(normalize('Abigaëlle')).toBe('abigaelle'));
+});
+
+describe('sortHeroes', () => {
+  const hs: HeroSummary[] = [
+    { code: 'b', name: 'Éric', grade: 5, job: 'mage', element: 'fire', topSet: 10, topArtifact: 90 },
+    { code: 'a', name: 'Abel', grade: 5, job: 'mage', element: 'fire', topSet: 40 },
+    { code: 'c', name: 'Zed', grade: 5, job: 'mage', element: 'fire', topSet: 40, topArtifact: 20 },
+    { code: 'd', name: 'Bob', grade: 5, job: 'mage', element: 'fire' },
+  ];
+  const s = (k: Parameters<typeof sortHeroes>[1]) => sortHeroes(hs, k).map((h) => h.code);
+  it('sorts by name, accents and case aside', () => expect(s('name')).toEqual(['a', 'd', 'b', 'c']));
+  it('sorts by top set share, highest first, ties by name, missing last', () => expect(s('topSet')).toEqual(['a', 'c', 'b', 'd']));
+  it('sorts by top artifact share, missing last', () => expect(s('topArtifact')).toEqual(['b', 'c', 'a', 'd']));
+  it('does not mutate its input', () => { const copy = [...hs]; sortHeroes(hs, 'topSet'); expect(hs).toEqual(copy); });
 });
 
 describe('filterHeroes', () => {

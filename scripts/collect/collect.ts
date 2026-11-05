@@ -89,8 +89,10 @@ export async function collect(opts: {
         const names = mapSetNames(equipRaw);
         if (Object.keys(names).length > 0) setNames = names; // an empty ranking must not freeze an empty map
       }
+      const sets = mapShares(equipRaw, 'set');
+      const artifacts = mapShares(artifactRaw, 'artifact');
       const snap: HeroSnapshot = {
-        hero, period, sets: mapShares(equipRaw, 'set'), artifacts: mapShares(artifactRaw, 'artifact'),
+        hero: { ...hero, topSet: sets[0]?.share, topArtifact: artifacts[0]?.share }, period, sets, artifacts,
       };
       try {
         const detailRaw = await client.get('hunt/hero-detail-for-game', {

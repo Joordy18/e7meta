@@ -76,6 +76,15 @@ describe('collect', () => {
     expect(snap.detail.combos[0].sets).toEqual(['Set Immunité', 'Set Réaction']);
   });
 
+  it('puts the top set and artifact shares in heroes.json and in the hero file (used to sort the list)', async () => {
+    const { client } = fake();
+    await collect({ outDir: dir, client });
+    const [first] = read('2026-10-22', 'heroes.json');
+    expect(first.topSet).toBe(23.86);
+    expect(first.topArtifact).toBe(77.81);
+    expect(read('2026-10-22', 'hero', `${first.code}.json`).hero).toEqual(first);
+  });
+
   it('skips an existing period, rewrites with force', async () => {
     await collect({ outDir: dir, client: fake().client });
     const before = readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8');
