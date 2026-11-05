@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
+import { fetchGear } from './gear';
 import { fetchModes } from './modes';
 import { fetchTeams } from './teams';
 import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from './map';
@@ -83,21 +84,34 @@ async function refreshModes(client: Client, snapDir: string, huntPeriod: Period,
   if (fetched) await writeJson(teamsPath, fetched);
 }
 
+/** gear.json (artifact and set catalog) belongs to the gear-ranking period: refetched when missing, forced or from another period. */
+async function refreshGear(client: Client, snapDir: string, key: string, log: (m: string) => void, force: boolean) {
+  const path = join(snapDir, 'gear.json');
+  if (!force) {
+    try {
+      if (JSON.parse(await readFile(path, 'utf8'))?.key === key) return;
+    } catch { /* missing or unreadable: fetch it */ }
+  }
+  const gear = await fetchGear(client, key, log);
+  if (gear) await writeJson(path, gear);
+}
+
 export async function collect(opts: {
-  outDir: string; client: Client; force?: boolean; modesOnly?: boolean; log?: (m: string) => void;
+  outDir: string; client: Client; force?: boolean; extrasOnly?: boolean; log?: (m: string) => void;
 }): Promise<'written' | 'skipped' | 'failed'> {
-  const { outDir, client, force = false, modesOnly = false, log = () => {} } = opts;
+  const { outDir, client, force = false, extrasOnly = false, log = () => {} } = opts;
   const wearingParams = { world_code: 'world_global', lang_code: LANG, current_page: '1', is_paging: 'N' };
   const period = mapPeriod(await client.get(`${WEARING}last-update-time`, {}));
   const huntPeriod = mapPeriod(await client.get('hunt/last-update-time', {}));
   const snapDir = join(outDir, period.start);
   const indexPath = join(outDir, 'index.json');
-  if (modesOnly) {
+  if (extrasOnly) {
     if (!(await exists(join(snapDir, 'heroes.json')))) {
       log(`no snapshot for period ${period.start}: run a full collect first`);
       return 'failed';
     }
     await refreshModes(client, snapDir, huntPeriod, log, true);
+    await refreshGear(client, snapDir, period.start, log, true);
     return 'written';
   }
   const prev = await readIndex(indexPath, log);
@@ -105,6 +119,7 @@ export async function collect(opts: {
   if (!force && prev.periods.includes(period.start) && (await exists(join(snapDir, 'heroes.json')))) {
     log(`period ${period.start} already collected`);
     await refreshModes(client, snapDir, huntPeriod, log, false);
+    await refreshGear(client, snapDir, period.start, log, false);
     return 'skipped';
   }
 
@@ -168,6 +183,7 @@ export async function collect(opts: {
   const periods = [...new Set([period.start, ...known])].sort().reverse();
   await writeJson(indexPath, { periods } satisfies Index);
   await refreshModes(client, snapDir, huntPeriod, log, true);
+  await refreshGear(client, snapDir, period.start, log, true);
   return 'written';
 }
 
@@ -177,7 +193,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     outDir: 'public/data',
     client: createClient(),
     force: process.argv.includes('--force'),
-    modesOnly: process.argv.includes('--modes'),
+    extrasOnly: process.argv.includes('--extras'),
     log: console.log,
   });
   console.log(result);

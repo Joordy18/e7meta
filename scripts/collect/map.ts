@@ -1,6 +1,6 @@
 import { unwrap } from './api';
 import type {
-  ArtifactEntry, HeroDetail, HeroSummary, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution, Team,
+  ArtifactEntry, HeroDetail, HeroSummary, ArtifactInfo, ModeEntry, Period, RiftInfo, SetCombo, SetInfo, ShareEntry, StatDistribution, Team,
 } from '../../src/shared/types';
 
 const list = (raw: unknown): any[] => unwrap<any>(raw).guide_list ?? [];
@@ -114,4 +114,22 @@ export function mapTeams(raw: unknown, shareField: 'specific_gravity' | 'success
     .map((t) => ({ share: t[shareField] as number, heroes: (t.hero_list as any[]).map((h) => h.hero_code as string) }))
     .filter((t) => t.share > 0)
     .sort((a, b) => b.share - a.share);
+}
+
+/** The artifact catalog (without the heroes wearing each; those come from another endpoint). */
+export function mapArtifactList(raw: unknown): Omit<ArtifactInfo, 'heroes'>[] {
+  return list(raw).map((a) => {
+    const values = ((a.level_list ?? []) as { lv01: string; lv_max: string }[]).map((v) => ({ level1: v.lv01, max: v.lv_max }));
+    while (values.length > 0 && values[values.length - 1].level1 === '0' && values[values.length - 1].max === '0') values.pop();
+    return {
+      code: a.artifact_code, name: a.artifact_name, job: a.job_code, grade: a.grade,
+      attack: a.ability_attack, health: a.ability_defense, // the site labels ability_defense as Health
+      maxAttack: a.enhance_ability_attack, maxHealth: a.enhance_ability_defense,
+      description: a.info_text, values,
+    };
+  });
+}
+
+export function mapSetList(raw: unknown): Omit<SetInfo, 'heroes'>[] {
+  return list(raw).map((e) => ({ code: e.equip_code, name: e.equip_name, effect: e.equip_effect }));
 }

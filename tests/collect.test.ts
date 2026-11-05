@@ -10,7 +10,7 @@ const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
 type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
-  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean; noTeams?: boolean };
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean; noTeams?: boolean; noGear?: boolean };
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -31,6 +31,12 @@ function fake(o: Opts = {}) {
         if (path === 'expedition/ranking/all') return fx('mode-expedition');
         if (path === 'crack/info') return fx('rift-info');
         return fx('hunt-last-update-time'); // abyss/last-update-time
+      }
+      if (/^wearing-status\/(artifact-list|artifact-hero-ranking|equip-list|equip-hero-ranking)$/.test(path)) {
+        if (o.noGear) throw new Error('gear down');
+        if (path.endsWith('artifact-list')) return Number(params.current_page) === 1 ? fx('gear-artifact-list') : ok({ guide_list: [] });
+        if (path.endsWith('equip-list')) return fx('gear-set-list');
+        return fx(path.endsWith('artifact-hero-ranking') ? 'gear-artifact-heroes' : 'gear-set-heroes');
       }
       if (/team-ranking$/.test(path)) {
         if (o.noTeams) throw new Error('teams down');
@@ -342,20 +348,20 @@ describe('collect', () => {
       expect(teamCalls(again.calls)).toHaveLength(0);
     });
 
-    it('modesOnly refreshes modes and teams without touching the heroes', async () => {
+    it('extrasOnly refreshes modes and teams without touching the heroes', async () => {
       await collect({ outDir: dir, client: fake().client });
       const heroesBefore = readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8');
       const { client, calls } = fake();
-      expect(await collect({ outDir: dir, client, modesOnly: true })).toBe('written');
+      expect(await collect({ outDir: dir, client, extrasOnly: true })).toBe('written');
       expect(calls.some((c) => c.path === 'wearing-status/hero-list')).toBe(false);
       expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(true);
       expect(teamCalls(calls).length).toBeGreaterThan(0);
       expect(readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8')).toBe(heroesBefore);
     });
 
-    it('modesOnly fails clearly when the period has no snapshot yet', async () => {
+    it('extrasOnly fails clearly when the period has no snapshot yet', async () => {
       const logs: string[] = [];
-      expect(await collect({ outDir: dir, client: fake().client, modesOnly: true, log: (x) => logs.push(x) })).toBe('failed');
+      expect(await collect({ outDir: dir, client: fake().client, extrasOnly: true, log: (x) => logs.push(x) })).toBe('failed');
       expect(logs.some((x) => /no snapshot/.test(x))).toBe(true);
     });
   });
@@ -367,5 +373,58 @@ describe('collect', () => {
     expect(pick('hunt-2-13')).toMatchObject({ group: 'Golem Hunt', variant: 'Hell', title: 'Golem Hunt, Hell' });
     expect(pick('abyss-120')).toMatchObject({ group: 'Abyss', variant: 'Floor 120', title: 'Abyss, floor 120' });
     expect(pick('expedition-5-3')).toMatchObject({ group: 'Moroi Expedition', variant: 'Level 3' });
+  });
+
+  describe('gear catalog (artifacts and sets)', () => {
+    const gearCalls = (calls: { path: string }[]) => calls.filter((c) => /artifact-list|artifact-hero|equip-list|equip-hero/.test(c.path));
+
+    it('writes gear.json: every artifact and set with its stats, description and the heroes wearing it most', async () => {
+      const { client, calls } = fake();
+      await collect({ outDir: dir, client });
+      const g = read('2026-10-22', 'gear.json');
+      expect(g.key).toBe('2026-10-22');
+      expect(Object.keys(g.artifacts)).toEqual(['efk21', 'efw21', 'efk23']);
+      expect(g.artifacts.efk21).toMatchObject({ name: '3F', job: 'knight', grade: 5, attack: 9, health: 76, maxAttack: 117, maxHealth: 988 });
+      expect(g.artifacts.efk21.heroes).toHaveLength(5);
+      expect(g.artifacts.efk21.heroes[0]).toMatchObject({ code: 'c1176', name: 'Setsuka' });
+      expect(Object.keys(g.sets)).toEqual(['set_att', 'set_counter', 'set_cri']);
+      expect(g.sets.set_att).toMatchObject({ name: 'Attack Set', effect: 'Attack increases by 45%.' });
+      expect(g.sets.set_att.heroes).toHaveLength(5);
+      // 2 catalog pages (the second one is empty), then one call per artifact and per set
+      expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-list'))).toHaveLength(2);
+      expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-hero-ranking'))).toHaveLength(3);
+      expect(gearCalls(calls).filter((c) => c.path.endsWith('equip-hero-ranking'))).toHaveLength(3);
+    });
+
+    it('keeps at most 10 heroes per artifact or set', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      const g = read('2026-10-22', 'gear.json');
+      for (const x of [...Object.values(g.artifacts), ...Object.values(g.sets)] as { heroes: unknown[] }[]) expect(x.heroes.length).toBeLessThanOrEqual(10);
+    });
+
+    it('never blocks the snapshot when the gear endpoints fail', async () => {
+      const logs: string[] = [];
+      expect(await collect({ outDir: dir, client: fake({ noGear: true }).client, log: (x) => logs.push(x) })).toBe('written');
+      expect(existsSync(join(dir, '2026-10-22', 'gear.json'))).toBe(false);
+      expect(logs.some((x) => /gear/.test(x))).toBe(true);
+    });
+
+    it('a skipped run fetches gear when it is missing, and leaves it alone once there', async () => {
+      await collect({ outDir: dir, client: fake({ noGear: true }).client });
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client })).toBe('skipped');
+      expect(read('2026-10-22', 'gear.json').key).toBe('2026-10-22');
+      const again = fake();
+      await collect({ outDir: dir, client: again.client });
+      expect(gearCalls(again.calls)).toHaveLength(0);
+      expect(calls.some((c) => c.path === 'wearing-status/hero-list')).toBe(false);
+    });
+
+    it('extrasOnly refreshes gear too', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client, extrasOnly: true })).toBe('written');
+      expect(gearCalls(calls).length).toBeGreaterThan(0);
+    });
   });
 });
