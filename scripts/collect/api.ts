@@ -20,9 +20,16 @@ export function createClient(opts: { fetchFn?: typeof fetch; delayMs?: number; r
       for (let attempt = 0; ; attempt++) {
         await sleep(delayMs * 2 ** attempt);
         try {
-          const res = await fetchFn(url);
+          const res = await fetchFn(url, { signal: AbortSignal.timeout(20000) });
           if (!res.ok) throw new ApiError(`HTTP ${res.status} for ${url}`);
-          return unwrap<T>(await res.json());
+          const text = await res.text();
+          let body: unknown;
+          try {
+            body = JSON.parse(text);
+          } catch {
+            throw new ApiError(`non-JSON body for ${url}: ${text.slice(0, 100)}`);
+          }
+          return unwrap<T>(body);
         } catch (e) {
           if (attempt >= retries) throw e;
         }

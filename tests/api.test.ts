@@ -30,4 +30,22 @@ describe('createClient', () => {
     await expect(c.get('p', {})).rejects.toThrow('net');
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
+  it('throws ApiError after three {code:500} bodies', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => new Response('{"code":500}'));
+    const c = createClient({ fetchFn: fetchFn as unknown as typeof fetch, delayMs: 0 });
+    await expect(c.get('p', {})).rejects.toBeInstanceOf(ApiError);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+  it('surfaces an HTML body as ApiError and retries it', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => new Response('<html>Bad gateway</html>'));
+    const c = createClient({ fetchFn: fetchFn as unknown as typeof fetch, delayMs: 0 });
+    await expect(c.get('p', {})).rejects.toBeInstanceOf(ApiError);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+  it('passes a timeout signal to fetch', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(ok({ x: 1 }));
+    const c = createClient({ fetchFn: fetchFn as unknown as typeof fetch, delayMs: 0 });
+    await c.get('p', {});
+    expect(fetchFn.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
 });
