@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon } from '../components/Art';
+import { TIERS } from '../lib/arena';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, normalize } from '../lib/data';
 import type { ArenaIndex, ArenaSeason, ArenaTier } from '../shared/types';
 
-const TIERS: [ArenaTier, string][] = [['champion', 'Champion+'], ['warlord', 'Warlord+'], ['emperor', 'Emperor+'], ['legend', 'Legend+']];
 const METRICS = [['pick', 'Pick'], ['firstPick', 'First pick'], ['preBan', 'Pre-ban']] as const;
 type Metric = (typeof METRICS)[number][0];
 const METRIC_COLUMN: Record<Metric, string> = { pick: 'Pick rate', firstPick: 'First pick rate', preBan: 'Pre-ban rate' };

@@ -3,19 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { NotFoundError, loadHero, loadIndex, loadHeroes, loadModes, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
   vi.mocked(loadModes).mockResolvedValue(null);
   vi.mocked(loadTeams).mockResolvedValue(null);
   vi.mocked(loadHeroes).mockResolvedValue([]);
+  vi.mocked(loadArenaIndex).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -181,13 +182,62 @@ describe('HeroPage', () => {
     vi.mocked(loadHeroes).mockResolvedValue(['c1176:Setsuka', 'a:Ann', 'b:Bo', 'c:Cy', 'd:Di', 'e:Ed', 'f:Fay']
       .map((x) => ({ code: x.split(':')[0], name: x.split(':')[1], grade: 5, job: 'mage', element: 'fire' })));
     render(<HeroPage code="c1176" />);
-    const panel = await screen.findByRole('region', { name: 'Best teams with Setsuka' });
+    const panel = await screen.findByRole('region', { name: 'Best PvE teams with Setsuka' });
     const rows = within(panel).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('19.09%'); // best first, whatever the mode
     expect(within(rows[0]).getByRole('link', { name: 'Abyss, Floor 120' }).getAttribute('href')).toBe('#/modes/abyss-120');
     expect(within(rows[0]).getAllByRole('link').slice(1).map((a) => a.textContent)).toEqual(['Setsuka', 'Di', 'Ed', 'Fay']);
     expect(loadTeams).toHaveBeenCalledWith('2026-10-29');
+  });
+
+  const arenaSeason = (extra: Record<string, unknown> = {}) => ({
+    id: '9', title: 't', season: 'Summer 2026', published: '2026-08-07', url: 'https://page.onstove.com/epicseven/global/view/9', leagues: [], cutoffs: [],
+    preBan: { champion: [], warlord: [], emperor: [], legend: [{ hero: 'Setsuka', rate: 71 }] },
+    firstPick: { champion: [], warlord: [], emperor: [], legend: [] },
+    pick: { champion: [{ hero: 'x', rate: 1, ban: 1, win: 1 }, { hero: 'Setsuka', rate: 47.4, ban: 12, win: 52.8 }], warlord: [], emperor: [], legend: [] },
+    ...extra,
+  });
+  const arenaIndex = { seasons: [{ id: '9', season: 'Summer 2026', published: '2026-08-07', title: 't', url: 'https://page.onstove.com/epicseven/global/view/9' }] };
+
+  it('shows the hero\'s World Arena (RTA) figures of the latest season, per league tier', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadArenaIndex).mockResolvedValue(arenaIndex);
+    vi.mocked(loadArenaSeason).mockResolvedValue(arenaSeason() as never);
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'World Arena (RTA)' });
+    expect(loadArenaSeason).toHaveBeenCalledWith('9');
+    expect(within(panel).getByText('Summer 2026')).toBeTruthy();
+    const table = within(panel).getByRole('table', { name: 'RTA stats' });
+    expect(within(table).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['League', 'Pick', 'Win rate', 'First pick', 'Pre-ban']);
+    const rows = within(table).getAllByRole('row').slice(1).map((r) => [within(r).getByRole('rowheader').textContent, ...within(r).getAllByRole('cell').map((c) => c.textContent)]);
+    expect(rows).toEqual([
+      ['Champion+', '47.4% (#2)', '52.8%', '—', '—'],
+      ['Legend+', '—', '—', '—', '71% (#1)'],
+    ]);
+    expect(within(panel).getByRole('link', { name: /official infographic/ }).getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
+  });
+
+  it('says so when the hero is in none of the top-20 World Arena tables', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, hero: { ...snapshot.hero, name: 'Somebody Else' } });
+    vi.mocked(loadArenaIndex).mockResolvedValue(arenaIndex);
+    vi.mocked(loadArenaSeason).mockResolvedValue(arenaSeason() as never);
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'World Arena (RTA)' });
+    expect(within(panel).getByText(/Not in the top 20 of any World Arena table in Summer 2026/)).toBeTruthy();
+    expect(within(panel).queryByRole('table')).toBeNull();
+  });
+
+  it('leaves out the World Arena block when there is no arena data or it cannot be loaded', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
+    cleanup();
+    vi.mocked(loadArenaIndex).mockRejectedValue(new Error('down'));
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
   });
 
   it('leaves out the other-modes block when the hero is in no list or there is no mode data', async () => {

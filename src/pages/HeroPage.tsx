@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { HeroFace } from '../components/Art';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
+import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
 import { heroTeams, type HeroTeam } from '../lib/modes';
 import { statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { HeroSnapshot, Period, StatKey } from '../shared/types';
+import type { ArenaSeason, HeroSnapshot, Period, StatKey } from '../shared/types';
 import { elementLabel, jobLabel } from './HeroList';
 
 const STATS: [StatKey, string][] = [
@@ -85,6 +86,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
   const [teamList, setTeamList] = useState<HeroTeam[]>([]);
+  const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -131,6 +133,21 @@ export default function HeroPage({ code }: { code: string }) {
   }, [period, code]);
 
   const h = state.status === 'ok' ? state.hero : undefined;
+  const heroName = h?.hero.name;
+
+  // the World Arena block is a bonus too: no data, or a failure, just hides it
+  useEffect(() => {
+    setArena(null);
+    if (!heroName) return;
+    let live = true;
+    (async () => {
+      const first = (await loadArenaIndex())?.seasons[0];
+      const season = first ? await loadArenaSeason(first.id) : null;
+      if (live && season) setArena({ season, rows: heroArena(season, heroName) });
+    })().catch(() => {});
+    return () => { live = false; };
+  }, [heroName]);
+
   return (
     <div>
       <div className="hero-bar">
@@ -170,6 +187,39 @@ export default function HeroPage({ code }: { code: string }) {
               </Panel>
             </div>
           </section>
+          {arena && (
+            <section aria-label="World Arena (RTA)" className="source">
+              <header>
+                <h2>World Arena (RTA)</h2>
+                <p className="period-chip">{arena.season.season}</p>
+              </header>
+              <div className="panels">
+                <section aria-label="RTA stats" className="panel">
+                  {arena.rows.length > 0 ? (
+                    <table className="targets" aria-label="RTA stats">
+                      <thead><tr><th>League</th><th>Pick</th><th>Win rate</th><th>First pick</th><th>Pre-ban</th></tr></thead>
+                      <tbody>
+                        {arena.rows.map((r) => (
+                          <tr key={r.tier}>
+                            <th scope="row">{TIERS.find(([t]) => t === r.tier)![1]}</th>
+                            <td>{r.pick ? `${r.pick.rate}% (#${r.pick.rank})` : '—'}</td>
+                            <td>{r.pick?.win !== undefined ? `${r.pick.win}%` : '—'}</td>
+                            <td>{r.firstPick ? `${r.firstPick.rate}% (#${r.firstPick.rank})` : '—'}</td>
+                            <td>{r.preBan ? `${r.preBan.rate}% (#${r.preBan.rank})` : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : <p className="empty">Not in the top 20 of any World Arena table in {arena.season.season}.</p>}
+                  <p className="caption">
+                    Rates are shares of matches in that league and above; "#" is the place in the published top 20.
+                    Source: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {arena.season.published}.
+                    The game does not publish matchups or team compositions for RTA.
+                  </p>
+                </section>
+              </div>
+            </section>
+          )}
           {(usage.length > 0 || teamList.length > 0) && (
             <section aria-label="Other game modes" className="source">
               <header>
@@ -183,7 +233,7 @@ export default function HeroPage({ code }: { code: string }) {
                   </Panel>
                 )}
                 {teamList.length > 0 && (
-                  <Panel title={`Best teams with ${h.hero.name}`}>
+                  <Panel title={`Best PvE teams with ${h.hero.name}`}>
                     <ol className="teams">
                       {teamList.map((t) => (
                         <TeamRow key={`${t.listId}-${t.team.heroes.join()}`} team={t.team} names={names}
