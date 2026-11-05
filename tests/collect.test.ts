@@ -9,7 +9,8 @@ const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'u
 const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
-type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean };
+type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean };
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -24,10 +25,14 @@ function fake(o: Opts = {}) {
       }
       if (path === 'hunt/last-update-time') return fx('hunt-last-update-time');
       if (path === 'wearing-status/hero-list') {
-        const n = Number(params.current_page);
+        const n = o.repeatPage ? 1 : Number(params.current_page);
+        if (o.endless) {
+          const list = Array.from({ length: 50 }, (_, i) => ({ ...all[0], hero_code: `x${n}_${i}` }));
+          return ok({ ...heroListFx.value, current_page: n, guide_list: list });
+        }
         return ok({ ...heroListFx.value, current_page: n, guide_list: all.slice(50 * (n - 1), 50 * n) });
       }
-      if (o.failHeroes?.includes(params.hero_code)) throw new Error('boom');
+      if (o.failAll || o.failHeroes?.includes(params.hero_code)) throw new Error('boom');
       if (path === 'wearing-status/hero-equip-ranking') return fx('hero-equip-ranking');
       if (path === 'wearing-status/hero-artifact-ranking') return fx('hero-artifact-ranking');
       if (path === 'hunt/hero-detail-for-game') {
@@ -44,6 +49,13 @@ let dir: string;
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'e7-collect-')); });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
+const snapshotFiles = (d: string) =>
+  Object.fromEntries(
+    (readdirSync(d, { recursive: true, encoding: 'utf8' }) as string[])
+      .filter((f) => /.json$/.test(f))
+      .sort()
+      .map((f) => [f, readFileSync(join(d, f), 'utf8')]),
+  );
 const read = (...p: string[]) => JSON.parse(readFileSync(join(dir, ...p), 'utf8'));
 
 describe('collect', () => {
@@ -122,5 +134,30 @@ describe('collect', () => {
     expect(new Set(read('2026-10-22', 'heroes.json').map((h: { code: string }) => h.code)).size).toBe(392);
     expect(readdirSync(join(dir, '2026-10-22', 'hero'))).toHaveLength(392);
     expect(logs.filter((m) => /\d+\/392/.test(m))).toHaveLength(Math.floor(392 / 25));
+  });
+  it('stops paging when a page adds no new hero', async () => {
+    const { client, calls } = fake({ repeatPage: true });
+    const logs: string[] = [];
+    expect(await collect({ outDir: dir, client, log: (m) => logs.push(m) })).toBe('written');
+    expect(calls.filter((c) => c.path === 'wearing-status/hero-list')).toHaveLength(2);
+    expect(read('2026-10-22', 'heroes.json')).toHaveLength(2);
+    expect(logs.some((m) => /no new hero/.test(m))).toBe(true);
+  });
+
+  it('caps paging at 20 pages', async () => {
+    const { client, calls } = fake({ endless: true, failAll: true });
+    const logs: string[] = [];
+    await collect({ outDir: dir, client, log: (m) => logs.push(m) });
+    expect(calls.filter((c) => c.path === 'wearing-status/hero-list')).toHaveLength(20);
+    expect(logs.some((m) => /page cap 20/.test(m))).toBe(true);
+  });
+
+  it('leaves a published snapshot untouched when a forced run fails', async () => {
+    await collect({ outDir: dir, client: fake({ total: 40 }).client });
+    const before = { snap: snapshotFiles(join(dir, '2026-10-22')), index: snapshotFiles(dir) };
+    const failHeroes = fake({ total: 40 }).heroes.slice(0, 5).map((h: { hero_code: string }) => h.hero_code);
+    expect(await collect({ outDir: dir, client: fake({ total: 40, failHeroes }).client, force: true })).toBe('failed');
+    expect(snapshotFiles(join(dir, '2026-10-22'))).toEqual(before.snap);
+    expect(snapshotFiles(dir)).toEqual(before.index);
   });
 });

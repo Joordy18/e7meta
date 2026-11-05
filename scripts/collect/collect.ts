@@ -8,6 +8,7 @@ import type { HeroSnapshot, HeroSummary, Index } from '../../src/shared/types';
 type Client = ReturnType<typeof createClient>;
 const WEARING = 'wearing-status/';
 const MAX_FAILURE_RATE = 0.05;
+const MAX_PAGES = 20; // 392 heroes = 8 pages of 50; guards against an API that ignores current_page
 
 const exists = (p: string) => readFile(p).then(() => true, () => false);
 const writeJson = async (p: string, data: unknown) => {
@@ -15,16 +16,23 @@ const writeJson = async (p: string, data: unknown) => {
   await writeFile(p, JSON.stringify(data));
 };
 
-async function fetchHeroList(client: Client): Promise<HeroSummary[]> {
+async function fetchHeroList(client: Client, log: (m: string) => void): Promise<HeroSummary[]> {
   const byCode = new Map<string, HeroSummary>();
-  for (let page = 1; ; page++) {
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const raw = await client.get(`${WEARING}hero-list`, {
       world_code: 'world_global', lang_code: 'fr', current_page: String(page), is_paging: 'N',
     });
     const heroes = mapHeroList(raw);
-    if (heroes.length === 0) return [...byCode.values()];
+    if (heroes.length === 0) break;
+    const before = byCode.size;
     for (const h of heroes) byCode.set(h.code, h);
+    if (byCode.size === before) {
+      log(`hero-list page ${page} added no new hero, stopping`);
+      break;
+    }
+    if (page === MAX_PAGES) log(`hero-list page cap ${MAX_PAGES} reached, stopping`);
   }
+  return [...byCode.values()];
 }
 
 export async function collect(opts: {
@@ -40,11 +48,12 @@ export async function collect(opts: {
     return 'skipped';
   }
 
-  const heroes = await fetchHeroList(client);
+  const heroes = await fetchHeroList(client, log);
   log(`${heroes.length} heroes, period ${period.start}, hunt period ${huntPeriod.start}`);
 
   let setNames: Record<string, string> | undefined;
-  const done: HeroSummary[] = [];
+  // buffered: nothing touches disk until the failure gate passes, so a failed (even forced) run leaves the published snapshot intact
+  const done: HeroSnapshot[] = [];
   let failed = 0;
   for (const [i, hero] of heroes.entries()) {
     try {
@@ -65,8 +74,7 @@ export async function collect(opts: {
       } catch (e) {
         log(`no detail for ${hero.code}: ${(e as Error).message}`);
       }
-      await writeJson(join(snapDir, 'hero', `${hero.code}.json`), snap);
-      done.push(hero);
+      done.push(snap);
     } catch (e) {
       failed++;
       log(`hero ${hero.code} failed: ${(e as Error).message}`);
@@ -79,7 +87,8 @@ export async function collect(opts: {
     return 'failed';
   }
 
-  await writeJson(join(snapDir, 'heroes.json'), done);
+  for (const snap of done) await writeJson(join(snapDir, 'hero', `${snap.hero.code}.json`), snap);
+  await writeJson(join(snapDir, 'heroes.json'), done.map((s) => s.hero));
   const indexPath = join(outDir, 'index.json');
   const prev: Index = (await exists(indexPath)) ? JSON.parse(await readFile(indexPath, 'utf8')) : { periods: [] };
   const periods = [...new Set([period.start, ...prev.periods])].sort().reverse();
