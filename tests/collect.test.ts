@@ -156,7 +156,7 @@ describe('collect', () => {
     await collect({ outDir: dir, client: fake({ total: 40 }).client });
     const before = { snap: snapshotFiles(join(dir, '2026-10-22')), index: snapshotFiles(dir) };
     const failHeroes = fake({ total: 40 }).heroes.slice(0, 5).map((h: { hero_code: string }) => h.hero_code);
-    expect(await collect({ outDir: dir, client: fake({ total: 40, failHeroes }).client, force: true })).toBe('failed');
+    expect(await collect({ outDir: dir, client: fake({ total: 40, failHeroes, emptyDetail: true }).client, force: true })).toBe('failed');
     expect(snapshotFiles(join(dir, '2026-10-22'))).toEqual(before.snap);
     expect(snapshotFiles(dir)).toEqual(before.index);
   });
