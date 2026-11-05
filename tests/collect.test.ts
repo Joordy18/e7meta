@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collect } from '../scripts/collect/collect';
@@ -10,7 +10,7 @@ const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
 type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
-  repeatPage?: boolean; endless?: boolean; failAll?: boolean };
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[] };
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -33,7 +33,10 @@ function fake(o: Opts = {}) {
         return ok({ ...heroListFx.value, current_page: n, guide_list: all.slice(50 * (n - 1), 50 * n) });
       }
       if (o.failAll || o.failHeroes?.includes(params.hero_code)) throw new Error('boom');
-      if (path === 'wearing-status/hero-equip-ranking') return fx('hero-equip-ranking');
+      if (path === 'wearing-status/hero-equip-ranking') {
+        const raw = fx('hero-equip-ranking');
+        return o.emptyEquipFor?.includes(params.hero_code) ? ok({ ...raw.value, guide_list: [] }) : raw;
+      }
       if (path === 'wearing-status/hero-artifact-ranking') return fx('hero-artifact-ranking');
       if (path === 'hunt/hero-detail-for-game') {
         if (o.failDetail) throw new Error('detail down');
@@ -179,6 +182,34 @@ describe('collect', () => {
     expect(logs.some((m) => /^unexpected detail error for .*detail down/.test(m))).toBe(true);
   });
 
+  it('names combos from the first non-empty set-name map, not only the first hero', async () => {
+    const { client, heroes } = fake({ emptyEquipFor: [fake().heroes[0].hero_code] });
+    expect(await collect({ outDir: dir, client })).toBe('written');
+    expect(read('2026-10-22', 'hero', `${heroes[0].hero_code}.json`).detail.combos[0].sets).toEqual(['set_immune', 'set_riposte']);
+    expect(read('2026-10-22', 'hero', `${heroes[1].hero_code}.json`).detail.combos[0].sets).toEqual(['Set Immunité', 'Set Réaction']);
+  });
+
+  it('does not skip a period whose heroes.json exists but the index does not list it', async () => {
+    await collect({ outDir: dir, client: fake().client });
+    writeFileSync(join(dir, 'index.json'), JSON.stringify({ periods: [] }));
+    const { client, calls } = fake();
+    expect(await collect({ outDir: dir, client })).toBe('written');
+    expect(calls.map((c) => c.path)).toContain('wearing-status/hero-list');
+    expect(read('index.json')).toEqual({ periods: ['2026-10-22'] });
+  });
+
+  it('survives a corrupt index.json: warns and rebuilds it from the period folders on disk', async () => {
+    mkdirSync(join(dir, '2026-10-15'));
+    writeFileSync(join(dir, '2026-10-15', 'heroes.json'), '[]');
+    mkdirSync(join(dir, '2026-10-08')); // no heroes.json: not a period
+    mkdirSync(join(dir, 'notes'));
+    writeFileSync(join(dir, 'index.json'), '{"periods": [');
+    const logs: string[] = [];
+    expect(await collect({ outDir: dir, client: fake().client, log: (m) => logs.push(m) })).toBe('written');
+    expect(read('index.json')).toEqual({ periods: ['2026-10-22', '2026-10-15'] });
+    expect(logs.some((m) => /index\.json is unreadable/.test(m))).toBe(true);
+  });
+
   // Regression: the real client (stubbed fetch) feeding the real mappers. A fake client returning
   // envelopes hid a double unwrap that crashed the first live run.
   it('runs end to end with the real createClient over a stubbed fetch', async () => {
@@ -194,6 +225,6 @@ describe('collect', () => {
     const code = read('2026-10-22', 'heroes.json')[0].code;
     const snap = read('2026-10-22', 'hero', `${code}.json`);
     expect(snap.sets[0].share).toBe(23.86);
-    expect(snap.detail.combos[0].share).toBe(29.9);
+    expect(snap.detail.combos[0].share).toBe(39.2);
   });
 });

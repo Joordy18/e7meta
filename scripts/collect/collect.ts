@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
@@ -15,6 +15,27 @@ const writeJson = async (p: string, data: unknown) => {
   await mkdir(join(p, '..'), { recursive: true });
   await writeFile(p, JSON.stringify(data));
 };
+
+/** Period folders on disk (YYYY-MM-DD holding a heroes.json), used to rebuild a missing or corrupt index. */
+async function periodsOnDisk(outDir: string): Promise<string[]> {
+  const dirs = await readdir(outDir, { withFileTypes: true }).catch(() => []);
+  const found: string[] = [];
+  for (const d of dirs) {
+    if (d.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(d.name) && (await exists(join(outDir, d.name, 'heroes.json')))) found.push(d.name);
+  }
+  return found;
+}
+
+/** Periods listed by index.json; a missing or unreadable file lists none (unreadable is logged). */
+async function readIndex(path: string, log: (m: string) => void): Promise<{ periods: string[]; valid: boolean }> {
+  if (!(await exists(path))) return { periods: [], valid: false };
+  try {
+    const periods = JSON.parse(await readFile(path, 'utf8'))?.periods;
+    if (Array.isArray(periods) && periods.every((p) => typeof p === 'string')) return { periods, valid: true };
+  } catch { /* falls through to the warning */ }
+  log(`warning: ${path} is unreadable, rebuilding it from the period folders on disk`);
+  return { periods: [], valid: false };
+}
 
 async function fetchHeroList(client: Client, log: (m: string) => void): Promise<HeroSummary[]> {
   const byCode = new Map<string, HeroSummary>();
@@ -43,7 +64,10 @@ export async function collect(opts: {
   const period = mapPeriod(await client.get(`${WEARING}last-update-time`, {}));
   const huntPeriod = mapPeriod(await client.get('hunt/last-update-time', {}));
   const snapDir = join(outDir, period.start);
-  if (!force && (await exists(join(snapDir, 'heroes.json')))) {
+  const indexPath = join(outDir, 'index.json');
+  const prev = await readIndex(indexPath, log);
+  // heroes.json is written before the index: a period only counts as collected once the index lists it too
+  if (!force && prev.periods.includes(period.start) && (await exists(join(snapDir, 'heroes.json')))) {
     log(`period ${period.start} already collected`);
     return 'skipped';
   }
@@ -61,7 +85,10 @@ export async function collect(opts: {
       const params = { ...wearingParams, hero_code: hero.code };
       const equipRaw = await client.get(`${WEARING}hero-equip-ranking`, params);
       const artifactRaw = await client.get(`${WEARING}hero-artifact-ranking`, params);
-      setNames ??= mapSetNames(equipRaw);
+      if (!setNames) {
+        const names = mapSetNames(equipRaw);
+        if (Object.keys(names).length > 0) setNames = names; // an empty ranking must not freeze an empty map
+      }
       const snap: HeroSnapshot = {
         hero, period, sets: mapShares(equipRaw, 'set'), artifacts: mapShares(artifactRaw, 'artifact'),
       };
@@ -70,7 +97,7 @@ export async function collect(opts: {
           world_code: 'world_global', stage: '1', lang_code: 'fr', hero_code: hero.code,
           strategy_type: '0', boss_type: '1',
         });
-        const detail = mapDetail(detailRaw, huntPeriod, setNames);
+        const detail = mapDetail(detailRaw, huntPeriod, setNames ?? {});
         if (detail) snap.detail = detail;
         else {
           noDetail++;
@@ -99,9 +126,8 @@ export async function collect(opts: {
 
   for (const snap of done) await writeJson(join(snapDir, 'hero', `${snap.hero.code}.json`), snap);
   await writeJson(join(snapDir, 'heroes.json'), done.map((s) => s.hero));
-  const indexPath = join(outDir, 'index.json');
-  const prev: Index = (await exists(indexPath)) ? JSON.parse(await readFile(indexPath, 'utf8')) : { periods: [] };
-  const periods = [...new Set([period.start, ...prev.periods])].sort().reverse();
+  const known = prev.valid ? prev.periods : await periodsOnDisk(outDir);
+  const periods = [...new Set([period.start, ...known])].sort().reverse();
   await writeJson(indexPath, { periods } satisfies Index);
   return 'written';
 }

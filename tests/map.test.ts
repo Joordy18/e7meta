@@ -57,7 +57,28 @@ describe('mapDetail', () => {
   const d = mapDetail(detail, period, names)!;
   it('maps combos through set_<code>', () => {
     expect(d.period).toEqual(period);
-    expect(d.combos[0]).toEqual({ sets: ['Set Immunité', 'Set Réaction'], share: 29.9 });
+    expect(d.combos[0]).toEqual({ sets: ['Set Immunité', 'Set Réaction'], share: 39.2 }); // 29.9 + 9.3, reversed order merged
+  });
+  it('merges reversed combos and keeps a different pair separate', () => {
+    expect(d.combos).toHaveLength(2);
+    expect(d.combos[1]).toEqual({ sets: ['set_max_hp', 'Set Réaction'], share: 7.3 });
+  });
+  it('keeps the display order of the highest-share variant and re-sorts', () => {
+    const raw = { code: 0, value: { ...detail.value, hero_eqips: [
+      { rank_sets: 'a,b', eqip_rank_share: 5 }, { rank_sets: 'c,d', eqip_rank_share: 8 }, { rank_sets: 'b,a', eqip_rank_share: 6.1 },
+    ] } };
+    expect(mapDetail(raw, period, {})!.combos).toEqual([
+      { sets: ['set_b', 'set_a'], share: 11.1 }, { sets: ['set_c', 'set_d'], share: 8 },
+    ]);
+  });
+  it('drops the empty filler rows the hunt API pads with', () => {
+    const raw = { code: 0, value: { ...detail.value,
+      hero_eqips: [detail.value.hero_eqips[0], { eqip_rank_share: 0.0 }, { eqip_rank_share: 0.0 }],
+      hero_arti: [detail.value.hero_arti[0], { arti_rank_share: 0.0 }, { arti_rank_share: 0.0 }] } };
+    const f = mapDetail(raw, period, names)!;
+    expect(f.combos).toEqual([{ sets: ['Set Immunité', 'Set Réaction'], share: 29.9 }]);
+    expect(f.artifacts).toHaveLength(1);
+    expect(JSON.stringify(f)).not.toContain('set_undefined');
   });
   it('maps artifacts', () => {
     expect(d.artifacts[0]).toEqual({ code: 'efa29', name: 'Murmure dangereux', share: 91.5 });

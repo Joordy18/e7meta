@@ -46,8 +46,8 @@ describe('HeroPage', () => {
     const hunts = region('Source : chasses');
     expect(within(hunts).getByText('du 2026-10-29 au 2026-11-04')).toBeTruthy();
     const combos = within(hunts).getAllByRole('meter').filter((m) => m.textContent?.includes('+'));
-    expect(combos).toHaveLength(3);
-    expect(combos[0].textContent).toContain('29,9 %');
+    expect(combos).toHaveLength(2);
+    expect(combos[0].textContent).toContain('39,2 %');
     expect(within(hunts).getByText('91,5 %')).toBeTruthy();
   });
 
