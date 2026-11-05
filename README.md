@@ -10,6 +10,12 @@ Build stats for Epic Seven: for every hero, the gear sets and artifacts players 
 - `npm run overlay:smoke`: check that the overlay starts and loads the data (prints `SMOKE OK`).
 - `npm test`: run the tests. `npm run build` builds the static site.
 
+## What the site shows
+
+- **Heroes**: every hero, with search, filters and a sort by top set or artifact share. A hero page has the gear ranking (sets, artifacts), the hunt statistics (set combinations, artifacts, a stat targets table with typical / median / top 25% / top 10% values, and histograms) and where the hero is used in other modes.
+- **Modes**: how often each hero is used in hunts (5 bosses, 3 difficulties), the abyss (every tenth floor) and expeditions (5 bosses, 3 levels), plus the latest Rift season.
+- **Guides**: short articles. To add one, create `src/content/guides/<slug>.md` starting with a front matter block (`title`, `summary`, `date: YYYY-MM-DD`), then Markdown (headings, lists, bold, italic, code, links, quotes). The tests check every guide and its internal links.
+
 ## Daily collection (Windows)
 
 Rankings change once a week; a daily run costs only 2 API calls while the week is unchanged.
@@ -26,6 +32,8 @@ It runs `scripts/collect-daily.cmd` (output in `collect.log`, ignored by git). N
 Snapshots live in `public/data/<period>/` (`heroes.json` and `hero/<code>.json`); the list of periods is `public/data/index.json`. They are versioned in git.
 
 The numbers come from the game's official public API (`api.onstove.com`), which is undocumented and may change without notice. Check its terms of use before publishing the site.
+
+Each period folder also holds `modes.json` (the mode rankings and the Rift season). It is refreshed by `npm run collect` whenever the hunt week changes, even when the hero snapshot is already up to date.
 
 The two sources do not share a period: gear rankings and the detailed hunt statistics (set combinations, stat spread) are updated separately, so every block shows its own period.
 

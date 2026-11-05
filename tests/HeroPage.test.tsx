@@ -77,6 +77,8 @@ describe('HeroPage', () => {
     const crit = within(rows[4]).getAllByRole('cell').map((c) => c.textContent!);
     expect(crit[0]).toMatch(/^\d+–\d+%$/); // a range, with the unit on percentage stats
     expect(crit[2]).toMatch(/^\d+%\+$/); // a lower bound: "from here up"
+    const eff = within(rows[6]).getAllByRole('cell').map((c) => c.textContent!);
+    expect(eff[2]).toBe('Any'); // most players sit at the minimum: no threshold to chase
     const health = within(rows[2]).getAllByRole('cell').map((c) => c.textContent!);
     expect(health[0]).toMatch(/^[\d,]+–[\d,]+$/); // thousands separated, no unit
   });

@@ -15,6 +15,8 @@ const STATS: [StatKey, string][] = [
 ];
 const PERCENT_STATS = new Set<StatKey>(['critChance', 'critDamage', 'effectiveness', 'effectResistance']);
 const num = (n: number) => n.toLocaleString('en-US');
+/** "X+" for a lower bound; "Any" when the bound is the stat's minimum (nobody is held back by this stat). */
+const from = (stat: StatKey, edge: number, unit: string) => (edge <= STAT_RANGES[stat][0] ? 'Any' : `${num(edge)}${unit}+`);
 const range = (p: Period) => `${p.start} to ${p.end}`;
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
@@ -54,8 +56,8 @@ function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
                 <>
                   <td>{num(t.typical[0])}–{num(t.typical[1])}{u}</td>
                   <td>{num(t.median[0])}–{num(t.median[1])}{u}</td>
-                  <td>{num(t.top25)}{u}+</td>
-                  <td>{num(t.top10)}{u}+</td>
+                  <td>{from(k, t.top25, u)}</td>
+                  <td>{from(k, t.top10, u)}</td>
                 </>
               ) : <td colSpan={4}>No data</td>}
             </tr>

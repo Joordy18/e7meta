@@ -113,7 +113,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .targets thead th { color: var(--mute); font-size: 13px; font-weight: 600; }
 .targets tbody th { text-align: left; font-weight: 600; }
 .targets td:nth-child(4), .targets td:nth-child(5) { color: var(--gold); font-weight: 700; }
-.targets thead th:first-child, .targets tbody th { padding-left: 0; }
+.targets thead th:first-child, .targets tbody th { padding-left: 0; text-align: left; }
 .panel.wide { overflow-x: auto; }
 
 /* stat histograms: the most common bucket is gold */

@@ -19,6 +19,7 @@ export default function App() {
     addEventListener('hashchange', onHash);
     return () => removeEventListener('hashchange', onHash);
   }, []);
+  useEffect(() => { window.scrollTo?.(0, 0); }, [hash]); // a new page starts at the top
   useEffect(() => { loadIndex().then((i) => setLatest(i?.periods[0] ?? null)).catch(() => {}); }, []);
 
   const code = HERO_ROUTE.exec(hash)?.[1];
