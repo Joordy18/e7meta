@@ -21,11 +21,16 @@ async function getJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// null = no data yet: 404, or the HTML fallback vite dev serves (200 text/html) for a missing file.
 export async function loadIndex(): Promise<Index | null> {
   const res = await fetch('/data/index.json');
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`index.json: HTTP ${res.status}`);
-  return res.json() as Promise<Index>;
+  if (!(res.headers.get('content-type') ?? '').includes('json')) return null;
+  const body: unknown = await res.json();
+  const periods = (body as Partial<Index> | null)?.periods;
+  if (!Array.isArray(periods) || !periods.every((p) => typeof p === 'string')) throw new Error('index.json: unexpected shape');
+  return { periods };
 }
 
 export const loadHeroes = (period: string) => getJson<HeroSummary[]>(`${period}/heroes.json`);

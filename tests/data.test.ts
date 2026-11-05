@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { filterHeroes, normalize } from '../src/lib/data';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { filterHeroes, loadIndex, normalize } from '../src/lib/data';
 import type { HeroSummary } from '../src/shared/types';
 
 const h = (code: string, name: string, grade: number, job: string, element: string): HeroSummary => ({ code, name, grade, job, element });
@@ -23,5 +23,32 @@ describe('filterHeroes', () => {
     expect(f({ job: 'warrior', grade: 4 })).toEqual(['c3']);
     expect(f({ job: 'knight', element: 'fire' })).toEqual([]);
     expect(f({ text: 'a', element: 'ice', grade: 5 })).toEqual(['c2']);
+  });
+});
+
+describe('loadIndex', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stub = (res: Response) => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
+  const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+
+  it('returns null on 404', async () => {
+    stub(new Response('', { status: 404 }));
+    expect(await loadIndex()).toBeNull();
+  });
+  it('throws on 500', async () => {
+    stub(new Response('', { status: 500 }));
+    await expect(loadIndex()).rejects.toThrow();
+  });
+  it('returns a valid index', async () => {
+    stub(json({ periods: ['2026-11-02'] }));
+    expect(await loadIndex()).toEqual({ periods: ['2026-11-02'] });
+  });
+  it('treats the vite dev HTML fallback (200 text/html) as missing', async () => {
+    stub(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+    expect(await loadIndex()).toBeNull();
+  });
+  it('throws on a JSON body of the wrong shape', async () => {
+    stub(json({ nope: 1 }));
+    await expect(loadIndex()).rejects.toThrow();
   });
 });
