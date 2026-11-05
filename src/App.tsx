@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { loadIndex } from './lib/data';
 import HeroList from './pages/HeroList';
 import HeroPage from './pages/HeroPage';
+import ModesPage from './pages/ModesPage';
 
 const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 
@@ -23,9 +24,13 @@ export default function App() {
     <>
       <header className="top">
         <a className="logo" href="#/">E7 Meta</a>
+        <nav aria-label="Main">
+          <a href="#/" aria-current={!hash.startsWith('#/modes') ? 'page' : undefined}>Heroes</a>
+          <a href="#/modes" aria-current={hash.startsWith('#/modes') ? 'page' : undefined}>Modes</a>
+        </nav>
         {latest && <span className="week">Data: week of {latest}</span>}
       </header>
-      <main>{code ? <HeroPage code={safeDecode(code)} /> : <HeroList />}</main>
+      <main>{code ? <HeroPage code={safeDecode(code)} /> : hash === '#/modes' ? <ModesPage /> : <HeroList />}</main>
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeroFace } from '../components/Art';
 import Bars from '../components/Bars';
-import { NotFoundError, loadHero, loadIndex } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadHero, loadIndex, loadModes, type ModeUsage } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
 import { statTarget } from '../lib/statTargets';
 import { STAT_RANGES } from '../shared/stats';
@@ -79,6 +79,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [periods, setPeriods] = useState<string[]>([]);
   const [period, setPeriod] = useState('');
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [usage, setUsage] = useState<ModeUsage[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -102,6 +103,15 @@ export default function HeroPage({ code }: { code: string }) {
         status: 'error',
         message: e instanceof NotFoundError ? 'No data for this hero in this period' : `Failed to load: ${String(e)}`,
       }));
+    return () => { live = false; };
+  }, [period, code]);
+
+  // other game modes are a bonus block: any failure or missing file just hides it
+  useEffect(() => {
+    if (!period) return;
+    let live = true;
+    setUsage([]);
+    loadModes(period).then((m) => live && setUsage(m ? heroModeUsage(m, code) : [])).catch(() => {});
     return () => { live = false; };
   }, [period, code]);
 
@@ -145,6 +155,19 @@ export default function HeroPage({ code }: { code: string }) {
               </Panel>
             </div>
           </section>
+          {usage.length > 0 && (
+            <section aria-label="Other game modes" className="source">
+              <header>
+                <h2>Other game modes</h2>
+                <p className="period-chip">hero success rate, best first</p>
+              </header>
+              <div className="panels">
+                <Panel title="Where it is used">
+                  <Bars items={top(usage, 8).map((u) => ({ label: `#${u.rank} ${u.title}`, value: u.share }))} />
+                </Panel>
+              </div>
+            </section>
+          )}
           {h.detail && (
             <section aria-label="Source: hunts" className="source">
               <header>

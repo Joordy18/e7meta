@@ -3,15 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { NotFoundError, loadHero, loadIndex, loadHeroes } from '../src/lib/data';
+import { NotFoundError, loadHero, loadIndex, loadHeroes, loadModes } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(),
 }));
-beforeEach(() => vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] }));
+beforeEach(() => {
+  vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
+  vi.mocked(loadModes).mockResolvedValue(null);
+});
 afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
@@ -126,6 +129,26 @@ describe('HeroPage', () => {
     render(<HeroPage code="c1176" />);
     expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
     expect(within(region('Set combinations')).getAllByRole('meter')[0].textContent).toContain('39.2%');
+  });
+
+  it('shows where the hero is used in other game modes, best first, with its rank', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [
+      { id: 'a', mode: 'abyss', title: 'Abyss, floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'c1176', name: 'Setsuka', share: 20.5 }] },
+      { id: 'b', mode: 'hunts', title: 'Golem Hunt, Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
+    ] });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Other game modes' });
+    const rows = within(panel).getAllByRole('meter');
+    expect(rows.map((r) => r.textContent)).toEqual(['#1 Golem Hunt, Hell45%', '#2 Abyss, floor 12020.5%']);
+    expect(loadModes).toHaveBeenCalledWith('2026-10-29');
+  });
+
+  it('leaves out the other-modes block when the hero is in no list or there is no mode data', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    expect(screen.queryByRole('region', { name: 'Other game modes' })).toBeNull();
   });
 
   it('tells how to collect when there is no index', async () => {

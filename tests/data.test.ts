@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NotFoundError, filterHeroes, sortHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
+import { NotFoundError, filterHeroes, heroModeUsage, loadModes, sortHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
 import type { HeroSummary } from '../src/shared/types';
 
 const h = (code: string, name: string, grade: number, job: string, element: string): HeroSummary => ({ code, name, grade, job, element });
@@ -97,5 +97,42 @@ describe('loadHeroes / loadHero', () => {
     f.mockResolvedValue(new Response('[]', { headers: { 'content-type': 'application/json' } }));
     await loadHeroes('2026-10-22');
     expect(f).toHaveBeenLastCalledWith('/e7/data/2026-10-22/heroes.json');
+  });
+});
+
+describe('heroModeUsage', () => {
+  const modes = { key: 'k', lists: [
+    { id: 'a', mode: 'abyss' as const, title: 'Abyss, floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'h', name: 'H', share: 20 }] },
+    { id: 'b', mode: 'hunts' as const, title: 'Golem Hunt, Hell', heroes: [{ code: 'h', name: 'H', share: 45.5 }] },
+    { id: 'c', mode: 'expedition' as const, title: 'Moroi Expedition, level 1', heroes: [{ code: 'x', name: 'X', share: 9 }] },
+  ] };
+  it('lists the modes a hero appears in, highest share first, with its rank in each', () => {
+    expect(heroModeUsage(modes, 'h')).toEqual([
+      { id: 'b', mode: 'hunts', title: 'Golem Hunt, Hell', share: 45.5, rank: 1 },
+      { id: 'a', mode: 'abyss', title: 'Abyss, floor 120', share: 20, rank: 2 },
+    ]);
+  });
+  it('is empty for a hero that no list mentions', () => expect(heroModeUsage(modes, 'zzz')).toEqual([]));
+});
+
+describe('loadModes', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stub = (res: Response) => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res));
+  const json = (body: unknown, init: ResponseInit = {}) =>
+    new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' }, ...init });
+  it('returns the modes of a period', async () => {
+    stub(json({ key: 'k', lists: [] }));
+    expect(await loadModes('2026-10-22')).toEqual({ key: 'k', lists: [] });
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain('data/2026-10-22/modes.json');
+  });
+  it('returns null when the period has no modes file (404, or the dev server HTML fallback)', async () => {
+    stub(new Response('', { status: 404 }));
+    expect(await loadModes('2026-10-22')).toBeNull();
+    stub(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+    expect(await loadModes('2026-10-22')).toBeNull();
+  });
+  it('throws on a server error', async () => {
+    stub(new Response('', { status: 500 }));
+    await expect(loadModes('2026-10-22')).rejects.toThrow(/500/);
   });
 });
