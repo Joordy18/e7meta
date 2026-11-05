@@ -141,9 +141,9 @@ describe('loadTeams / loadGear', () => {
   afterEach(() => vi.unstubAllGlobals());
   const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
   it('read teams.json and gear.json of a period', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({ key: 'k', lists: {} })).mockResolvedValueOnce(json({ key: 'g', artifacts: {}, sets: {} })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({ key: 'k', lists: {} })).mockResolvedValueOnce(json({ key: 'g', artifacts: {} })));
     expect(await loadTeams('2026-10-22')).toEqual({ key: 'k', lists: {} });
-    expect(await loadGear('2026-10-22')).toEqual({ key: 'g', artifacts: {}, sets: {} });
+    expect(await loadGear('2026-10-22')).toEqual({ key: 'g', artifacts: {} });
     expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0]))).toEqual([
       expect.stringContaining('data/2026-10-22/teams.json'), expect.stringContaining('data/2026-10-22/gear.json'),
     ]);

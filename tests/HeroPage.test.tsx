@@ -148,11 +148,11 @@ describe('HeroPage', () => {
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
   });
 
-  it('links sets and artifacts to their own pages', async () => {
+  it('links artifacts to their pages, but not the sets of a build', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);
     const equip = await screen.findByRole('region', { name: 'Source: gear ranking' });
-    expect(within(within(equip).getByRole('region', { name: 'Sets' })).getAllByRole('link')[0].getAttribute('href')).toBe('#/set/set_riposte');
+    expect(within(within(equip).getByRole('region', { name: 'Sets' })).queryAllByRole('link')).toHaveLength(0);
     expect(within(within(equip).getByRole('region', { name: 'Artifacts' })).getAllByRole('link')[0].getAttribute('href')).toBe('#/artifact/efa29');
     const hunts = screen.getByRole('region', { name: 'Source: hunts' });
     expect(within(hunts).getAllByRole('link').some((a) => a.getAttribute('href') === '#/artifact/efa29')).toBe(true);

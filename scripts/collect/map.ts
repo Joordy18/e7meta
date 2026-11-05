@@ -1,6 +1,6 @@
 import { unwrap } from './api';
 import type {
-  ArtifactEntry, HeroDetail, HeroSummary, ArtifactInfo, ModeEntry, Period, RiftInfo, SetCombo, SetInfo, ShareEntry, StatDistribution, Team,
+  ArtifactEntry, HeroDetail, HeroSummary, ArtifactInfo, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution, Team,
 } from '../../src/shared/types';
 
 const list = (raw: unknown): any[] => unwrap<any>(raw).guide_list ?? [];
@@ -128,8 +128,4 @@ export function mapArtifactList(raw: unknown): Omit<ArtifactInfo, 'heroes'>[] {
       description: a.info_text, values,
     };
   });
-}
-
-export function mapSetList(raw: unknown): Omit<SetInfo, 'heroes'>[] {
-  return list(raw).map((e) => ({ code: e.equip_code, name: e.equip_name, effect: e.equip_effect }));
 }

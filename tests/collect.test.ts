@@ -32,11 +32,10 @@ function fake(o: Opts = {}) {
         if (path === 'crack/info') return fx('rift-info');
         return fx('hunt-last-update-time'); // abyss/last-update-time
       }
-      if (/^wearing-status\/(artifact-list|artifact-hero-ranking|equip-list|equip-hero-ranking)$/.test(path)) {
+      if (/^wearing-status\/(artifact-list|artifact-hero-ranking)$/.test(path)) {
         if (o.noGear) throw new Error('gear down');
         if (path.endsWith('artifact-list')) return Number(params.current_page) === 1 ? fx('gear-artifact-list') : ok({ guide_list: [] });
-        if (path.endsWith('equip-list')) return fx('gear-set-list');
-        return fx(path.endsWith('artifact-hero-ranking') ? 'gear-artifact-heroes' : 'gear-set-heroes');
+        return fx('gear-artifact-heroes');
       }
       if (/team-ranking$/.test(path)) {
         if (o.noTeams) throw new Error('teams down');
@@ -375,10 +374,10 @@ describe('collect', () => {
     expect(pick('expedition-5-3')).toMatchObject({ group: 'Moroi Expedition', variant: 'Level 3' });
   });
 
-  describe('gear catalog (artifacts and sets)', () => {
-    const gearCalls = (calls: { path: string }[]) => calls.filter((c) => /artifact-list|artifact-hero|equip-list|equip-hero/.test(c.path));
+  describe('artifact catalog', () => {
+    const gearCalls = (calls: { path: string }[]) => calls.filter((c) => /artifact-list|artifact-hero/.test(c.path));
 
-    it('writes gear.json: every artifact and set with its stats, description and the heroes wearing it most', async () => {
+    it('writes gear.json: every artifact with its stats, description and the heroes wearing it most', async () => {
       const { client, calls } = fake();
       await collect({ outDir: dir, client });
       const g = read('2026-10-22', 'gear.json');
@@ -387,19 +386,15 @@ describe('collect', () => {
       expect(g.artifacts.efk21).toMatchObject({ name: '3F', job: 'knight', grade: 5, attack: 9, health: 76, maxAttack: 117, maxHealth: 988 });
       expect(g.artifacts.efk21.heroes).toHaveLength(5);
       expect(g.artifacts.efk21.heroes[0]).toMatchObject({ code: 'c1176', name: 'Setsuka' });
-      expect(Object.keys(g.sets)).toEqual(['set_att', 'set_counter', 'set_cri']);
-      expect(g.sets.set_att).toMatchObject({ name: 'Attack Set', effect: 'Attack increases by 45%.' });
-      expect(g.sets.set_att.heroes).toHaveLength(5);
-      // 2 catalog pages (the second one is empty), then one call per artifact and per set
+      // 2 catalog pages (the second one is empty), then one call per artifact
       expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-list'))).toHaveLength(2);
       expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-hero-ranking'))).toHaveLength(3);
-      expect(gearCalls(calls).filter((c) => c.path.endsWith('equip-hero-ranking'))).toHaveLength(3);
     });
 
-    it('keeps at most 10 heroes per artifact or set', async () => {
+    it('keeps at most 10 heroes per artifact', async () => {
       await collect({ outDir: dir, client: fake().client });
       const g = read('2026-10-22', 'gear.json');
-      for (const x of [...Object.values(g.artifacts), ...Object.values(g.sets)] as { heroes: unknown[] }[]) expect(x.heroes.length).toBeLessThanOrEqual(10);
+      for (const x of Object.values(g.artifacts) as { heroes: unknown[] }[]) expect(x.heroes.length).toBeLessThanOrEqual(10);
     });
 
     it('never blocks the snapshot when the gear endpoints fail', async () => {

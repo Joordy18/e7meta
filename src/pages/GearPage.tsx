@@ -3,7 +3,7 @@ import { HeroIcon, Icon } from '../components/Art';
 import { formatValue } from '../components/Bars';
 import { loadGear, loadIndex } from '../lib/data';
 import { describeArtifact } from '../lib/gear';
-import { artifactIcon, setIcon } from '../lib/images';
+import { artifactIcon } from '../lib/images';
 import type { Gear, ModeEntry } from '../shared/types';
 import { jobLabel } from './HeroList';
 
@@ -92,30 +92,6 @@ export function ArtifactPage({ code }: { code: string }) {
               ) : <p>{describeArtifact(a.description, a.values, 'max')}</p>}
             </section>
             <Wearers heroes={a.heroes} />
-          </div>
-        </>
-      )}
-    </Frame>
-  );
-}
-
-export function SetPage({ code }: { code: string }) {
-  const state = useGear();
-  const s = state.status === 'ok' ? state.gear.sets[code] : undefined;
-  return (
-    <Frame state={state} missing={state.status === 'ok' && !s ? 'Unknown set' : null}>
-      {s && (
-        <>
-          <div className="hero-head">
-            <Icon src={setIcon(s.code)} className="gear-icon" />
-            <h1>{s.name}</h1>
-          </div>
-          <div className="panels">
-            <section aria-label="Effect" className="panel">
-              <h3>Effect</h3>
-              <p>{s.effect}</p>
-            </section>
-            <Wearers heroes={s.heroes} />
           </div>
         </>
       )}

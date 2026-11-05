@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { ArtifactPage, SetPage } from '../src/pages/GearPage';
+import { ArtifactPage } from '../src/pages/GearPage';
 import { loadGear, loadIndex } from '../src/lib/data';
 import type { Gear } from '../src/shared/types';
 
@@ -22,9 +22,6 @@ const gear: Gear = {
       code: 'efk23', name: 'A Precious Connection', job: 'knight', grade: 4, attack: 1, health: 2, maxAttack: 3, maxHealth: 4,
       description: 'Increases Health by 10%.', values: [], heroes: [],
     },
-  },
-  sets: {
-    set_att: { code: 'set_att', name: 'Attack Set', effect: 'Attack increases by 45%.', heroes: [{ code: 'c1', name: 'Abigail', share: 30 }] },
   },
 };
 
@@ -84,21 +81,5 @@ describe('ArtifactPage', () => {
     vi.mocked(loadGear).mockRejectedValue(new Error('boom'));
     render(<ArtifactPage code="efw21" />);
     expect(await screen.findByText(/Failed to load: .*boom/)).toBeTruthy();
-  });
-});
-
-describe('SetPage', () => {
-  it('shows the set, its effect and who wears it most', async () => {
-    vi.mocked(loadGear).mockResolvedValue(gear);
-    render(<SetPage code="set_att" />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Attack Set' })).toBeTruthy();
-    expect(screen.getByText('Attack increases by 45%.')).toBeTruthy();
-    const rows = within(screen.getByRole('region', { name: 'Worn most by' })).getAllByRole('listitem');
-    expect(within(rows[0]).getByRole('link', { name: 'Abigail' }).getAttribute('href')).toBe('#/hero/c1');
-  });
-  it('says so for an unknown set', async () => {
-    vi.mocked(loadGear).mockResolvedValue(gear);
-    render(<SetPage code="nope" />);
-    expect(await screen.findByText('Unknown set')).toBeTruthy();
   });
 });

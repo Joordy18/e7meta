@@ -163,7 +163,7 @@ export default function HeroPage({ code }: { code: string }) {
             </header>
             <div className="panels">
               <Panel title="Sets">
-                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)], href: `#/set/${s.code}` }))} />
+                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
               </Panel>
               <Panel title="Artifacts">
                 <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />

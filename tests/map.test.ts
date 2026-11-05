@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mapDetail, mapHeroList, mapArtifactList, mapModeList, mapPeriod, mapRift, mapSetList, mapSetNames, mapShares, mapTeams } from '../scripts/collect/map';
+import { mapDetail, mapHeroList, mapArtifactList, mapModeList, mapPeriod, mapRift, mapSetNames, mapShares, mapTeams } from '../scripts/collect/map';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const heroList = fx('hero-list');
@@ -144,7 +144,7 @@ describe('mapTeams', () => {
   });
 });
 
-describe('gear catalog', () => {
+describe('artifact catalog', () => {
   it('maps artifacts with base and max-level stats, class, stars and the level values of the description', () => {
     const [first, second] = mapArtifactList(fx('gear-artifact-list'));
     expect(first).toMatchObject({
@@ -154,10 +154,7 @@ describe('gear catalog', () => {
     expect(first.description).toContain('@ chance');
     expect(second.values).toEqual([{ level1: '8.0%', max: '16.0%' }, { level1: '8.0%', max: '16.0%' }]);
   });
-  it('maps sets with their effect text', () => {
-    expect(mapSetList(fx('gear-set-list'))[0]).toEqual({ code: 'set_att', name: 'Attack Set', effect: 'Attack increases by 45%.' });
-  });
-  it('reads the heroes wearing an artifact or set like a mode ranking (hero, name, share)', () => {
+  it('reads the heroes wearing an artifact like a mode ranking (hero, name, share)', () => {
     const l = mapModeList(fx('gear-artifact-heroes'), 'specific_gravity');
     expect(l[0]).toMatchObject({ code: 'c1176', name: 'Setsuka' });
     expect(l[0].share).toBeGreaterThan(l[1].share);

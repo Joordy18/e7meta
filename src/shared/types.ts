@@ -39,7 +39,7 @@ export type Modes = { key: string; lists: ModeList[]; rift?: RiftInfo }; // key 
 export type Team = { share: number; heroes: string[] }; // hero codes, share in %
 export type Teams = { key: string; lists: Record<string, Record<string, Team[]>> }; // list id -> hero code -> teams, best first
 
-// Artifact and set catalog, with the heroes wearing each most (same period as the gear ranking)
+// Artifact catalog, with the heroes wearing each most (same period as the gear ranking)
 export type ArtifactValue = { level1: string; max: string }; // what the nth "@" of the description stands for
 export type ArtifactInfo = {
   code: string; name: string; job: string; grade: number;
@@ -48,5 +48,4 @@ export type ArtifactInfo = {
   values: ArtifactValue[];
   heroes: ModeEntry[]; // highest share first
 };
-export type SetInfo = { code: string; name: string; effect: string; heroes: ModeEntry[] };
-export type Gear = { key: string; artifacts: Record<string, ArtifactInfo>; sets: Record<string, SetInfo> };
+export type Gear = { key: string; artifacts: Record<string, ArtifactInfo> };

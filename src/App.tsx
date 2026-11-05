@@ -4,13 +4,12 @@ import HeroList from './pages/HeroList';
 import HeroPage from './pages/HeroPage';
 import GuidesPage, { GuidePage } from './pages/GuidesPage';
 import ModesPage, { ModePage } from './pages/ModesPage';
-import { ArtifactPage, SetPage } from './pages/GearPage';
+import { ArtifactPage } from './pages/GearPage';
 
 const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 const GUIDE_ROUTE = /^#\/guides\/([^/?]+)$/;
 const MODE_ROUTE = /^#\/modes\/([^/?]+)$/;
 const ARTIFACT_ROUTE = /^#\/artifact\/([^/?]+)$/;
-const SET_ROUTE = /^#\/set\/([^/?]+)$/;
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 
@@ -23,8 +22,6 @@ function Page({ hash }: { hash: string }) {
   if (mode) return <ModePage id={safeDecode(mode)} />;
   const artifact = ARTIFACT_ROUTE.exec(hash)?.[1];
   if (artifact) return <ArtifactPage code={safeDecode(artifact)} />;
-  const set = SET_ROUTE.exec(hash)?.[1];
-  if (set) return <SetPage code={safeDecode(set)} />;
   if (hash === '#/guides') return <GuidesPage />;
   if (hash === '#/modes') return <ModesPage />;
   return <HeroList />;

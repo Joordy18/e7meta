@@ -14,7 +14,7 @@ Build stats for Epic Seven: for every hero, the gear sets and artifacts players 
 
 - **Heroes**: every hero, with search, filters and a sort by top set or artifact share. A hero page has the gear ranking (sets, artifacts), the hunt statistics (set combinations, artifacts, a stat targets table with typical / median / top 25% / top 10% values, and histograms) and where the hero is used in other modes.
 - **Modes**: a visual picker (one card per boss, one tile per floor) and, for each boss, floor or level, a page with the best teams and the heroes used most: hunts (5 bosses, 3 difficulties), the abyss (every tenth floor) and expeditions (5 bosses, 3 levels), plus the latest Rift season. A hero page lists where the hero is used and the best teams it plays in.
-- **Artifacts and sets**: every artifact or set on a hero page is a link to its page: stars, class, base and max-level stats, the effect at level 1 and at max level, and the heroes wearing it most.
+- **Artifacts**: every artifact on a hero page is a link to its page: stars, class, base and max-level stats, the effect at level 1 and at max level, and the heroes wearing it most.
 - **Guides**: short articles. A mode page links to a guide when a file named after its boss exists (`golem-hunt.md`, `wyvern-hunt.md`, `snag-lich-expedition.md`, `abyss.md`...). To add a guide, create `src/content/guides/<slug>.md` starting with a front matter block (`title`, `summary`, `date: YYYY-MM-DD`), then Markdown (headings, lists, bold, italic, code, links, quotes). The tests check every guide and its internal links.
 
 ## Daily collection (Windows)
@@ -34,7 +34,7 @@ Snapshots live in `public/data/<period>/` (`heroes.json` and `hero/<code>.json`)
 
 The numbers come from the game's official public API (`api.onstove.com`), which is undocumented and may change without notice. Check its terms of use before publishing the site.
 
-Each period folder also holds `modes.json` (the mode rankings and the Rift season), `teams.json` (the best teams of the 15 most used heroes of every mode list) and `gear.json` (the artifact and set catalog with the heroes wearing each). `modes.json` and `teams.json` are refreshed by `npm run collect` whenever the hunt week changes and `gear.json` when it is missing, even when the hero snapshot is already up to date.
+Each period folder also holds `modes.json` (the mode rankings and the Rift season), `teams.json` (the best teams of the 15 most used heroes of every mode list) and `gear.json` (the artifact catalog with the heroes wearing each). `modes.json` and `teams.json` are refreshed by `npm run collect` whenever the hunt week changes and `gear.json` when it is missing, even when the hero snapshot is already up to date.
 
 The two sources do not share a period: gear rankings and the detailed hunt statistics (set combinations, stat spread) are updated separately, so every block shows its own period.
 
