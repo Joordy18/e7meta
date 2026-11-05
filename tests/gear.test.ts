@@ -14,5 +14,10 @@ describe('describeArtifact', () => {
   it('leaves a placeholder alone when the value is missing, and turns a literal backslash-n into a space', () => {
     expect(describeArtifact('A @ and @@@.\\nB', values, 'max')).toBe('A 16.0% and @@@. B');
   });
+  it('says so when the game publishes a zero for a value (some artifacts are listed with 0.0%), instead of showing a false 0.0%', () => {
+    expect(describeArtifact('Has a @ chance.', [{ level1: '0.0%', max: '0.0%' }], 'max')).toBe('Has a (value not published) chance.');
+    expect(describeArtifact('Has a @ chance.', [{ level1: '0', max: '30.0%' }], 'level1')).toBe('Has a (value not published) chance.');
+    expect(describeArtifact('Has a @ chance.', [{ level1: '0', max: '30.0%' }], 'max')).toBe('Has a 30.0% chance.');
+  });
   it('is unchanged without placeholders', () => expect(describeArtifact('Increases Health by 10%.', [], 'max')).toBe('Increases Health by 10%.'));
 });

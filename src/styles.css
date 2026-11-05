@@ -180,6 +180,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .mode-card { position: relative; display: grid; gap: 10px; align-content: start; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
 .mode-card h3 { margin: 0; font-size: 17px; }
 .mode-card .boss { position: absolute; top: 10px; right: 10px; width: 52px; height: 52px; border-radius: 50%; }
+.mode-card:has(.boss) h3 { padding-right: 60px; }
 .top-icons { display: flex; gap: 6px; }
 .hicon { position: relative; display: inline-block; width: 36px; height: 36px; flex: none; overflow: hidden; border-radius: 8px; background: var(--raise); }
 .hicon img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -188,7 +189,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .chips a { padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--raise); color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; }
 .chips a:hover { border-color: var(--blue); }
 .chips a[aria-current='page'] { background: var(--blue-soft); border-color: var(--blue); }
-.floors { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.floors { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+.floor span { white-space: nowrap; }
 .floor { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; color: var(--text); font-weight: 600; text-decoration: none; }
 .floor:hover { border-color: var(--blue); }
 

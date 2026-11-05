@@ -6,6 +6,10 @@ import type { ArtifactValue } from '../shared/types';
  */
 export function describeArtifact(text: string, values: ArtifactValue[], at: 'level1' | 'max'): string {
   return text
-    .replace(/@+/g, (run) => values[run.length - 1]?.[at] ?? run)
+    .replace(/@+/g, (run) => {
+      const v = values[run.length - 1]?.[at];
+      if (v === undefined) return run;
+      return Number.parseFloat(v) === 0 ? '(value not published)' : v; // the game lists some effects with 0.0%
+    })
     .replace(/\\n/g, ' ');
 }
