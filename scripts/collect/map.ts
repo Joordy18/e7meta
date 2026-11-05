@@ -1,6 +1,6 @@
 import { unwrap } from './api';
 import type {
-  ArtifactEntry, HeroDetail, HeroSummary, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution,
+  ArtifactEntry, HeroDetail, HeroSummary, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution, Team,
 } from '../../src/shared/types';
 
 const list = (raw: unknown): any[] => unwrap<any>(raw).guide_list ?? [];
@@ -105,4 +105,13 @@ export function mapRift(raw: unknown): RiftInfo {
     title: v.crack_title, description: v.crack_desc, start: v.season_start_date, end: v.season_end_date,
     elements: Array.isArray(v.attribute_code) ? v.attribute_code : [],
   };
+}
+
+/** A team ranking: hero codes of each team (the selected hero comes first) and the team's share, best first. */
+export function mapTeams(raw: unknown, shareField: 'specific_gravity' | 'success_rate'): Team[] {
+  return list(raw)
+    .filter((t) => Array.isArray(t.hero_list) && t.hero_list.length > 0)
+    .map((t) => ({ share: t[shareField] as number, heroes: (t.hero_list as any[]).map((h) => h.hero_code as string) }))
+    .filter((t) => t.share > 0)
+    .sort((a, b) => b.share - a.share);
 }

@@ -31,12 +31,12 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
   const lists: ModeList[] = [];
   let failed = 0;
   const add = async (
-    id: string, mode: ModeList['mode'], title: string, period: Period | undefined,
+    id: string, mode: ModeList['mode'], group: string, variant: string, title: string, period: Period | undefined,
     path: string, params: Record<string, string>, field: 'specific_gravity' | 'success_rate',
   ) => {
     try {
       const heroes = mapModeList(await client.get(path, { ...base, ...params }), field);
-      lists.push({ id, mode, title, ...(period ? { period } : {}), heroes });
+      lists.push({ id, mode, title, group, variant, ...(period ? { period } : {}), heroes });
     } catch (e) {
       failed++;
       log(`modes: ${id} failed: ${(e as Error).message}`);
@@ -45,17 +45,17 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
 
   for (const [dungeon, boss] of HUNT_BOSSES) {
     for (const [stage, diff] of HUNT_STAGES) {
-      await add(`hunt-${dungeon}-${stage}`, 'hunts', `${boss} Hunt, ${diff}`, huntPeriod,
+      await add(`hunt-${dungeon}-${stage}`, 'hunts', `${boss} Hunt`, diff, `${boss} Hunt, ${diff}`, huntPeriod,
         'hunt/hero-ranking/all', { dungeon: String(dungeon), stage: String(stage) }, 'specific_gravity');
     }
   }
   for (const floor of ABYSS_FLOORS) {
-    await add(`abyss-${floor}`, 'abyss', `Abyss, floor ${floor}`, abyssPeriod,
+    await add(`abyss-${floor}`, 'abyss', 'Abyss', `Floor ${floor}`, `Abyss, floor ${floor}`, abyssPeriod,
       'abyss/hero-ranking/all', { floor: String(floor) }, 'specific_gravity');
   }
   for (const [boss, name] of EXPEDITION_BOSSES) {
     for (const level of EXPEDITION_LEVELS) {
-      await add(`expedition-${boss}-${level}`, 'expedition', `${name} Expedition, level ${level}`, expeditionPeriod,
+      await add(`expedition-${boss}-${level}`, 'expedition', `${name} Expedition`, `Level ${level}`, `${name} Expedition, level ${level}`, expeditionPeriod,
         'expedition/ranking/all', { boss_type: String(boss), boss_level: String(level) }, 'success_rate');
     }
   }

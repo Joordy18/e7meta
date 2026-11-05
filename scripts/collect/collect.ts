@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
 import { fetchModes } from './modes';
+import { fetchTeams } from './teams';
 import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from './map';
-import type { HeroSnapshot, HeroSummary, Index, Period } from '../../src/shared/types';
+import type { HeroSnapshot, HeroSummary, Index, Modes, Period, Teams } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
 const LANG = 'en'; // the product is in English; names in the data come in this language
@@ -58,27 +59,47 @@ async function fetchHeroList(client: Client, log: (m: string) => void): Promise<
   return [...byCode.values()];
 }
 
-/** modes.json lives in the period folder; it is refetched when it is missing or was fetched for an older hunt period. */
+/**
+ * modes.json and teams.json live in the period folder. Each is refetched when missing or fetched for an older hunt
+ * period (or when forced); teams are built from the modes, so fresh modes always mean fresh teams.
+ */
 async function refreshModes(client: Client, snapDir: string, huntPeriod: Period, log: (m: string) => void, force: boolean) {
-  const path = join(snapDir, 'modes.json');
-  if (!force) {
-    try {
-      if (JSON.parse(await readFile(path, 'utf8'))?.key === huntPeriod.start) return;
-    } catch { /* missing or unreadable: fetch it */ }
+  const modesPath = join(snapDir, 'modes.json');
+  const teamsPath = join(snapDir, 'teams.json');
+  const readJson = async <T>(p: string): Promise<T | undefined> => {
+    try { return JSON.parse(await readFile(p, 'utf8')) as T; } catch { return undefined; } // missing or unreadable: fetch it
+  };
+  let modes = force ? undefined : await readJson<Modes>(modesPath);
+  let fresh = false;
+  if (modes?.key !== huntPeriod.start) {
+    modes = await fetchModes(client, huntPeriod, log);
+    if (!modes) return;
+    await writeJson(modesPath, modes);
+    fresh = true;
   }
-  const modes = await fetchModes(client, huntPeriod, log);
-  if (modes) await writeJson(path, modes);
+  const teams = force || fresh ? undefined : await readJson<Teams>(teamsPath);
+  if (teams?.key === modes.key) return;
+  const fetched = await fetchTeams(client, modes, log);
+  if (fetched) await writeJson(teamsPath, fetched);
 }
 
 export async function collect(opts: {
-  outDir: string; client: Client; force?: boolean; log?: (m: string) => void;
+  outDir: string; client: Client; force?: boolean; modesOnly?: boolean; log?: (m: string) => void;
 }): Promise<'written' | 'skipped' | 'failed'> {
-  const { outDir, client, force = false, log = () => {} } = opts;
+  const { outDir, client, force = false, modesOnly = false, log = () => {} } = opts;
   const wearingParams = { world_code: 'world_global', lang_code: LANG, current_page: '1', is_paging: 'N' };
   const period = mapPeriod(await client.get(`${WEARING}last-update-time`, {}));
   const huntPeriod = mapPeriod(await client.get('hunt/last-update-time', {}));
   const snapDir = join(outDir, period.start);
   const indexPath = join(outDir, 'index.json');
+  if (modesOnly) {
+    if (!(await exists(join(snapDir, 'heroes.json')))) {
+      log(`no snapshot for period ${period.start}: run a full collect first`);
+      return 'failed';
+    }
+    await refreshModes(client, snapDir, huntPeriod, log, true);
+    return 'written';
+  }
   const prev = await readIndex(indexPath, log);
   // heroes.json is written before the index: a period only counts as collected once the index lists it too
   if (!force && prev.periods.includes(period.start) && (await exists(join(snapDir, 'heroes.json')))) {
@@ -156,6 +177,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     outDir: 'public/data',
     client: createClient(),
     force: process.argv.includes('--force'),
+    modesOnly: process.argv.includes('--modes'),
     log: console.log,
   });
   console.log(result);

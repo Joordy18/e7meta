@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mapDetail, mapHeroList, mapModeList, mapPeriod, mapRift, mapSetNames, mapShares } from '../scripts/collect/map';
+import { mapDetail, mapHeroList, mapModeList, mapPeriod, mapRift, mapSetNames, mapShares, mapTeams } from '../scripts/collect/map';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const heroList = fx('hero-list');
@@ -126,5 +126,20 @@ describe('mode rankings', () => {
       title: 'Nightmare of the Oceans', description: 'Only Earth elemental Heroes are allowed in this Rift.',
       start: '2026-01-08', end: '2026-08-27', elements: ['wind'],
     });
+  });
+});
+
+describe('mapTeams', () => {
+  it('maps a hunt team ranking: hero codes (selected hero first) and the share', () => {
+    expect(mapTeams(fx('team-hunt'), 'specific_gravity')[0]).toEqual({ share: 8.08, heroes: ['c1145', 'c1072', 'c1087', 'c3132'] });
+  });
+  it('reads success_rate for expeditions', () => {
+    expect(mapTeams(fx('team-expedition'), 'success_rate')[0]).toEqual({ share: 4.79, heroes: ['c1145', 'c1067', 'c1170', 'c3124'] });
+  });
+  it('keeps the best teams first and drops empty rows', () => {
+    const raw = { code: 0, value: { guide_list: [
+      { specific_gravity: 1, hero_list: [{ hero_code: 'a' }] }, { specific_gravity: 0, hero_list: [{ hero_code: 'b' }] },
+      { specific_gravity: 5, hero_list: [{ hero_code: 'c' }] }, { specific_gravity: 3 } ] } };
+    expect(mapTeams(raw, 'specific_gravity')).toEqual([{ share: 5, heroes: ['c'] }, { share: 1, heroes: ['a'] }]);
   });
 });

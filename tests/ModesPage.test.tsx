@@ -12,10 +12,10 @@ const heroes = (n: number, from = 90) => Array.from({ length: n }, (_, i) => ({ 
 const modes: Modes = {
   key: '2026-10-29',
   lists: [
-    { id: 'hunt-1-13', mode: 'hunts', title: 'Wyvern Hunt, Hell', period: { start: '2026-10-29', end: '2026-11-04' }, heroes: heroes(30) },
-    { id: 'hunt-2-13', mode: 'hunts', title: 'Golem Hunt, Hell', period: { start: '2026-10-29', end: '2026-11-04' }, heroes: [{ code: 'g', name: 'Golem Slayer', share: 55.5 }] },
-    { id: 'abyss-120', mode: 'abyss', title: 'Abyss, floor 120', period: { start: '2026-08-07', end: '2026-11-04' }, heroes: [{ code: 'f', name: 'Fenne', share: 72.32 }] },
-    { id: 'expedition-1-1', mode: 'expedition', title: 'Pherus Expedition, level 1', heroes: [{ code: 'b', name: 'Brieg', share: 50.86 }] },
+    { id: 'hunt-1-13', mode: 'hunts', title: 'Wyvern Hunt, Hell', group: 'Wyvern Hunt', variant: 'Hell', period: { start: '2026-10-29', end: '2026-11-04' }, heroes: heroes(30) },
+    { id: 'hunt-2-13', mode: 'hunts', title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', period: { start: '2026-10-29', end: '2026-11-04' }, heroes: [{ code: 'g', name: 'Golem Slayer', share: 55.5 }] },
+    { id: 'abyss-120', mode: 'abyss', title: 'Abyss, floor 120', group: 'Abyss', variant: 'Floor 120', period: { start: '2026-08-07', end: '2026-11-04' }, heroes: [{ code: 'f', name: 'Fenne', share: 72.32 }] },
+    { id: 'expedition-1-1', mode: 'expedition', title: 'Pherus Expedition, level 1', group: 'Pherus Expedition', variant: 'Level 1', heroes: [{ code: 'b', name: 'Brieg', share: 50.86 }] },
   ],
   rift: { title: 'Nightmare of the Oceans', description: 'Only Earth elemental Heroes are allowed in this Rift.', start: '2026-01-08', end: '2026-08-27', elements: ['wind'] },
 };

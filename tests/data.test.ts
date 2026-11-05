@@ -102,9 +102,9 @@ describe('loadHeroes / loadHero', () => {
 
 describe('heroModeUsage', () => {
   const modes = { key: 'k', lists: [
-    { id: 'a', mode: 'abyss' as const, title: 'Abyss, floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'h', name: 'H', share: 20 }] },
-    { id: 'b', mode: 'hunts' as const, title: 'Golem Hunt, Hell', heroes: [{ code: 'h', name: 'H', share: 45.5 }] },
-    { id: 'c', mode: 'expedition' as const, title: 'Moroi Expedition, level 1', heroes: [{ code: 'x', name: 'X', share: 9 }] },
+    { id: 'a', mode: 'abyss' as const, title: 'Abyss, floor 120', group: 'Abyss', variant: 'Floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'h', name: 'H', share: 20 }] },
+    { id: 'b', mode: 'hunts' as const, title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', heroes: [{ code: 'h', name: 'H', share: 45.5 }] },
+    { id: 'c', mode: 'expedition' as const, title: 'Moroi Expedition, level 1', group: 'Moroi Expedition', variant: 'Level 1', heroes: [{ code: 'x', name: 'X', share: 9 }] },
   ] };
   it('lists the modes a hero appears in, highest share first, with its rank in each', () => {
     expect(heroModeUsage(modes, 'h')).toEqual([

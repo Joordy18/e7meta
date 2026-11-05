@@ -10,7 +10,7 @@ const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
 type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
-  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean };
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean; noTeams?: boolean };
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -31,6 +31,10 @@ function fake(o: Opts = {}) {
         if (path === 'expedition/ranking/all') return fx('mode-expedition');
         if (path === 'crack/info') return fx('rift-info');
         return fx('hunt-last-update-time'); // abyss/last-update-time
+      }
+      if (/team-ranking$/.test(path)) {
+        if (o.noTeams) throw new Error('teams down');
+        return fx(path.startsWith('hunt') ? 'team-hunt' : path.startsWith('abyss') ? 'team-abyss' : 'team-expedition');
       }
       if (path === 'expedition/last-update-time') throw new Error('API respond 5xx status.'); // as the live API does
       if (path === 'wearing-status/hero-list') {
@@ -293,5 +297,75 @@ describe('collect', () => {
       expect(again.calls.some((c) => c.path.includes('ranking'))).toBe(false);
       expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(true);
     });
+  });
+
+  describe('team rankings', () => {
+    const teamCalls = (calls: { path: string; params: Record<string, string> }[]) => calls.filter((c) => /team-ranking$/.test(c.path));
+
+    it('writes teams.json: the best teams of each mode list for its top heroes', async () => {
+      const { client, calls } = fake();
+      await collect({ outDir: dir, client });
+      const t = read('2026-10-22', 'teams.json');
+      expect(t.key).toBe('2026-10-29');
+      expect(Object.keys(t.lists)).toHaveLength(42);
+      expect(t.lists['hunt-1-13']['c1145'][0]).toEqual({ share: 8.08, heroes: ['c1145', 'c1072', 'c1087', 'c3132'] });
+      expect(t.lists['abyss-120']['c1170'][0].share).toBe(19.09);
+      expect(t.lists['expedition-1-1']['c1145'][0].share).toBe(4.79);
+      // each list fixture has 5 heroes: 42 lists x 5 heroes, one call each
+      expect(teamCalls(calls)).toHaveLength(42 * 5);
+      expect(teamCalls(calls)[0].params).toMatchObject({ hero_code: 'c1145', current_page: '1', is_paging: 'N', dungeon: '1', stage: '13', lang_code: 'en' });
+    });
+
+    it('keeps at most 5 teams per hero', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      for (const byHero of Object.values(read('2026-10-22', 'teams.json').lists) as Record<string, unknown[]>[]) {
+        for (const teams of Object.values(byHero)) expect(teams.length).toBeLessThanOrEqual(5);
+      }
+    });
+
+    it('never blocks the snapshot or the modes when team rankings fail', async () => {
+      const logs: string[] = [];
+      expect(await collect({ outDir: dir, client: fake({ noTeams: true }).client, log: (x) => logs.push(x) })).toBe('written');
+      expect(existsSync(join(dir, '2026-10-22', 'modes.json'))).toBe(true);
+      expect(existsSync(join(dir, '2026-10-22', 'teams.json'))).toBe(false);
+      expect(logs.some((x) => /teams/.test(x))).toBe(true);
+    });
+
+    it('a skipped run fetches teams when they are missing, and leaves current ones alone', async () => {
+      await collect({ outDir: dir, client: fake({ noTeams: true }).client });
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client })).toBe('skipped');
+      expect(read('2026-10-22', 'teams.json').key).toBe('2026-10-29');
+      expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(false); // modes were current: reused, not refetched
+      const again = fake();
+      await collect({ outDir: dir, client: again.client });
+      expect(teamCalls(again.calls)).toHaveLength(0);
+    });
+
+    it('modesOnly refreshes modes and teams without touching the heroes', async () => {
+      await collect({ outDir: dir, client: fake().client });
+      const heroesBefore = readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8');
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client, modesOnly: true })).toBe('written');
+      expect(calls.some((c) => c.path === 'wearing-status/hero-list')).toBe(false);
+      expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(true);
+      expect(teamCalls(calls).length).toBeGreaterThan(0);
+      expect(readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8')).toBe(heroesBefore);
+    });
+
+    it('modesOnly fails clearly when the period has no snapshot yet', async () => {
+      const logs: string[] = [];
+      expect(await collect({ outDir: dir, client: fake().client, modesOnly: true, log: (x) => logs.push(x) })).toBe('failed');
+      expect(logs.some((x) => /no snapshot/.test(x))).toBe(true);
+    });
+  });
+
+  it('gives each mode list a group and a variant (for links and visual pickers)', async () => {
+    await collect({ outDir: dir, client: fake().client });
+    const lists = read('2026-10-22', 'modes.json').lists;
+    const pick = (id: string) => lists.find((l: { id: string }) => l.id === id);
+    expect(pick('hunt-2-13')).toMatchObject({ group: 'Golem Hunt', variant: 'Hell', title: 'Golem Hunt, Hell' });
+    expect(pick('abyss-120')).toMatchObject({ group: 'Abyss', variant: 'Floor 120', title: 'Abyss, floor 120' });
+    expect(pick('expedition-5-3')).toMatchObject({ group: 'Moroi Expedition', variant: 'Level 3' });
   });
 });

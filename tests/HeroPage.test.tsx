@@ -136,8 +136,8 @@ describe('HeroPage', () => {
   it('shows where the hero is used in other game modes, best first, with its rank', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [
-      { id: 'a', mode: 'abyss', title: 'Abyss, floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'c1176', name: 'Setsuka', share: 20.5 }] },
-      { id: 'b', mode: 'hunts', title: 'Golem Hunt, Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
+      { id: 'a', mode: 'abyss', title: 'Abyss, floor 120', group: 'Abyss', variant: 'Floor 120', heroes: [{ code: 'x', name: 'X', share: 70 }, { code: 'c1176', name: 'Setsuka', share: 20.5 }] },
+      { id: 'b', mode: 'hunts', title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
     ] });
     render(<HeroPage code="c1176" />);
     const panel = await screen.findByRole('region', { name: 'Other game modes' });

@@ -27,8 +27,14 @@ export type ModeList = {
   id: string; // e.g. hunt-1-13, abyss-120, expedition-1-1
   mode: 'hunts' | 'abyss' | 'expedition';
   title: string; // e.g. "Wyvern Hunt, Hell"
+  group: string; // the boss or mode, e.g. "Wyvern Hunt", "Abyss", "Moroi Expedition"
+  variant: string; // the difficulty, floor or level, e.g. "Hell", "Floor 120", "Level 3"
   period?: Period; // absent when the API does not say
   heroes: ModeEntry[]; // highest share first
 };
 export type RiftInfo = { title: string; description: string; start: string; end: string; elements: string[] };
 export type Modes = { key: string; lists: ModeList[]; rift?: RiftInfo }; // key = hunt period start the lists were fetched for
+
+// The best teams (up to 4 heroes) that include a given hero, per mode list. Shares are global: the same team has the same share whichever hero you start from.
+export type Team = { share: number; heroes: string[] }; // hero codes, share in %
+export type Teams = { key: string; lists: Record<string, Record<string, Team[]>> }; // list id -> hero code -> teams, best first
