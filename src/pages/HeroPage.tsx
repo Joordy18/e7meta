@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { HeroFace } from '../components/Art';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadHero, loadIndex, loadModes, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
+import { heroTeams, type HeroTeam } from '../lib/modes';
 import { statTarget } from '../lib/statTargets';
+import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
 import type { HeroSnapshot, Period, StatKey } from '../shared/types';
 import { elementLabel, jobLabel } from './HeroList';
@@ -82,6 +84,8 @@ export default function HeroPage({ code }: { code: string }) {
   const [period, setPeriod] = useState('');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
+  const [teamList, setTeamList] = useState<HeroTeam[]>([]);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let live = true;
@@ -108,12 +112,21 @@ export default function HeroPage({ code }: { code: string }) {
     return () => { live = false; };
   }, [period, code]);
 
-  // other game modes are a bonus block: any failure or missing file just hides it
+  // other game modes and teams are a bonus block: any failure or missing file just hides it
   useEffect(() => {
     if (!period) return;
     let live = true;
     setUsage([]);
-    loadModes(period).then((m) => live && setUsage(m ? heroModeUsage(m, code) : [])).catch(() => {});
+    setTeamList([]);
+    (async () => {
+      const [modes, teams, heroes] = await Promise.all([
+        loadModes(period).catch(() => null), loadTeams(period).catch(() => null), loadHeroes(period).catch(() => null),
+      ]);
+      if (!live) return;
+      setUsage(modes ? heroModeUsage(modes, code) : []);
+      setTeamList(modes && teams ? heroTeams(teams, modes, code, 6) : []);
+      setNames(new Map((heroes ?? []).map((x) => [x.code, x.name])));
+    })();
     return () => { live = false; };
   }, [period, code]);
 
@@ -150,23 +163,35 @@ export default function HeroPage({ code }: { code: string }) {
             </header>
             <div className="panels">
               <Panel title="Sets">
-                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
+                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)], href: `#/set/${s.code}` }))} />
               </Panel>
               <Panel title="Artifacts">
-                <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)] }))} />
+                <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
               </Panel>
             </div>
           </section>
-          {usage.length > 0 && (
+          {(usage.length > 0 || teamList.length > 0) && (
             <section aria-label="Other game modes" className="source">
               <header>
                 <h2>Other game modes</h2>
                 <p className="period-chip">hero success rate, best first</p>
               </header>
               <div className="panels">
-                <Panel title="Where it is used">
-                  <Bars items={top(usage, 8).map((u) => ({ label: `#${u.rank} ${u.title}`, value: u.share }))} />
-                </Panel>
+                {usage.length > 0 && (
+                  <Panel title="Where it is used">
+                    <Bars items={top(usage, 8).map((u) => ({ label: `#${u.rank} ${u.title}`, value: u.share, href: `#/modes/${u.id}` }))} />
+                  </Panel>
+                )}
+                {teamList.length > 0 && (
+                  <Panel title={`Best teams with ${h.hero.name}`}>
+                    <ol className="teams">
+                      {teamList.map((t) => (
+                        <TeamRow key={`${t.listId}-${t.team.heroes.join()}`} team={t.team} names={names}
+                          caption={<a href={`#/modes/${t.listId}`}>{t.title}</a>} />
+                      ))}
+                    </ol>
+                  </Panel>
+                )}
               </div>
             </section>
           )}
@@ -181,7 +206,7 @@ export default function HeroPage({ code }: { code: string }) {
                   <Bars items={top(h.detail.combos, 3).map((c) => ({ label: c.sets.join(' + '), value: c.share, icons: (c.codes ?? []).map(setIcon) /* periods collected before codes existed have none */ }))} />
                 </Panel>
                 <Panel title="Artifacts (hunts)">
-                  <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: a.name, value: a.share, icons: [artifactIcon(a.code)] }))} />
+                  <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: a.name, value: a.share, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
                 </Panel>
                 <Panel title="Stats" wide>
                   <TargetTable stats={h.detail.stats} />

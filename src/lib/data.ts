@@ -1,4 +1,4 @@
-import type { HeroSnapshot, HeroSummary, Index, ModeList, Modes } from '../shared/types';
+import type { Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, Teams } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -52,13 +52,17 @@ export async function loadIndex(): Promise<Index | null> {
 export const loadHeroes = (period: string) => getJson<HeroSummary[]>(`${period}/heroes.json`);
 export const loadHero = (period: string, code: string) => getJson<HeroSnapshot>(`${period}/hero/${code}.json`);
 
-/** Modes of a period; null when that period has none (collected before modes existed, or the fetch failed). */
-export async function loadModes(period: string): Promise<Modes | null> {
-  try { return await getJson<Modes>(`${period}/modes.json`); } catch (e) {
+/** An extra file of a period (modes, teams, gear); null when that period has none (collected before it existed, or the fetch failed). */
+async function loadOptional<T>(period: string, file: string): Promise<T | null> {
+  try { return await getJson<T>(`${period}/${file}`); } catch (e) {
     if (e instanceof NotFoundError) return null;
     throw e;
   }
 }
+
+export const loadModes = (period: string) => loadOptional<Modes>(period, 'modes.json');
+export const loadTeams = (period: string) => loadOptional<Teams>(period, 'teams.json');
+export const loadGear = (period: string) => loadOptional<Gear>(period, 'gear.json');
 
 export type ModeUsage = { id: string; mode: ModeList['mode']; title: string; share: number; rank: number };
 

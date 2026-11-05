@@ -3,17 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { NotFoundError, loadHero, loadIndex, loadHeroes, loadModes } from '../src/lib/data';
+import { NotFoundError, loadHero, loadIndex, loadHeroes, loadModes, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
   vi.mocked(loadModes).mockResolvedValue(null);
+  vi.mocked(loadTeams).mockResolvedValue(null);
+  vi.mocked(loadHeroes).mockResolvedValue([]);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -144,6 +146,48 @@ describe('HeroPage', () => {
     const rows = within(panel).getAllByRole('meter');
     expect(rows.map((r) => r.textContent)).toEqual(['#1 Golem Hunt, Hell45%', '#2 Abyss, floor 12020.5%']);
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
+  });
+
+  it('links sets and artifacts to their own pages', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    const equip = await screen.findByRole('region', { name: 'Source: gear ranking' });
+    expect(within(within(equip).getByRole('region', { name: 'Sets' })).getAllByRole('link')[0].getAttribute('href')).toBe('#/set/set_riposte');
+    expect(within(within(equip).getByRole('region', { name: 'Artifacts' })).getAllByRole('link')[0].getAttribute('href')).toBe('#/artifact/efa29');
+    const hunts = screen.getByRole('region', { name: 'Source: hunts' });
+    expect(within(hunts).getAllByRole('link').some((a) => a.getAttribute('href') === '#/artifact/efa29')).toBe(true);
+  });
+
+  it('links each mode a hero is used in to that mode', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [
+      { id: 'hunt-2-13', mode: 'hunts', title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
+    ] });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Other game modes' });
+    expect(within(panel).getByRole('link', { name: /Golem Hunt, Hell/ }).getAttribute('href')).toBe('#/modes/hunt-2-13');
+  });
+
+  it('shows the best teams the hero plays in, across modes, with member names and the mode they come from', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadModes).mockResolvedValue({ key: 'k', lists: [
+      { id: 'abyss-120', mode: 'abyss', title: 'Abyss, Floor 120', group: 'Abyss', variant: 'Floor 120', heroes: [{ code: 'c1176', name: 'Setsuka', share: 20 }] },
+      { id: 'hunt-2-13', mode: 'hunts', title: 'Golem Hunt, Hell', group: 'Golem Hunt', variant: 'Hell', heroes: [{ code: 'c1176', name: 'Setsuka', share: 45 }] },
+    ] });
+    vi.mocked(loadTeams).mockResolvedValue({ key: 'k', lists: {
+      'hunt-2-13': { c1176: [{ share: 8.08, heroes: ['c1176', 'a', 'b', 'c'] }] },
+      'abyss-120': { c1176: [{ share: 19.09, heroes: ['c1176', 'd', 'e', 'f'] }] },
+    } });
+    vi.mocked(loadHeroes).mockResolvedValue(['c1176:Setsuka', 'a:Ann', 'b:Bo', 'c:Cy', 'd:Di', 'e:Ed', 'f:Fay']
+      .map((x) => ({ code: x.split(':')[0], name: x.split(':')[1], grade: 5, job: 'mage', element: 'fire' })));
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Best teams with Setsuka' });
+    const rows = within(panel).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('19.09%'); // best first, whatever the mode
+    expect(within(rows[0]).getByRole('link', { name: 'Abyss, Floor 120' }).getAttribute('href')).toBe('#/modes/abyss-120');
+    expect(within(rows[0]).getAllByRole('link').slice(1).map((a) => a.textContent)).toEqual(['Setsuka', 'Di', 'Ed', 'Fay']);
+    expect(loadTeams).toHaveBeenCalledWith('2026-10-29');
   });
 
   it('leaves out the other-modes block when the hero is in no list or there is no mode data', async () => {

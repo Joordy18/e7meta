@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NotFoundError, filterHeroes, heroModeUsage, loadModes, sortHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
+import { NotFoundError, filterHeroes, heroModeUsage, loadGear, loadModes, loadTeams, sortHeroes, loadHero, loadHeroes, loadIndex, normalize } from '../src/lib/data';
 import type { HeroSummary } from '../src/shared/types';
 
 const h = (code: string, name: string, grade: number, job: string, element: string): HeroSummary => ({ code, name, grade, job, element });
@@ -134,5 +134,23 @@ describe('loadModes', () => {
   it('throws on a server error', async () => {
     stub(new Response('', { status: 500 }));
     await expect(loadModes('2026-10-22')).rejects.toThrow(/500/);
+  });
+});
+
+describe('loadTeams / loadGear', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+  it('read teams.json and gear.json of a period', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({ key: 'k', lists: {} })).mockResolvedValueOnce(json({ key: 'g', artifacts: {}, sets: {} })));
+    expect(await loadTeams('2026-10-22')).toEqual({ key: 'k', lists: {} });
+    expect(await loadGear('2026-10-22')).toEqual({ key: 'g', artifacts: {}, sets: {} });
+    expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0]))).toEqual([
+      expect.stringContaining('data/2026-10-22/teams.json'), expect.stringContaining('data/2026-10-22/gear.json'),
+    ]);
+  });
+  it('are null for a period collected before they existed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
+    expect(await loadTeams('2026-10-22')).toBeNull();
+    expect(await loadGear('2026-10-22')).toBeNull();
   });
 });
