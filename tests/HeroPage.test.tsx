@@ -60,7 +60,22 @@ describe('HeroPage', () => {
     expect(within(attack).getByText('5200')).toBeTruthy();
     const labels = ['Attack', 'Defense', 'Health', 'Speed', 'Crit chance', 'Crit damage', 'Effectiveness', 'Effect resistance'];
     expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(labels);
-    expect(screen.getByText(/Distribution in 10 buckets between min and max \(estimate\)/)).toBeTruthy();
+    expect(screen.getByText(/10 equal buckets between min and max \(estimate\)/)).toBeTruthy();
+  });
+
+  it('lists what to aim for per stat: typical range, median and where the top 25% / 10% start', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    const table = await screen.findByRole('table', { name: 'Stat targets' });
+    expect(within(table).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Stat', 'Typical', 'Median', 'Top 25% from', 'Top 10% from']);
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual(
+      ['Attack', 'Defense', 'Health', 'Speed', 'Crit chance', 'Crit damage', 'Effectiveness', 'Effect resistance']);
+    const crit = within(rows[4]).getAllByRole('cell').map((c) => c.textContent!);
+    expect(crit[0]).toMatch(/^\d+–\d+%$/); // a range, with the unit on percentage stats
+    expect(crit[2]).toMatch(/^\d+%\+$/); // a lower bound: "from here up"
+    const health = within(rows[2]).getAllByRole('cell').map((c) => c.textContent!);
+    expect(health[0]).toMatch(/^[\d,]+–[\d,]+$/); // thousands separated, no unit
   });
 
   it('omits the hunts block when detail is missing but renders the rest', async () => {

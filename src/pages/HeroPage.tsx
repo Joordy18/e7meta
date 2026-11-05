@@ -3,6 +3,7 @@ import { HeroFace } from '../components/Art';
 import Bars from '../components/Bars';
 import { NotFoundError, loadHero, loadIndex } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
+import { statTarget } from '../lib/statTargets';
 import { STAT_RANGES } from '../shared/stats';
 import type { HeroSnapshot, Period, StatKey } from '../shared/types';
 import { elementLabel, jobLabel } from './HeroList';
@@ -12,6 +13,8 @@ const STATS: [StatKey, string][] = [
   ['critChance', 'Crit chance'], ['critDamage', 'Crit damage'], ['effectiveness', 'Effectiveness'],
   ['effectResistance', 'Effect resistance'],
 ];
+const PERCENT_STATS = new Set<StatKey>(['critChance', 'critDamage', 'effectiveness', 'effectResistance']);
+const num = (n: number) => n.toLocaleString('en-US');
 const range = (p: Period) => `${p.start} to ${p.end}`;
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
@@ -31,6 +34,35 @@ function Histogram({ stat, label, counts }: { stat: StatKey; label: string; coun
       </div>
       <div className="histo-axis"><span>{lo}</span><span>{hi}</span></div>
     </div>
+  );
+}
+
+function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
+  return (
+    <table className="targets" aria-label="Stat targets">
+      <thead>
+        <tr><th>Stat</th><th>Typical</th><th>Median</th><th>Top 25% from</th><th>Top 10% from</th></tr>
+      </thead>
+      <tbody>
+        {STATS.map(([k, label]) => {
+          const t = statTarget(k, stats[k]);
+          const u = PERCENT_STATS.has(k) ? '%' : '';
+          return (
+            <tr key={k}>
+              <th scope="row">{label}</th>
+              {t ? (
+                <>
+                  <td>{num(t.typical[0])}–{num(t.typical[1])}{u}</td>
+                  <td>{num(t.median[0])}–{num(t.median[1])}{u}</td>
+                  <td>{num(t.top25)}{u}+</td>
+                  <td>{num(t.top10)}{u}+</td>
+                </>
+              ) : <td colSpan={4}>No data</td>}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -127,7 +159,11 @@ export default function HeroPage({ code }: { code: string }) {
                   <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: a.name, value: a.share, icons: [artifactIcon(a.code)] }))} />
                 </Panel>
                 <Panel title="Stats" wide>
-                  <p className="caption">Distribution in 10 buckets between min and max (estimate)</p>
+                  <TargetTable stats={h.detail.stats} />
+                  <p className="caption">
+                    Typical is where most players are. Top 25% / 10% from is where the best-equipped players start: aim for
+                    those to beat most of them. Ranges assume 10 equal buckets between min and max (estimate).
+                  </p>
                   <div className="histos">
                     {STATS.map(([k, label]) => <Histogram key={k} stat={k} label={label} counts={h.detail!.stats[k]} />)}
                   </div>

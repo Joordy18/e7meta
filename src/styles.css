@@ -91,7 +91,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
 .panel.wide { grid-column: 1 / -1; }
 .panel h3 { margin: 0 0 10px; font-size: 16px; font-weight: 650; }
-.caption { margin: -4px 0 14px; color: var(--mute); font-size: 13px; }
+.caption { margin: 10px 0 18px; color: var(--mute); font-size: 13px; }
 .empty { color: var(--mute); margin: 0; }
 
 /* share bars: the #1 row is gold */
@@ -102,6 +102,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .bar .icon { position: relative; flex: none; width: 28px; height: 28px; object-fit: contain; border-radius: 6px; }
 .bar-label { position: relative; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-value { position: relative; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* stat targets */
+.targets { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.targets th, .targets td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.targets thead th { color: var(--mute); font-size: 13px; font-weight: 600; }
+.targets tbody th { text-align: left; font-weight: 600; }
+.targets td:nth-child(4), .targets td:nth-child(5) { color: var(--gold); font-weight: 700; }
+.targets thead th:first-child, .targets tbody th { padding-left: 0; }
+.panel.wide { overflow-x: auto; }
 
 /* stat histograms: the most common bucket is gold */
 .histos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 20px 18px; }
