@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collect } from '../scripts/collect/collect';
-import type { createClient } from '../scripts/collect/api';
+import { createClient } from '../scripts/collect/api';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const heroListFx = fx('hero-list');
@@ -159,5 +159,41 @@ describe('collect', () => {
     expect(await collect({ outDir: dir, client: fake({ total: 40, failHeroes, emptyDetail: true }).client, force: true })).toBe('failed');
     expect(snapshotFiles(join(dir, '2026-10-22'))).toEqual(before.snap);
     expect(snapshotFiles(dir)).toEqual(before.index);
+  });
+
+  it('warns, but still publishes, when most heroes have no detail', async () => {
+    const logs: string[] = [];
+    expect(await collect({ outDir: dir, client: fake({ emptyDetail: true }).client, log: (m) => logs.push(m) })).toBe('written');
+    expect(logs).toContain('warning: 2/2 heroes without detail, the hunt schema may have changed');
+    expect(logs.some((m) => /^no detail for /.test(m))).toBe(true);
+    expect(logs.some((m) => /unexpected detail error/.test(m))).toBe(false);
+  });
+
+  it('does not warn when details are present, and labels a thrown detail error as unexpected', async () => {
+    const logs: string[] = [];
+    await collect({ outDir: dir, client: fake().client, log: (m) => logs.push(m) });
+    expect(logs.some((m) => /warning/.test(m))).toBe(false);
+    rmSync(join(dir, '2026-10-22'), { recursive: true });
+    logs.length = 0;
+    await collect({ outDir: dir, client: fake({ failDetail: true }).client, log: (m) => logs.push(m) });
+    expect(logs.some((m) => /^unexpected detail error for .*detail down/.test(m))).toBe(true);
+  });
+
+  // Regression: the real client (stubbed fetch) feeding the real mappers. A fake client returning
+  // envelopes hid a double unwrap that crashed the first live run.
+  it('runs end to end with the real createClient over a stubbed fetch', async () => {
+    const { client: routes } = fake();
+    const fetchFn = async (url: string | URL | Request) => {
+      const u = new URL(String(url));
+      const path = u.pathname.replace('/pub-meta/v1.0/epic7/guide/', '');
+      const body = await routes.get(path, Object.fromEntries(u.searchParams));
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+    };
+    const client = createClient({ fetchFn: fetchFn as unknown as typeof fetch, delayMs: 0 });
+    expect(await collect({ outDir: dir, client })).toBe('written');
+    const code = read('2026-10-22', 'heroes.json')[0].code;
+    const snap = read('2026-10-22', 'hero', `${code}.json`);
+    expect(snap.sets[0].share).toBe(23.86);
+    expect(snap.detail.combos[0].share).toBe(29.9);
   });
 });

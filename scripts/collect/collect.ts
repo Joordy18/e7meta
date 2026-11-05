@@ -55,6 +55,7 @@ export async function collect(opts: {
   // buffered: nothing touches disk until the failure gate passes, so a failed (even forced) run leaves the published snapshot intact
   const done: HeroSnapshot[] = [];
   let failed = 0;
+  let noDetail = 0;
   for (const [i, hero] of heroes.entries()) {
     try {
       const params = { ...wearingParams, hero_code: hero.code };
@@ -71,8 +72,13 @@ export async function collect(opts: {
         });
         const detail = mapDetail(detailRaw, huntPeriod, setNames);
         if (detail) snap.detail = detail;
+        else {
+          noDetail++;
+          log(`no detail for ${hero.code}`);
+        }
       } catch (e) {
-        log(`no detail for ${hero.code}: ${(e as Error).message}`);
+        noDetail++;
+        log(`unexpected detail error for ${hero.code}: ${(e as Error).message}`);
       }
       done.push(snap);
     } catch (e) {
@@ -85,6 +91,10 @@ export async function collect(opts: {
   if (heroes.length === 0 || failed / heroes.length > MAX_FAILURE_RATE) {
     log(`${failed}/${heroes.length} heroes failed, snapshot not published`);
     return 'failed';
+  }
+
+  if (noDetail / heroes.length > 0.5) {
+    log(`warning: ${noDetail}/${heroes.length} heroes without detail, the hunt schema may have changed`);
   }
 
   for (const snap of done) await writeJson(join(snapDir, 'hero', `${snap.hero.code}.json`), snap);

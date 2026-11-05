@@ -41,6 +41,7 @@ const nums = (s: string) => s.split(',').map(Number);
 export function mapDetail(raw: unknown, period: Period, setNames: Record<string, string>): HeroDetail | undefined {
   const v = unwrap<any>(raw);
   if (!v.hero_eqips && !v.hero_arti) return undefined;
+  if (typeof v.attack_stats !== 'string') return undefined; // placeholder row (no hunt data); a renamed field elsewhere still throws
   const stats: StatDistribution = {
     attack: nums(v.attack_stats),
     defense: nums(v.defense_stats),

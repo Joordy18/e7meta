@@ -75,6 +75,10 @@ describe('mapDetail', () => {
     expect(d.stats.effectiveness).toEqual(nums(v.effective_statistics));
     expect(d.stats.effectResistance).toEqual(nums(v.effect_resistance_statistics));
   });
+  it('returns undefined for a placeholder row (rows present, stats absent)', () => {
+    const placeholder = { code: 0, value: { hero_code: 'c3051', hero_eqips: [{ eqip_rank_share: 0 }], hero_arti: [{ arti_rank_share: 0 }] } };
+    expect(mapDetail(placeholder, period, names)).toBeUndefined();
+  });
   it('returns undefined without equipment and artifact data', () => {
     expect(mapDetail({ code: 0, value: { hero_code: 'c1' } }, period, names)).toBeUndefined();
   });
