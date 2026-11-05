@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { loadIndex } from './lib/data';
 import HeroList from './pages/HeroList';
+import HeroPage from './pages/HeroPage';
 
-const HERO_ROUTE = /^#\/hero\/(.+)$/;
+const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
+
+const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 
 export default function App() {
   const [hash, setHash] = useState(location.hash);
@@ -22,7 +25,7 @@ export default function App() {
         <a href="#/">E7 Meta</a>
         {latest && <span> — Dernier instantané : {latest}</span>}
       </header>
-      {code ? <div>Héros {decodeURIComponent(code)}</div> : <HeroList />}
+      {code ? <HeroPage code={safeDecode(code)} /> : <HeroList />}
     </>
   );
 }
