@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "collect": "tsx scripts/collect/collect.ts"
+    "collect": "tsx scripts/collect/collect.ts",
+    "overlay": "vite build && electron electron/main.cjs",
+    "overlay:smoke": "vite build && electron electron/main.cjs --smoke"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -20,10 +22,12 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "electron": "^45.2.3",
     "jsdom": "^29.1.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
-  }
+  },
+  "main": "electron/main.cjs"
 }

@@ -7,8 +7,21 @@ Statistiques de builds pour Epic Seven : pour chaque héros, les sets d'équipem
 - `npm run collect` : récupère les données (environ 1 200 appels séquentiels, plusieurs minutes). Ne fait rien (`skipped`) si la période est déjà collectée ; `-- --force` pour refaire.
 - `npm run dev` : lance le site en local.
 - `npm test` : lance les tests.
+- `npm run overlay` : construit le site puis l'ouvre dans une fenêtre **toujours au premier plan** (par-dessus le jeu en fenêtré ou sans bordure ; pas en plein écran exclusif). `Ctrl+Alt+E` affiche/masque la fenêtre sans lui donner le focus.
+- `npm run overlay:smoke` : vérifie que l'overlay démarre et charge les données (affiche `SMOKE OK`).
 
 (`npm run build` construit le site statique.)
+
+## Collecte quotidienne (Windows)
+
+Les classements changent une fois par semaine ; une collecte quotidienne ne coûte que 2 appels tant que la semaine est inchangée.
+
+```
+powershell -File scripts/schedule-collect.ps1 -Time 12:00    # crée la tâche planifiée E7Meta-Collect
+powershell -File scripts/schedule-collect.ps1 -Remove        # la supprime
+```
+
+Elle lance `scripts/collect-daily.cmd` (sortie dans `collect.log`, ignoré par git). Les nouveaux instantanés arrivent dans `public/data/` ; à toi de les commiter.
 
 ## Données
 

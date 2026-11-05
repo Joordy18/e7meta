@@ -1,3 +1,4 @@
-node_modules
-dist
 .superpowers
+collect.log
+dist
+node_modules
