@@ -4,6 +4,7 @@ import HeroList from './pages/HeroList';
 import HeroPage from './pages/HeroPage';
 import GuidesPage, { GuidePage } from './pages/GuidesPage';
 import ModesPage, { ModePage } from './pages/ModesPage';
+import ArenaPage from './pages/ArenaPage';
 import { ArtifactPage } from './pages/GearPage';
 
 const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
@@ -24,6 +25,7 @@ function Page({ hash }: { hash: string }) {
   if (artifact) return <ArtifactPage code={safeDecode(artifact)} />;
   if (hash === '#/guides') return <GuidesPage />;
   if (hash === '#/modes') return <ModesPage />;
+  if (hash === '#/arena') return <ArenaPage />;
   return <HeroList />;
 }
 
@@ -44,8 +46,9 @@ export default function App() {
       <header className="top">
         <a className="logo" href="#/">E7 Meta</a>
         <nav aria-label="Main">
-          <a href="#/" aria-current={!hash.startsWith('#/modes') && !hash.startsWith('#/guides') ? 'page' : undefined}>Heroes</a>
+          <a href="#/" aria-current={!/^#\/(modes|arena|guides)/.test(hash) ? 'page' : undefined}>Heroes</a>
           <a href="#/modes" aria-current={hash.startsWith('#/modes') ? 'page' : undefined}>Modes</a>
+          <a href="#/arena" aria-current={hash.startsWith('#/arena') ? 'page' : undefined}>RTA</a>
           <a href="#/guides" aria-current={hash.startsWith('#/guides') ? 'page' : undefined}>Guides</a>
         </nav>
         {latest && <span className="week">Data: week of {latest}</span>}

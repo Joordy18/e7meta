@@ -49,3 +49,17 @@ export type ArtifactInfo = {
   heroes: ModeEntry[]; // highest share first
 };
 export type Gear = { key: string; artifacts: Record<string, ArtifactInfo> };
+
+// World Arena (RTA, the draft mode): the developers' season infographics. One file per season, rates in %.
+export type ArenaTier = 'champion' | 'warlord' | 'emperor' | 'legend'; // "this league and above"
+export type PreBanRow = { hero: string; rate: number };
+export type DraftRow = { hero: string; rate: number; ban: number; win: number }; // rate = first pick or pick rate
+export type ArenaSeason = {
+  id: string; title: string; season: string; published: string; url: string; // season = "Spring 2026", published = YYYY-MM-DD
+  preBan: Record<ArenaTier, PreBanRow[]>; // best first, 20 rows
+  firstPick: Record<ArenaTier, DraftRow[]>;
+  pick: Record<ArenaTier, DraftRow[]>;
+  leagues: { league: string; avgWinRate: number; players: number }[]; // global, top leagues
+  cutoffs: { league: string; points: number }[];
+};
+export type ArenaIndex = { seasons: { id: string; season: string; published: string; title: string; url: string }[] }; // newest first

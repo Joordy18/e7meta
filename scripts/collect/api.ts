@@ -12,11 +12,11 @@ export function unwrap<T>(raw: unknown): T {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function createClient(opts: { fetchFn?: typeof fetch; delayMs?: number; retries?: number } = {}) {
-  const { fetchFn = fetch, delayMs = 250, retries = 2 } = opts;
+export function createClient(opts: { fetchFn?: typeof fetch; delayMs?: number; retries?: number; baseUrl?: string } = {}) {
+  const { fetchFn = fetch, delayMs = 250, retries = 2, baseUrl = BASE } = opts;
   return {
     async get<T>(path: string, params: Record<string, string>): Promise<T> {
-      const url = `${BASE}${path}?${new URLSearchParams(params)}`;
+      const url = `${baseUrl}${path}?${new URLSearchParams(params)}`;
       for (let attempt = 0; ; attempt++) {
         await sleep(delayMs * 2 ** attempt);
         try {

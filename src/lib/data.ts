@@ -1,4 +1,4 @@
-import type { Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, Teams } from '../shared/types';
+import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, Teams } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -75,3 +75,12 @@ export function heroModeUsage(modes: Modes, code: string): ModeUsage[] {
   }
   return out.sort((a, b) => b.share - a.share);
 }
+
+/** World Arena seasons are not tied to a weekly period: they live in data/arena/. null when none were collected. */
+export async function loadArenaIndex(): Promise<ArenaIndex | null> {
+  try { return await getJson<ArenaIndex>('arena/index.json'); } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+export const loadArenaSeason = (id: string) => getJson<ArenaSeason>(`arena/${id}.json`);
