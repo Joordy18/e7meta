@@ -7,6 +7,7 @@ type Client = ReturnType<typeof createClient>;
 const MAX_PAGES = 20; // 268 artifacts = 6 pages of 50; guards against an API that ignores current_page
 const HEROES_PER_ARTIFACT = 10;
 const base = { world_code: 'world_global', lang_code: 'en', is_paging: 'N' };
+const catalog = { ...base, is_paging: 'Y' }; // with N the game drops one artifact at a page boundary (267 of 268)
 
 /**
  * Every artifact with its stats, effect and the heroes wearing it most.
@@ -17,7 +18,7 @@ export async function fetchGear(client: Client, key: string, log: (m: string) =>
   const artifacts: Record<string, ArtifactInfo> = {};
   try {
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const found = mapArtifactList(await client.get(`${W}artifact-list`, { ...base, current_page: String(page) }));
+      const found = mapArtifactList(await client.get(`${W}artifact-list`, { ...catalog, current_page: String(page) }));
       const fresh = found.filter((a) => !artifacts[a.code]);
       if (fresh.length === 0) break;
       for (const a of fresh) artifacts[a.code] = { ...a, heroes: [] };

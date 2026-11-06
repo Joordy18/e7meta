@@ -89,17 +89,28 @@ export default function HomePage() {
           <header><h2>What's new</h2><p className="period-chip">updated {feed.updated}</p></header>
           <div className="panels">
             {feed.releases.length > 0 && (
-              <section aria-label="New in the game" className="panel">
+              <section aria-label="New in the game" className="panel wide-2">
                 <h3>New in the game</h3>
-                <ul className="news">
-                  {feed.releases.slice(0, 6).map((r) => (
-                    <li key={`${r.kind}-${r.code}`}>
-                      <small className="kind">{r.kind}</small>
-                      <a href={r.kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
-                      <small className="when" title="First week of data that lists it">week of {r.since}</small>
-                    </li>
-                  ))}
-                </ul>
+                <div className="panels">
+                  {([['hero', 'New heroes'], ['artifact', 'New artifacts']] as const).map(([kind, title]) => {
+                    const items = feed.releases.filter((r) => r.kind === kind).slice(0, 4);
+                    return (
+                      <section key={kind} aria-label={title}>
+                        <h4>{title}</h4>
+                        {items.length === 0 ? <p className="note">Nothing new yet.</p> : (
+                          <ul className="news">
+                            {items.map((r) => (
+                              <li key={r.code}>
+                                <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
+                                <small className="when" title="First week of data that lists it">week of {r.since}</small>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
               </section>
             )}
             {BOARDS.map(([board, title]) => {

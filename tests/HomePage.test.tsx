@@ -154,14 +154,24 @@ describe('HomePage: build shifts', () => {
 });
 
 describe('HomePage: what is new', () => {
-  it('lists the new heroes and artifacts, linking them to their pages', async () => {
+  it('lists the new heroes and the new artifacts in two columns, linking them to their pages', async () => {
     setup({ feed });
     render(<HomePage />);
-    const news = within(await screen.findByRole('region', { name: 'New in the game' })).getAllByRole('listitem');
-    expect(news[0].textContent).toContain('Bunny Girl Mafia Yufine');
-    expect(news[0].textContent).toContain('2026-10-29');
-    expect(within(news[0]).getByRole('link', { name: 'Bunny Girl Mafia Yufine' }).getAttribute('href')).toBe('#/hero/c7016');
-    expect(within(news[1]).getByRole('link', { name: 'New Blade' }).getAttribute('href')).toBe('#/artifact/efk99');
+    const news = await screen.findByRole('region', { name: 'New in the game' });
+    const heroes = within(within(news).getByRole('region', { name: 'New heroes' })).getAllByRole('listitem');
+    expect(heroes).toHaveLength(1);
+    expect(heroes[0].textContent).toContain('2026-10-29');
+    expect(within(heroes[0]).getByRole('link', { name: 'Bunny Girl Mafia Yufine' }).getAttribute('href')).toBe('#/hero/c7016');
+    const artifacts = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem');
+    expect(within(artifacts[0]).getByRole('link', { name: 'New Blade' }).getAttribute('href')).toBe('#/artifact/efk99');
+  });
+
+  it('says so in a column that has nothing new yet, while the other one shows its releases', async () => {
+    setup({ feed: { ...feed, releases: [feed.releases[0]] } });
+    render(<HomePage />);
+    const news = await screen.findByRole('region', { name: 'New in the game' });
+    expect(within(within(news).getByRole('region', { name: 'New artifacts' })).getByText(/nothing new yet/i)).toBeTruthy();
+    expect(within(news).getByRole('link', { name: 'Bunny Girl Mafia Yufine' })).toBeTruthy();
   });
 
   it('shows the official posts by board, each linking to the post in a new tab, with its date', async () => {

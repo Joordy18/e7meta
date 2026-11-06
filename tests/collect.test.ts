@@ -398,7 +398,7 @@ describe('collect', () => {
   });
 
   describe('artifact catalog', () => {
-    const gearCalls = (calls: { path: string }[]) => calls.filter((c) => /artifact-list|artifact-hero/.test(c.path));
+    const gearCalls = (calls: { path: string; params: Record<string, string> }[]) => calls.filter((c) => /artifact-list|artifact-hero/.test(c.path));
 
     it('writes gear.json: every artifact with its stats, description and the heroes wearing it most', async () => {
       const { client, calls } = fake();
@@ -412,6 +412,13 @@ describe('collect', () => {
       // 2 catalog pages (the second one is empty), then one call per artifact
       expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-list'))).toHaveLength(2);
       expect(gearCalls(calls).filter((c) => c.path.endsWith('artifact-hero-ranking'))).toHaveLength(3);
+    });
+
+    it('asks for the catalog with is_paging Y: with N the game drops one artifact at a page boundary (267 of 268)', async () => {
+      const { client, calls } = fake();
+      await collect({ outDir: dir, client });
+      const lists = gearCalls(calls).filter((c) => c.path.endsWith('artifact-list'));
+      expect(lists.map((c) => c.params.is_paging)).toEqual(['Y', 'Y']);
     });
 
     it('keeps at most 10 heroes per artifact', async () => {
