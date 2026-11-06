@@ -266,6 +266,17 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .effects span { padding: 2px 9px; border-radius: 999px; background: var(--blue-soft); font-size: 12.5px; cursor: help; }
 .soulburn { margin: 0 0 8px; font-size: 14px; color: var(--mute); }
 .soulburn strong { color: var(--gold); }
+.build-note { flex-basis: 100%; color: var(--mute); font-size: 13px; }
+.ee-stat { margin: 0 0 10px; }
+.ee-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ee-options li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--raise); border-radius: 12px; }
+.ee-options li.top { outline: 1px solid var(--gold); }
+.ee-options li > div { flex: 1; min-width: 0; }
+.ee-options p { margin: 2px 0 0; color: var(--mute); font-size: 14px; }
+.ee-share { display: grid; justify-items: end; gap: 2px; }
+.ee-share em { font-style: normal; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.ee-options li.top .ee-share em { color: var(--gold); }
+.ee-share small { color: var(--gold); font-size: 12px; }
 .skill-body h4 { margin: 10px 0 4px; font-size: 13px; color: var(--mute); }
 .upgrades { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 13.5px; }
 .upgrades b { display: inline-block; min-width: 22px; margin-right: 8px; color: var(--mute); }

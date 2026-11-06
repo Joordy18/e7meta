@@ -5,7 +5,7 @@ import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
 import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
-import type { HeroSnapshot } from '../src/shared/types';
+import type { HeroSnapshot, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
@@ -150,8 +150,8 @@ describe('HeroPage', () => {
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
   });
 
-  const skillsFile = {
-    fetchedAt: '2026-11-06', source: 'epic7db.com',
+  const skillsFile: SkillsFile = {
+    version: 2, fetchedAt: '2026-11-06', source: 'epic7db.com', exclusive: {},
     heroes: { c1176: [
       { name: 'Horizontal Slash', soulGain: 1, effects: [{ name: 'Dual Attack', text: 'Chance to attack after an ally.' }],
         description: 'Attack the enemy with a sword. Damage grows with the **caster\'s max HP**.', soulburn: 'Increases damage dealt. (-10 souls)',
@@ -209,7 +209,8 @@ describe('HeroPage', () => {
     expect(within(items[0]).getByText('Increases damage dealt. (-10 souls)', { exact: false })).toBeTruthy();
     expect(within(items[0]).getAllByText('+5% damage dealt')).toHaveLength(2);
     expect(within(items[2]).getByText('3 Turns')).toBeTruthy();
-    expect(within(panel).getByRole('link', { name: /epic7db\.com/ }).getAttribute('href')).toBe('https://epic7db.com/heroes/setsuka');
+    expect(within(panel).queryByText(/Skill text from/)).toBeNull(); // no source line under the list
+    expect(within(panel).queryByRole('link', { name: /epic7db/ })).toBeNull();
   });
 
   it('shows just the skill names, and points to the fan site for the text, when the skill data is missing', async () => {
@@ -227,16 +228,54 @@ describe('HeroPage', () => {
     expect(screen.queryByRole('region', { name: 'Skills' })).toBeNull();
   });
 
-  it('shows the exclusive equipment upgrades players use most, with the skill each one improves', async () => {
-    vi.mocked(loadHero).mockResolvedValue({
-      ...snapshot, skills: ['Ambush', 'Blood Banquet', 'Scarlet Garden'],
-      exclusive: [{ skill: 3, option: 2, share: 58.47 }, { skill: 3, option: 3, share: 20.83 }, { skill: 1, option: 1, share: 20.7 }],
-    });
+  const ee = {
+    name: 'Blooming Rose', stat: { name: 'Effectiveness', min: '8%', max: '16%' },
+    options: [
+      { skill: 'Ambush', text: 'Increases damage dealt by Ambush by 20%.' },
+      { skill: 'Scarlet Garden', text: 'Decreases Defense of the enemy for 2 turns when using Scarlet Garden.', recommended: true },
+      { skill: 'Scarlet Garden', text: 'Decreases cooldown of Scarlet Garden by 1 turn.' },
+    ],
+  };
+  const usage3 = [{ skill: 3, option: 2, share: 58.47 }, { skill: 3, option: 3, share: 20.83 }, { skill: 1, option: 1, share: 20.7 }];
+  const withEE = { ...snapshot, skills: ['Ambush', 'Blood Banquet', 'Scarlet Garden'], exclusive: usage3 };
+
+  it('describes the exclusive equipment: its name, its stat bonus, and what each upgrade option does, most used first', async () => {
+    vi.mocked(loadHero).mockResolvedValue(withEE);
+    vi.mocked(loadSkills).mockResolvedValue({ ...skillsFile, exclusive: { c1176: ee } });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Exclusive equipment' });
+    expect(within(panel).getByText('Blooming Rose')).toBeTruthy();
+    expect(within(panel).getByText('Effectiveness 8% to 16%')).toBeTruthy();
+    const rows = within(panel).getAllByRole('listitem');
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Decreases Defense of the enemy for 2 turns when using Scarlet Garden.'),
+      expect.stringContaining('Decreases cooldown of Scarlet Garden by 1 turn.'),
+      expect.stringContaining('Increases damage dealt by Ambush by 20%.'),
+    ]);
+    expect(rows[0].textContent).toContain('58.47%');
+    expect(rows[0].textContent).toContain('Most used');
+    expect(rows[2].querySelector('img')!.getAttribute('src')).toContain('sk_c1176_1.png'); // option 1 improves skill 1
+    expect(within(panel).queryByText(/does not describe the options/)).toBeNull();
+  });
+
+  it('falls back to the usage bars (skill and option number) when the text of the exclusive equipment is not available', async () => {
+    vi.mocked(loadHero).mockResolvedValue(withEE);
     render(<HeroPage code="c1176" />);
     const panel = await screen.findByRole('region', { name: 'Exclusive equipment' });
     expect(within(panel).getAllByRole('meter').map((m) => m.textContent)).toEqual([
       'Scarlet Garden, option 258.47%', 'Scarlet Garden, option 320.83%', 'Ambush, option 120.7%',
     ]);
+    expect(within(panel).queryByText(/does not describe the options/)).toBeNull();
+  });
+
+  it('puts the most used upgrade, with its effect, in the recommended build', async () => {
+    vi.mocked(loadHero).mockResolvedValue(withEE);
+    vi.mocked(loadSkills).mockResolvedValue({ ...skillsFile, exclusive: { c1176: ee } });
+    render(<HeroPage code="c1176" />);
+    const build = await screen.findByRole('region', { name: 'Recommended build' });
+    expect(within(build).getByText('Blooming Rose')).toBeTruthy();
+    expect(within(build).getByText(/Decreases Defense of the enemy/)).toBeTruthy();
+    expect(within(build).getByText('58.47%')).toBeTruthy();
   });
 
   it('leaves out the exclusive equipment block for a hero without one', async () => {
@@ -334,14 +373,14 @@ describe('HeroPage', () => {
     expect(within(panel).getByRole('link', { name: /official infographic/ }).getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
   });
 
-  it('says so when the hero is in none of the top-20 World Arena tables', async () => {
+  it('leaves out the World Arena block when the hero is in none of the top-20 tables', async () => {
     vi.mocked(loadHero).mockResolvedValue({ ...snapshot, hero: { ...snapshot.hero, name: 'Somebody Else' } });
     vi.mocked(loadArenaIndex).mockResolvedValue(arenaIndex);
     vi.mocked(loadArenaSeason).mockResolvedValue(arenaSeason() as never);
     render(<HeroPage code="c1176" />);
-    const panel = await screen.findByRole('region', { name: 'World Arena (RTA)' });
-    expect(within(panel).getByText(/Not in the top 20 of any World Arena table in Summer 2026/)).toBeTruthy();
-    expect(within(panel).queryByRole('table')).toBeNull();
+    await screen.findByRole('heading', { name: 'Somebody Else' });
+    await waitFor(() => expect(loadArenaSeason).toHaveBeenCalled());
+    expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
   });
 
   it('leaves out the World Arena block when there is no arena data or it cannot be loaded', async () => {

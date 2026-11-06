@@ -3,7 +3,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { epic7dbUrl } from '../../src/lib/links';
 import { decode, text } from './html';
-import type { HeroSummary, SkillInfo, SkillsFile } from '../../src/shared/types';
+import type { ExclusiveEquipment, HeroSummary, SkillInfo, SkillsFile } from '../../src/shared/types';
+
+const VERSION = 2;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -48,6 +50,27 @@ export function parseSkills(html: string): SkillInfo[] {
   });
 }
 
+/** The exclusive equipment section of an epic7db.com hero page: name, stat bonus and the three upgrade options. Undefined when the hero has none. */
+export function parseExclusive(html: string): ExclusiveEquipment | undefined {
+  const a = html.indexOf('<section id="exclusive-equipment"');
+  if (a < 0) return undefined;
+  const section = html.slice(a, html.indexOf('</section>', a));
+  const stat = /<div class="details">\s*<h4>([\s\S]*?)<\/h4>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/.exec(section);
+  const [min, max] = [/Min Roll:\s*([^<]*?)\s*</.exec(section)?.[1], /Max Roll:\s*([^<]*?)\s*</.exec(section)?.[1]];
+  const options = section.split('<div class="skill">').slice(1).map((b) => {
+    const content = /<div class="skill-content">\s*<h4>([\s\S]*?)<\/h4>\s*<p>([\s\S]*?)<\/p>/.exec(b);
+    return {
+      skill: text(content?.[1] ?? ''), text: text(content?.[2] ?? ''),
+      ...(b.includes('class="recommended"') ? { recommended: true } : {}),
+    };
+  });
+  return {
+    name: grab(section, /<div class="title">\s*<h3>([\s\S]*?)<\/h3>/) ?? '',
+    ...(stat && min && max ? { stat: { name: text(stat[1]), min, max } } : {}),
+    options,
+  };
+}
+
 const exists = (p: string) => readFile(p).then(() => true, () => false);
 
 /**
@@ -69,9 +92,9 @@ export async function collectSkills(opts: {
   }
 
   const path = join(outDir, 'skills.json');
-  const file: SkillsFile = !refresh && (await exists(path))
-    ? JSON.parse(await readFile(path, 'utf8'))
-    : { fetchedAt: '', source: 'epic7db.com', heroes: {} };
+  const previous: SkillsFile | undefined = !refresh && (await exists(path)) ? JSON.parse(await readFile(path, 'utf8')) : undefined;
+  // a file from an older collector lacks the exclusive equipment: start over rather than keep half the data
+  const file: SkillsFile = previous?.version === VERSION ? previous : { version: VERSION, fetchedAt: '', source: 'epic7db.com', heroes: {}, exclusive: {} };
   let added = 0;
   for (const hero of heroes) {
     if (file.heroes[hero.code]) continue;
@@ -80,7 +103,10 @@ export async function collectSkills(opts: {
       await sleep(delayMs);
       const res = await fetchFn(url, { signal: AbortSignal.timeout(20000), headers: { 'user-agent': 'e7overlay (personal stats tool)' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      file.heroes[hero.code] = parseSkills(await res.text());
+      const page = await res.text();
+      file.heroes[hero.code] = parseSkills(page);
+      const ee = parseExclusive(page);
+      if (ee) file.exclusive[hero.code] = ee;
       added++;
     } catch (e) {
       log(`skills: ${hero.name} (${url}) failed: ${(e as Error).message}`);

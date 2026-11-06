@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectSkills, parseSkills } from '../scripts/collect/skills';
+import { collectSkills, parseExclusive, parseSkills } from '../scripts/collect/skills';
 
 const html = (n: string) => readFileSync(`tests/fixtures/e7db-${n}-skills.html`, 'utf8');
 
@@ -55,6 +55,30 @@ describe('parseSkills', () => {
   });
 });
 
+describe('parseExclusive', () => {
+  const ee = parseExclusive(html('abigail'));
+
+  it('reads the name and the stat bonus (with its roll range) of the exclusive equipment', () => {
+    expect(ee).toMatchObject({ name: 'Blooming Rose', stat: { name: 'Effectiveness', min: '8%', max: '16%' } });
+  });
+
+  it('reads the three upgrade options in order, with the skill each one improves and what it does', () => {
+    expect(ee!.options).toEqual([
+      { skill: 'Ambush', text: 'Increases damage dealt by Ambush by 20%.' },
+      { skill: 'Scarlet Garden', text: 'Decreases Defense of the enemy for 2 turns when using Scarlet Garden.', recommended: true },
+      { skill: 'Scarlet Garden', text: 'Decreases cooldown of Scarlet Garden by 1 turn.' },
+    ]);
+  });
+
+  it('is undefined for a hero without exclusive equipment', () => {
+    expect(parseExclusive(html('setsuka'))).toBeUndefined();
+  });
+
+  it('does not disturb the skills read from the same page', () => {
+    expect(parseSkills(html('abigail')).map((s) => s.name)).toEqual(['Ambush', 'Blood Banquet', 'Scarlet Garden']);
+  });
+});
+
 describe('collectSkills', () => {
   let dir: string;
   beforeEach(() => {
@@ -64,6 +88,7 @@ describe('collectSkills', () => {
     writeFileSync(join(dir, '2026-10-29', 'heroes.json'), JSON.stringify([
       { code: 'c1176', name: 'Setsuka', grade: 5, job: 'assassin', element: 'fire' },
       { code: 'c1067', name: 'Tamarinne', grade: 5, job: 'manauser', element: 'wind' },
+      { code: 'c1144', name: 'Abigail', grade: 5, job: 'warrior', element: 'fire' },
       { code: 'c9', name: 'No Such Hero', grade: 3, job: 'mage', element: 'ice' },
     ]));
   });
@@ -85,12 +110,15 @@ describe('collectSkills', () => {
     const { fetchFn, urls } = fake();
     expect(await collectSkills({ outDir: dir, fetchFn, delayMs: 0 })).toBe('written');
     expect(urls).toEqual([
-      'https://epic7db.com/heroes/setsuka', 'https://epic7db.com/heroes/tamarinne', 'https://epic7db.com/heroes/no-such-hero',
+      'https://epic7db.com/heroes/setsuka', 'https://epic7db.com/heroes/tamarinne', 'https://epic7db.com/heroes/abigail', 'https://epic7db.com/heroes/no-such-hero',
     ]);
+    expect(read().version).toBe(2);
     const f = read();
     expect(f.source).toBe('epic7db.com');
-    expect(Object.keys(f.heroes)).toEqual(['c1176', 'c1067']);
+    expect(Object.keys(f.heroes)).toEqual(['c1176', 'c1067', 'c1144']);
     expect(f.heroes.c1176).toHaveLength(3);
+    expect(Object.keys(f.exclusive)).toEqual(['c1144']); // only heroes that have one
+    expect(f.exclusive.c1144.name).toBe('Blooming Rose');
   });
 
   it('logs the heroes whose page it could not read and keeps the others', async () => {
@@ -110,7 +138,15 @@ describe('collectSkills', () => {
     await collectSkills({ outDir: dir, fetchFn: fake().fetchFn, delayMs: 0 });
     const again = fake();
     expect(await collectSkills({ outDir: dir, fetchFn: again.fetchFn, delayMs: 0, refresh: true })).toBe('written');
-    expect(again.urls).toHaveLength(3);
+    expect(again.urls).toHaveLength(4);
+  });
+
+  it('starts over when the file was written by an older version of the collector (it lacks the exclusive equipment)', async () => {
+    writeFileSync(join(dir, 'skills.json'), JSON.stringify({ fetchedAt: '2026-11-01', source: 'epic7db.com', heroes: { c1176: [] } }));
+    const again = fake();
+    expect(await collectSkills({ outDir: dir, fetchFn: again.fetchFn, delayMs: 0 })).toBe('written');
+    expect(again.urls).toContain('https://epic7db.com/heroes/setsuka');
+    expect(read().version).toBe(2);
   });
 
   it('fails clearly when there is no hero list yet', async () => {

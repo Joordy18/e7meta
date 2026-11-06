@@ -5,7 +5,7 @@ import { epic7dbUrl } from '../lib/links';
 import Markdown from '../lib/markdown';
 import { STATS, lowerBound, statTarget } from '../lib/statTargets';
 import { elementLabel, jobLabel } from '../pages/HeroList';
-import type { HeroSnapshot, SkillInfo, StatKey } from '../shared/types';
+import type { ExclusiveEquipment, HeroSnapshot, SkillInfo, StatKey } from '../shared/types';
 
 const AIM: StatKey[] = ['speed', 'critChance', 'critDamage', 'health'];
 const LABEL = new Map(STATS);
@@ -23,7 +23,7 @@ function Identity({ hero }: { hero: HeroSnapshot['hero'] }) {
 }
 
 /** What most players run on this hero, at a glance. The sources and periods behind each figure are listed in the sections below. */
-function Build({ hero }: { hero: HeroSnapshot }) {
+function Build({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipment }) {
   const combo = hero.detail?.combos[0];
   const set = combo
     ? { icons: (combo.codes ?? []).map(setIcon), label: combo.sets.join(' + '), share: combo.share }
@@ -68,7 +68,9 @@ function Build({ hero }: { hero: HeroSnapshot }) {
           <span className="build-label">Exclusive equipment</span>
           <span className="build-set">
             <Icon src={skillIcon(hero.hero.code, ex.skill)} />
-            <strong>{hero.skills?.[ex.skill - 1] ?? `Skill ${ex.skill}`}, option {ex.option}</strong>
+            {ee?.options[ex.option - 1]
+              ? <><strong>{ee.name}</strong><span className="build-note">{ee.options[ex.option - 1].text}</span></>
+              : <strong>{hero.skills?.[ex.skill - 1] ?? `Skill ${ex.skill}`}, option {ex.option}</strong>}
             <em>{formatValue(ex.share)}</em>
           </span>
         </div>
@@ -135,20 +137,21 @@ function Skills({ hero, data }: { hero: HeroSnapshot; data?: SkillInfo[] }) {
           ))}
         </ul>
       )}
-      <p className="caption">
-        {data ? 'Skill text from' : 'The game\'s guide gives the names only. Descriptions on'}{' '}
-        <a href={epic7dbUrl(hero.hero.name)} target="_blank" rel="noopener noreferrer">epic7db.com</a>, a fan site.
-      </p>
+      {!data && (
+        <p className="caption">
+          Descriptions on <a href={epic7dbUrl(hero.hero.name)} target="_blank" rel="noopener noreferrer">epic7db.com</a>, a fan site.
+        </p>
+      )}
     </section>
   );
 }
 
 /** The top of a hero page: who it is, the build most players run, and what its skills do. */
-export default function Loadout({ hero, skills }: { hero: HeroSnapshot; skills?: SkillInfo[] }) {
+export default function Loadout({ hero, skills, ee }: { hero: HeroSnapshot; skills?: SkillInfo[]; ee?: ExclusiveEquipment }) {
   return (
     <div className="loadout">
       <Identity hero={hero.hero} />
-      <Build hero={hero} />
+      <Build hero={hero} ee={ee} />
       <Skills hero={hero} data={skills} />
     </div>
   );

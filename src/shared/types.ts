@@ -77,4 +77,15 @@ export type SkillInfo = {
   soulburn?: string;
   upgrades: { level: number; text: string }[]; // skill enhancements
 };
-export type SkillsFile = { fetchedAt: string; source: string; heroes: Record<string, SkillInfo[]> }; // hero code -> skills 1 to 3
+// Exclusive equipment: a stat bonus plus three skill upgrade options (same order as the options of the game's usage ranking)
+export type ExclusiveEquipment = {
+  name: string;
+  stat?: { name: string; min: string; max: string }; // e.g. Effectiveness 8% to 16% (the roll range)
+  options: { skill: string; text: string; recommended?: boolean }[]; // option 1 to 3
+};
+export type SkillsFile = {
+  version: number; // 2: includes exclusive equipment; an older file is collected again
+  fetchedAt: string; source: string;
+  heroes: Record<string, SkillInfo[]>; // hero code -> skills 1 to 3
+  exclusive: Record<string, ExclusiveEquipment>; // only the heroes that have one
+};

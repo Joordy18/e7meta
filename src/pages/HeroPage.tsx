@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HeroIcon } from '../components/Art';
+import { HeroIcon, Icon } from '../components/Art';
 import Loadout from '../components/Loadout';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
@@ -9,7 +9,7 @@ import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes
 import { PERCENT_STATS, STATS, lowerBound, num, statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { ArenaSeason, HeroSnapshot, Period, SkillsFile, StatKey } from '../shared/types';
+import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, Period, SkillsFile, StatKey } from '../shared/types';
 
 const range = (p: Period) => `${p.start} to ${p.end}`;
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
@@ -59,6 +59,44 @@ function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
         })}
       </tbody>
     </table>
+  );
+}
+
+/** The exclusive equipment: what it gives, and what each upgrade option does, with how many players pick it. */
+function ExclusivePanel({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipment }) {
+  const uses = hero.exclusive ?? [];
+  if (uses.length === 0 && !ee) return null;
+  if (!ee) {
+    return (
+      <Panel title="Upgrade options players choose">
+        <Bars items={uses.map((e) => ({
+          label: `${hero.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(hero.hero.code, e.skill)],
+        }))} />
+      </Panel>
+    );
+  }
+  const options = ee.options
+    .map((o, i) => ({ ...o, n: i + 1, use: uses.find((u) => u.option === i + 1) }))
+    .sort((a, b) => (b.use?.share ?? -1) - (a.use?.share ?? -1) || a.n - b.n);
+  return (
+    <Panel title={ee.name}>
+      {ee.stat && <p className="ee-stat"><span className="chip">{ee.stat.name} {ee.stat.min} to {ee.stat.max}</span></p>}
+      <ol className="ee-options">
+        {options.map((o, i) => {
+          const skillN = o.use?.skill ?? (hero.skills?.indexOf(o.skill) ?? -1) + 1;
+          return (
+            <li key={o.n} className={i === 0 && o.use ? 'top' : undefined}>
+              {skillN > 0 && <Icon src={skillIcon(hero.hero.code, skillN)} className="skill-icon" />}
+              <div>
+                <strong>{o.skill}</strong>
+                <p>{o.text}</p>
+              </div>
+              {o.use && <span className="ee-share">{i === 0 && <small>Most used</small>}<em>{o.use.share}%</em></span>}
+            </li>
+          );
+        })}
+      </ol>
+    </Panel>
   );
 }
 
@@ -141,7 +179,8 @@ export default function HeroPage({ code }: { code: string }) {
     (async () => {
       const first = (await loadArenaIndex())?.seasons[0];
       const season = first ? await loadArenaSeason(first.id) : null;
-      if (live && season) setArena({ season, rows: heroArena(season, heroName) });
+      const rows = season ? heroArena(season, heroName) : [];
+      if (live && season && rows.length > 0) setArena({ season, rows }); // the block only exists when the hero is in a published table
     })().catch(() => {});
     return () => { live = false; };
   }, [heroName]);
@@ -162,7 +201,7 @@ export default function HeroPage({ code }: { code: string }) {
       {state.status === 'error' && <p className="note error">{state.message}</p>}
       {h && (
         <>
-          <Loadout hero={h} skills={skills?.heroes[h.hero.code]} />
+          <Loadout hero={h} skills={skills?.heroes[h.hero.code]} ee={skills?.exclusive?.[h.hero.code]} />
           {arena && (
             <section aria-label="World Arena (RTA)" className="source">
               <header>
@@ -171,22 +210,20 @@ export default function HeroPage({ code }: { code: string }) {
               </header>
               <div className="panels">
                 <section aria-label="RTA stats" className="panel rta">
-                  {arena.rows.length > 0 ? (
-                    <table className="targets" aria-label="RTA stats">
-                      <thead><tr><th>League</th><th>Pick</th><th>Win rate</th><th>First pick</th><th>Pre-ban</th></tr></thead>
-                      <tbody>
-                        {arena.rows.map((r) => (
-                          <tr key={r.tier}>
-                            <th scope="row">{TIERS.find(([t]) => t === r.tier)![1]}</th>
-                            <td>{r.pick ? `${r.pick.rate}% (#${r.pick.rank})` : '—'}</td>
-                            <td>{r.pick?.win !== undefined ? `${r.pick.win}%` : '—'}</td>
-                            <td>{r.firstPick ? `${r.firstPick.rate}% (#${r.firstPick.rank})` : '—'}</td>
-                            <td>{r.preBan ? `${r.preBan.rate}% (#${r.preBan.rank})` : '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : <p className="empty">Not in the top 20 of any World Arena table in {arena.season.season}.</p>}
+                                    <table className="targets" aria-label="RTA stats">
+                    <thead><tr><th>League</th><th>Pick</th><th>Win rate</th><th>First pick</th><th>Pre-ban</th></tr></thead>
+                    <tbody>
+                      {arena.rows.map((r) => (
+                        <tr key={r.tier}>
+                          <th scope="row">{TIERS.find(([t]) => t === r.tier)![1]}</th>
+                          <td>{r.pick ? `${r.pick.rate}% (#${r.pick.rank})` : '—'}</td>
+                          <td>{r.pick?.win !== undefined ? `${r.pick.win}%` : '—'}</td>
+                          <td>{r.firstPick ? `${r.firstPick.rate}% (#${r.firstPick.rank})` : '—'}</td>
+                          <td>{r.preBan ? `${r.preBan.rate}% (#${r.preBan.rank})` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   <p className="caption">
                     Rates are shares of matches in that league and above; "#" is the place in the published top 20.
                     Source: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {arena.season.published}.
@@ -236,19 +273,14 @@ export default function HeroPage({ code }: { code: string }) {
               </div>
             </section>
           )}
-          {h.exclusive && h.exclusive.length > 0 && (
+          {((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]) && (
             <section aria-label="Exclusive equipment" className="source">
               <header>
                 <h2>Exclusive equipment</h2>
                 <p className="period-chip">most used upgrades</p>
               </header>
               <div className="panels">
-                <Panel title="Upgrade options players choose">
-                  <Bars items={h.exclusive.map((e) => ({
-                    label: `${h.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(h.hero.code, e.skill)],
-                  }))} />
-                  <p className="caption">Each bar is an upgrade option of the exclusive equipment and the skill it improves. The game's guide does not describe the options.</p>
-                </Panel>
+                <ExclusivePanel hero={h} ee={skills?.exclusive?.[h.hero.code]} />
               </div>
             </section>
           )}
