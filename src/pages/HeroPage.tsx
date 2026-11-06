@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { HeroFace, HeroIcon } from '../components/Art';
+import { HeroFace, HeroIcon, Icon } from '../components/Art';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
-import { artifactIcon, setIcon } from '../lib/images';
+import { artifactIcon, setIcon, skillIcon } from '../lib/images';
+import { epic7dbUrl } from '../lib/links';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
 import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes';
 import { statTarget } from '../lib/statTargets';
@@ -176,6 +177,44 @@ export default function HeroPage({ code }: { code: string }) {
               </p>
             </div>
           </div>
+          {h.skills && h.skills.length > 0 && (
+            <section aria-label="Skills" className="source">
+              <header><h2>Skills</h2></header>
+              <div className="panels">
+                <section aria-label="Skill list" className="panel">
+                  <ul className="skills">
+                    {h.skills.map((name, i) => (
+                      <li key={i}>
+                        <Icon src={skillIcon(h.hero.code, i + 1)} className="skill-icon" />
+                        <span className="skill-n">Skill {i + 1}</span>
+                        <strong>{name}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="caption">
+                    The game's guide gives the names only.{' '}
+                    <a href={epic7dbUrl(h.hero.name)} target="_blank" rel="noopener noreferrer">Skill descriptions and upgrades on epic7db.com</a> (a fan site).
+                  </p>
+                </section>
+              </div>
+            </section>
+          )}
+          {h.exclusive && h.exclusive.length > 0 && (
+            <section aria-label="Exclusive equipment" className="source">
+              <header>
+                <h2>Exclusive equipment</h2>
+                <p className="period-chip">most used upgrades</p>
+              </header>
+              <div className="panels">
+                <Panel title="Upgrade options players choose">
+                  <Bars items={h.exclusive.map((e) => ({
+                    label: `${h.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(h.hero.code, e.skill)],
+                  }))} />
+                  <p className="caption">Each bar is an upgrade option of the exclusive equipment and the skill it improves. The game's guide does not describe the options.</p>
+                </Panel>
+              </div>
+            </section>
+          )}
           <section aria-label="Source: gear ranking" className="source">
             <header>
               <h2>Source: gear ranking</h2>

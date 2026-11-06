@@ -5,7 +5,7 @@ import { createClient } from './api';
 import { fetchGear } from './gear';
 import { fetchModes } from './modes';
 import { fetchTeams } from './teams';
-import { mapDetail, mapHeroList, mapPeriod, mapSetNames, mapShares } from './map';
+import { mapDetail, mapExclusive, mapHeroList, mapPeriod, mapSetNames, mapShares, mapSkills } from './map';
 import type { HeroSnapshot, HeroSummary, Index, Modes, Period, Teams } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
@@ -151,6 +151,10 @@ export async function collect(opts: {
           strategy_type: '0', boss_type: '1',
         });
         const detail = mapDetail(detailRaw, huntPeriod, setNames ?? {});
+        const skills = mapSkills(detailRaw);
+        if (skills.length > 0) snap.skills = skills;
+        const exclusive = mapExclusive(detailRaw);
+        if (exclusive.length > 0) snap.exclusive = exclusive;
         if (detail) snap.detail = detail;
         else {
           noDetail++;

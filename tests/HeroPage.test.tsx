@@ -149,6 +149,44 @@ describe('HeroPage', () => {
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
   });
 
+  it('shows the three skills with their icon and name, and a link to the descriptions on a fan site', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, skills: ['Horizontal Slash', 'Suppressed Desire', 'Rouge Aroma'] });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Skills' });
+    const items = within(panel).getAllByRole('listitem');
+    expect(items.map((i) => i.textContent)).toEqual(['Skill 1Horizontal Slash', 'Skill 2Suppressed Desire', 'Skill 3Rouge Aroma']);
+    expect(items[1].querySelector('img')!.getAttribute('src')).toContain('sk_c1176_2.png');
+    const link = within(panel).getByRole('link', { name: /descriptions/ });
+    expect(link.getAttribute('href')).toBe('https://epic7db.com/heroes/setsuka');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('leaves out the skills block when the data has none', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    expect(screen.queryByRole('region', { name: 'Skills' })).toBeNull();
+  });
+
+  it('shows the exclusive equipment upgrades players use most, with the skill each one improves', async () => {
+    vi.mocked(loadHero).mockResolvedValue({
+      ...snapshot, skills: ['Ambush', 'Blood Banquet', 'Scarlet Garden'],
+      exclusive: [{ skill: 3, option: 2, share: 58.47 }, { skill: 3, option: 3, share: 20.83 }, { skill: 1, option: 1, share: 20.7 }],
+    });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Exclusive equipment' });
+    expect(within(panel).getAllByRole('meter').map((m) => m.textContent)).toEqual([
+      'Scarlet Garden, option 258.47%', 'Scarlet Garden, option 320.83%', 'Ambush, option 120.7%',
+    ]);
+  });
+
+  it('leaves out the exclusive equipment block for a hero without one', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, skills: ['A', 'B', 'C'] });
+    render(<HeroPage code="c1176" />);
+    await screen.findByRole('region', { name: 'Skills' });
+    expect(screen.queryByRole('region', { name: 'Exclusive equipment' })).toBeNull();
+  });
+
   it('links artifacts to their pages, but not the sets of a build', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);

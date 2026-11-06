@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { mapDetail, mapHeroList, mapArtifactList, mapModeList, mapPeriod, mapRift, mapSetNames, mapShares, mapTeams } from '../scripts/collect/map';
+import { mapDetail, mapHeroList, mapArtifactList, mapExclusive, mapModeList, mapPeriod, mapRift, mapSetNames, mapSkills, mapShares, mapTeams } from '../scripts/collect/map';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const heroList = fx('hero-list');
@@ -158,5 +158,25 @@ describe('artifact catalog', () => {
     const l = mapModeList(fx('gear-artifact-heroes'), 'specific_gravity');
     expect(l[0]).toMatchObject({ code: 'c1176', name: 'Setsuka' });
     expect(l[0].share).toBeGreaterThan(l[1].share);
+  });
+});
+
+describe('skills and exclusive equipment', () => {
+  it('reads the three skill names', () => {
+    const names = mapSkills(fx('hero-detail'));
+    expect(names).toHaveLength(3);
+    expect(names[0]).toBe(fx('hero-detail').value.hero_skills[0].skill_name);
+  });
+  it('gives no skills for a placeholder row', () => expect(mapSkills({ code: 0, value: { hero_code: 'c1' } })).toEqual([]));
+
+  it('reads the most used exclusive equipment upgrades: which skill, which option, the share', () => {
+    expect(mapExclusive(fx('hero-detail-ee'))).toEqual([
+      { skill: 3, option: 2, share: 58.47 },
+      { skill: 3, option: 3, share: 20.83 },
+      { skill: 1, option: 1, share: 20.7 },
+    ]);
+  });
+  it('gives nothing for a hero without exclusive equipment (empty rows with a 0 share)', () => {
+    expect(mapExclusive(fx('hero-detail'))).toEqual([]);
   });
 });

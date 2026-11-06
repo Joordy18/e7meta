@@ -1,6 +1,6 @@
 import { unwrap } from './api';
 import type {
-  ArtifactEntry, HeroDetail, HeroSummary, ArtifactInfo, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution, Team,
+  ArtifactEntry, HeroDetail, HeroSummary, ArtifactInfo, ExclusiveUse, ModeEntry, Period, RiftInfo, SetCombo, ShareEntry, StatDistribution, Team,
 } from '../../src/shared/types';
 
 const list = (raw: unknown): any[] => unwrap<any>(raw).guide_list ?? [];
@@ -128,4 +128,19 @@ export function mapArtifactList(raw: unknown): Omit<ArtifactInfo, 'heroes'>[] {
       description: a.info_text, values,
     };
   });
+}
+
+/** Names of the three skills, from the hero detail (empty on a placeholder row). */
+export function mapSkills(raw: unknown): string[] {
+  return ((unwrap<any>(raw).hero_skills ?? []) as { skill_name?: string }[]).map((s) => s.skill_name).filter((n): n is string => !!n);
+}
+
+/**
+ * The exclusive equipment upgrades players use most. `rank_skill` is like "ek_c114401_02": the hero, then the upgrade option;
+ * `enhancemen_skill` (sic) is the skill it improves. Empty rows (no rank_skill, 0 share) are padding.
+ */
+export function mapExclusive(raw: unknown): ExclusiveUse[] {
+  return ((unwrap<any>(raw).hero_dedicated_eqip ?? []) as { rank_skill?: string; enhancemen_skill?: string; skill_rank_share?: number }[])
+    .filter((e) => e.rank_skill && (e.skill_rank_share ?? 0) > 0)
+    .map((e) => ({ skill: Number(e.enhancemen_skill), option: Number(e.rank_skill!.slice(-2)), share: e.skill_rank_share! }));
 }

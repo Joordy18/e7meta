@@ -103,6 +103,14 @@ describe('collect', () => {
     expect(read('2026-10-22', 'hero', `${first.code}.json`).hero).toEqual(first);
   });
 
+  it('keeps the skill names and the exclusive equipment ranking on the hero file when there is one', async () => {
+    const { client, heroes } = fake();
+    await collect({ outDir: dir, client });
+    const snap = read('2026-10-22', 'hero', `${heroes[0].hero_code}.json`);
+    expect(snap.skills).toEqual(fx('hero-detail').value.hero_skills.map((s: { skill_name: string }) => s.skill_name));
+    expect('exclusive' in snap).toBe(false); // the fixture hero has none
+  });
+
   it('skips an existing period, rewrites with force', async () => {
     await collect({ outDir: dir, client: fake().client });
     const before = readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8');

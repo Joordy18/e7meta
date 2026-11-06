@@ -18,7 +18,10 @@ export type HeroSnapshot = {
   sets: ShareEntry[];
   artifacts: ArtifactEntry[];
   detail?: HeroDetail;
+  skills?: string[]; // names of skills 1 to 3
+  exclusive?: ExclusiveUse[]; // most used exclusive equipment upgrades, best first (heroes that have one)
 };
+export type ExclusiveUse = { skill: number; option: number; share: number }; // the upgrade option (1 to 3) of the exclusive equipment, which skill (1 to 3) it improves, % of players
 export type Index = { periods: string[] }; // period start dates, newest first
 
 // Other game modes: how often each hero shows up in successful teams (the guide's "success rate" rankings)
