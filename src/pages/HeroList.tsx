@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { filterHeroes, loadHeroes, loadIndex, sortHeroes, type SortKey } from '../lib/data';
+import { filterHeroes, loadHeroes, loadIndex, normalize, sortHeroes, type SortKey } from '../lib/data';
 import { ElementIcon, HeroFace, JobIcon } from '../components/Art';
 import { useI18n, useLabels } from '../i18n';
 import { formatValue } from '../components/Bars';
@@ -8,7 +8,7 @@ import type { HeroSummary } from '../shared/types';
 type State = { status: 'loading' } | { status: 'empty' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[] };
 
 export default function HeroList() {
-  const { t, rich } = useI18n();
+  const { t, rich, name } = useI18n();
   const labels = useLabels();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [text, setText] = useState('');
@@ -28,12 +28,15 @@ export default function HeroList() {
     return () => { live = false; };
   }, []);
 
-  const shown = useMemo(
-    () => (state.status === 'ok'
-      ? sortHeroes(filterHeroes(state.heroes, { text, job: job || undefined, element: element || undefined, grade: grade ? Number(grade) : undefined }), sort)
-      : []),
-    [state, text, job, element, grade, sort],
-  );
+  // heroes are shown, sorted and searched by their name in the language; the English name still finds them
+  const shown = useMemo(() => {
+    if (state.status !== 'ok') return [];
+    const q = normalize(text.trim());
+    const named = state.heroes.map((h) => ({ ...h, name: name.hero(h.code, h.name), english: h.name }));
+    const found = filterHeroes(named, { text: '', job: job || undefined, element: element || undefined, grade: grade ? Number(grade) : undefined })
+      .filter((h) => !q || normalize(h.name).includes(q) || normalize((h as (typeof named)[number]).english).includes(q));
+    return sortHeroes(found, sort);
+  }, [state, text, job, element, grade, sort, name]);
 
   if (state.status === 'loading') return <p className="note">{t('common.loading')}</p>;
   if (state.status === 'error') return <p className="note error">{t('common.failed', { message: state.message })}</p>;

@@ -56,15 +56,16 @@ function Rift({ rift }: { rift: NonNullable<Modes['rift']> }) {
 }
 
 function TopHeroes({ list }: { list: ModeList }) {
+  const { name } = useI18n();
   return (
     <span className="top-icons">
-      {list.heroes.slice(0, 3).map((h) => <HeroIcon key={h.code} code={h.code} name={h.name} />)}
+      {list.heroes.slice(0, 3).map((h) => <HeroIcon key={h.code} code={h.code} name={name.hero(h.code, h.name)} />)}
     </span>
   );
 }
 
 export default function ModesPage() {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const state = useModes();
   if (state.status !== 'ok') return <Status state={state} />;
   const groups = groupModes(state.modes);
@@ -84,7 +85,7 @@ export default function ModesPage() {
                 {items[0].lists.map((l) => (
                   <a key={l.id} href={`#/modes/${l.id}`} className="floor">
                     <span>{l.variant}</span>
-                    {l.heroes[0] && <HeroIcon code={l.heroes[0].code} name={l.heroes[0].name} />}
+                    {l.heroes[0] && <HeroIcon code={l.heroes[0].code} name={name.hero(l.heroes[0].code, l.heroes[0].name)} />}
                   </a>
                 ))}
               </div>
@@ -128,7 +129,7 @@ export function TeamRow({ team, names, caption }: { team: Team; names: Map<strin
 }
 
 export function ModePage({ id }: { id: string }) {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const state = useModes();
   const [limit, setLimit] = useState(PAGE);
   useEffect(() => setLimit(PAGE), [id]);
@@ -145,6 +146,7 @@ export function ModePage({ id }: { id: string }) {
   }
   const siblings = state.modes.lists.filter((l) => l.group === list.group);
   const teams = bestTeams(state.teams, list.id, 8);
+  const shownNames = new Map([...state.names].map(([c, n]) => [c, name.hero(c, n)]));
   const guide = findGuide(guideSlug(list));
   return (
     <div>
@@ -165,7 +167,7 @@ export function ModePage({ id }: { id: string }) {
         {teams.length > 0 && (
           <section aria-label={t('modes.bestTeams')} className="panel">
             <h3>{t('modes.bestTeams')}</h3>
-            <ol className="teams">{teams.map((t) => <TeamRow key={t.heroes.join()} team={t} names={state.names} />)}</ol>
+            <ol className="teams">{teams.map((t) => <TeamRow key={t.heroes.join()} team={t} names={shownNames} />)}</ol>
           </section>
         )}
         <section aria-label={t('modes.topHeroes')} className="panel">
@@ -174,8 +176,8 @@ export function ModePage({ id }: { id: string }) {
             {list.heroes.slice(0, limit).map((h, i) => (
               <li key={h.code} className="rank-row">
                 <span className="rank-n">{i + 1}</span>
-                <HeroIcon code={h.code} name={h.name} decorative />
-                <a href={`#/hero/${h.code}`}>{h.name}</a>
+                <HeroIcon code={h.code} name={name.hero(h.code, h.name)} decorative />
+                <a href={`#/hero/${h.code}`}>{name.hero(h.code, h.name)}</a>
                 <span className="rank-bar" aria-hidden><span style={{ width: `${Math.min(100, h.share)}%` }} /></span>
                 <strong>{formatValue(h.share)}</strong>
               </li>

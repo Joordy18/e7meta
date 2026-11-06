@@ -19,7 +19,7 @@ const SAMPLE_SHOWN = 30;
 type Load = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; index: ArenaIndex };
 
 export default function ArenaPage() {
-  const { t, rich } = useI18n();
+  const { t, rich, name } = useI18n();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [seasonId, setSeasonId] = useState('');
   const [season, setSeason] = useState<ArenaSeason | null>(null);
@@ -105,8 +105,8 @@ export default function ArenaPage() {
                   <tr key={r.hero}>
                     <td>{i + 1}</td>
                     <td><span className="hero-cell">
-                      {code && <HeroIcon code={code} name={r.hero} decorative />}
-                      {code ? <a href={`#/hero/${code}`}>{r.hero}</a> : r.hero}
+                      {code && <HeroIcon code={code} name={name.hero(code, r.hero)} decorative />}
+                      {code ? <a href={`#/hero/${code}`}>{name.hero(code, r.hero)}</a> : r.hero}
                     </span></td>
                     <td className="rate-cell"><span className="rate-bar" aria-hidden><span style={{ width: `${Math.min(100, r.rate)}%` }} /></span><span className="rate-val">{pct(r.rate)}</span></td>
                     {metric !== 'preBan' && (
@@ -160,7 +160,7 @@ export default function ArenaPage() {
 function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
   rta: RtaStats; names: Map<string, string>; sort: SampleSort; setSort: (s: SampleSort) => void; showAll: boolean; setShowAll: (b: boolean) => void;
 }) {
-  const { t, locale } = useI18n();
+  const { t, locale, name: lookup } = useI18n();
   const key = (r: RtaRow) => (sort === 'win' ? r.win ?? -1 : r[sort]);
   const rows = rtaRows(rta).sort((a, b) => key(b) - key(a) || b.pick - a.pick);
   const shown = showAll ? rows : rows.slice(0, SAMPLE_SHOWN);
@@ -181,13 +181,13 @@ function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
             <thead><tr><th>#</th><th>{t('arena.colHero')}</th><th>{t('hero.pick')}</th><th>{t('arena.colWin')}</th><th>{t('arena.colBan')}</th><th>{t('hero.preBan')}</th><th>{t('hero.firstPick')}</th></tr></thead>
             <tbody>
               {shown.map((r, i) => {
-                const name = names.get(r.code) ?? r.code;
+                const shown = lookup.hero(r.code, names.get(r.code) ?? r.code);
                 return (
                   <tr key={r.code}>
                     <td>{i + 1}</td>
                     <td><span className="hero-cell">
-                      <HeroIcon code={r.code} name={name} decorative />
-                      <a href={`#/hero/${r.code}`}>{name}</a>
+                      <HeroIcon code={r.code} name={shown} decorative />
+                      <a href={`#/hero/${r.code}`}>{shown}</a>
                     </span></td>
                     <td>{pct(r.pick)}</td>
                     <td className={r.win !== null && r.win >= 50 ? 'win up' : 'win'}>{r.win === null ? '—' : pct(r.win)}</td>

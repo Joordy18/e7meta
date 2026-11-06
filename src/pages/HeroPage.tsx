@@ -116,7 +116,7 @@ function Panel({ title, children, wide }: { title: string; children: React.React
 }
 
 export default function HeroPage({ code }: { code: string }) {
-  const { t, rich, locale } = useI18n();
+  const { t, rich, locale, name } = useI18n();
   const [period, setPeriod] = useState('');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
@@ -207,6 +207,7 @@ export default function HeroPage({ code }: { code: string }) {
     return () => { live = false; };
   }, [h?.hero.code]);
 
+  const shownNames = new Map([...names].map(([c, n]) => [c, name.hero(c, n)])); // heroes of the teams, in the language
   const hasExclusive = !!h && !!((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]);
   const navItems = !h ? [] : ([
     { id: 'loadout', label: t('hero.navBuild') }, arena && { id: 'arena', label: t('home.arena') }, rtaSample && { id: 'rta-sample', label: t('hero.rtaSample') },
@@ -301,12 +302,12 @@ export default function HeroPage({ code }: { code: string }) {
                 )}
                 {mates.length > 0 && (
                   <Panel title={t('hero.playedWith')}>
-                    <p className="caption">{t('hero.playedWithCaption', { hero: h.hero.name })}</p>
+                    <p className="caption">{t('hero.playedWithCaption', { hero: name.hero(h.hero.code, h.hero.name) })}</p>
                     <ol className="ranking mates">
                       {mates.map((m) => (
                         <li key={m.code} className="rank-row">
-                          <HeroIcon code={m.code} name={names.get(m.code) ?? m.code} decorative />
-                          <a href={`#/hero/${m.code}`}>{names.get(m.code) ?? m.code}</a>
+                          <HeroIcon code={m.code} name={shownNames.get(m.code) ?? m.code} decorative />
+                          <a href={`#/hero/${m.code}`}>{shownNames.get(m.code) ?? m.code}</a>
                           <span className="rank-bar" aria-hidden><span style={{ width: `${(m.teams / m.total) * 100}%` }} /></span>
                           <strong>{t('hero.teamsOf', { n: m.teams, total: m.total })}</strong>
                         </li>
@@ -315,10 +316,10 @@ export default function HeroPage({ code }: { code: string }) {
                   </Panel>
                 )}
                 {teamList.length > 0 && (
-                  <Panel title={t('hero.bestTeams', { hero: h.hero.name })}>
+                  <Panel title={t('hero.bestTeams', { hero: name.hero(h.hero.code, h.hero.name) })}>
                     <ol className="teams">
                       {teamList.map((tl) => (
-                        <TeamRow key={`${tl.listId}-${tl.team.heroes.join()}`} team={tl.team} names={names}
+                        <TeamRow key={`${tl.listId}-${tl.team.heroes.join()}`} team={tl.team} names={shownNames}
                           caption={<a href={`#/modes/${tl.listId}`}>{tl.title}</a>} />
                       ))}
                     </ol>
@@ -345,10 +346,10 @@ export default function HeroPage({ code }: { code: string }) {
             </header>
             <div className="panels">
               <Panel title={t('loadout.sets')}>
-                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
+                <Bars items={top(h.sets, 10).map((s) => ({ label: name.set(s.code, s.name), value: s.share, icons: [setIcon(s.code)] }))} />
               </Panel>
               <Panel title={t('loadout.artifacts')}>
-                <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
+                <Bars items={top(h.artifacts, 10).map((a) => ({ label: name.artifact(a.code, a.name), value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
               </Panel>
             </div>
           </section>
@@ -360,10 +361,10 @@ export default function HeroPage({ code }: { code: string }) {
               </header>
               <div className="panels">
                 <Panel title={t('hero.combos')}>
-                  <Bars items={top(h.detail.combos, 3).map((c) => ({ label: c.sets.join(' + '), value: c.share, icons: (c.codes ?? []).map(setIcon) /* periods collected before codes existed have none */ }))} />
+                  <Bars items={top(h.detail.combos, 3).map((c) => ({ label: name.sets(c.codes, c.sets).join(' + '), value: c.share, icons: (c.codes ?? []).map(setIcon) /* periods collected before codes existed have none */ }))} />
                 </Panel>
                 <Panel title={t('hero.artifactsHunts')}>
-                  <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: a.name, value: a.share, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
+                  <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: name.artifact(a.code, a.name), value: a.share, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
                 </Panel>
                 <Panel title={t('hero.stats')} wide>
                   <TargetTable stats={h.detail.stats} />

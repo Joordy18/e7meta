@@ -1,15 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { I18nProvider, LANGS, detectLang, interpolate, useI18n } from '../src/i18n';
 import { en } from '../src/i18n/en';
 import { fr } from '../src/i18n/fr';
 import LanguageMenu from '../src/components/LanguageMenu';
 import App from '../src/App';
+import { loadNames } from '../src/lib/data';
+
+vi.mock('../src/lib/data', async (orig) => ({ ...(await orig<typeof import('../src/lib/data')>()), loadNames: vi.fn() }));
 
 const setNavigatorLanguage = (l: string) => Object.defineProperty(navigator, 'language', { value: l, configurable: true });
 
-beforeEach(() => { localStorage.clear(); setNavigatorLanguage('en-US'); document.documentElement.lang = ''; location.hash = ''; });
+beforeEach(() => { vi.mocked(loadNames).mockResolvedValue(null); localStorage.clear(); setNavigatorLanguage('en-US'); document.documentElement.lang = ''; location.hash = ''; });
 afterEach(cleanup);
 
 const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider>{children}</I18nProvider>;
@@ -65,6 +68,45 @@ describe('useI18n', () => {
   it('works without a provider, in English', () => {
     const { result } = renderHook(() => useI18n());
     expect(result.current.t('nav.home')).toBe(en['nav.home']);
+  });
+});
+
+describe('names of heroes, artifacts and sets', () => {
+  const file = { lang: 'fr', updated: 'x', heroes: { c1: 'Abigaëlle' }, artifacts: { efk21: 'Couronne' }, sets: { set_speed: 'Set Vitesse' } };
+
+  it('are the data names in English, and nothing is loaded', () => {
+    const { result } = renderHook(() => useI18n(), { wrapper });
+    expect(result.current.name.hero('c1', 'Abigail')).toBe('Abigail');
+    expect(result.current.name.artifact('efk21', '3F')).toBe('3F');
+    expect(result.current.name.set('set_speed', 'Speed Set')).toBe('Speed Set');
+    expect(loadNames).not.toHaveBeenCalled();
+  });
+
+  it('come from the names file of the language, by code, with the data name for a code it does not know', async () => {
+    vi.mocked(loadNames).mockResolvedValue(file);
+    const { result } = renderHook(() => useI18n(), { wrapper });
+    act(() => result.current.setLang('fr'));
+    await waitFor(() => expect(result.current.name.hero('c1', 'Abigail')).toBe('Abigaëlle'));
+    expect(loadNames).toHaveBeenCalledWith('fr');
+    expect(result.current.name.artifact('efk21', '3F')).toBe('Couronne');
+    expect(result.current.name.set('set_speed', 'Speed Set')).toBe('Set Vitesse');
+    expect(result.current.name.hero('c999', 'New Hero')).toBe('New Hero');
+    expect(result.current.name.sets(['set_speed', 'set_x'], ['Speed Set', 'Other Set'])).toEqual(['Set Vitesse', 'Other Set']);
+    expect(result.current.name.sets(undefined, ['Speed Set'])).toEqual(['Speed Set']); // a snapshot from before set codes were kept
+    act(() => result.current.setLang('en'));
+    expect(result.current.name.hero('c1', 'Abigail')).toBe('Abigail');
+  });
+
+  it('stay the data names when the file is missing or cannot be read', async () => {
+    const { result } = renderHook(() => useI18n(), { wrapper });
+    act(() => result.current.setLang('fr'));
+    await waitFor(() => expect(loadNames).toHaveBeenCalled());
+    expect(result.current.name.hero('c1', 'Abigail')).toBe('Abigail');
+    vi.mocked(loadNames).mockRejectedValue(new Error('down'));
+    act(() => result.current.setLang('en'));
+    act(() => result.current.setLang('fr'));
+    await waitFor(() => expect(loadNames).toHaveBeenCalledTimes(2));
+    expect(result.current.name.hero('c1', 'Abigail')).toBe('Abigail');
   });
 });
 

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HomePage from '../src/pages/HomePage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed } from '../src/lib/data';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed, loadNames } from '../src/lib/data';
 import { guides } from '../src/lib/guides';
 import { sampleGuides } from './sampleGuides';
 import type { ArenaSeason, ArenaTier, DraftRow, Feed, ModeList, Modes, PreBanRow, Trends } from '../src/shared/types';
@@ -11,7 +11,7 @@ import type { ArenaSeason, ArenaTier, DraftRow, Feed, ModeList, Modes, PreBanRow
 vi.mock('../src/lib/guides', async () => (await import('./sampleGuides')).guidesModule());
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadModes: vi.fn(), loadHeroes: vi.fn(), loadTrends: vi.fn(), loadFeed: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
+  loadIndex: vi.fn(), loadModes: vi.fn(), loadHeroes: vi.fn(), loadTrends: vi.fn(), loadFeed: vi.fn(), loadNames: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
 }));
 const guidesBackup = [...sampleGuides];
 afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); sampleGuides.splice(0, sampleGuides.length, ...guidesBackup); });
@@ -365,6 +365,28 @@ describe('HomePage: in French', () => {
     // the data is what it was: names of heroes, shares, posts
     expect(within(bal).getByRole('link', { name: 'Death Dealer Ray' }).getAttribute('href')).toBe('#/hero/c2090');
     expect(within(news).getByRole('link', { name: 'Bunny Girl Mafia Yufine' })).toBeTruthy();
+  });
+});
+
+describe('HomePage: names in French', () => {
+  it('shows heroes, artifacts and sets by their French name wherever the page names them, and links stay on the codes', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    vi.mocked(loadNames).mockResolvedValue({
+      lang: 'fr', updated: 'x',
+      heroes: { a: 'Alpha FR', c7016: 'Yufine FR', c2090: 'Ray FR' }, artifacts: { efk99: 'Lame FR', x: 'Murmures FR' }, sets: { s1: 'Set FR' },
+    });
+    setup({ feed: { ...feed, balance: balance('2099-11-19') }, trends: trends([[50, 30], [10, 20]]) });
+    render(<I18nProvider><HomePage /></I18nProvider>);
+    const pve = await screen.findByRole('region', { name: fr['home.pve'] });
+    await waitFor(() => expect(within(pve).getAllByRole('link', { name: 'Alpha FR' })[0].getAttribute('href')).toBe('#/hero/a'));
+    const news = screen.getByRole('region', { name: fr['home.newInGame'] });
+    expect(within(news).getByRole('link', { name: 'Yufine FR' }).getAttribute('href')).toBe('#/hero/c7016');
+    expect(within(news).getByRole('link', { name: 'Lame FR' }).getAttribute('href')).toBe('#/artifact/efk99');
+    expect(within(screen.getByRole('region', { name: fr['home.balance'] })).getByRole('link', { name: 'Ray FR' }).getAttribute('href')).toBe('#/hero/c2090');
+    const shifts = screen.getByRole('region', { name: fr['home.shifts'] });
+    expect(within(shifts).getByRole('link', { name: 'Murmures FR' }).getAttribute('href')).toBe('#/artifact/x');
+    expect(within(shifts).getByText('Set FR')).toBeTruthy();
+    expect(within(shifts).getAllByRole('link', { name: 'Alpha FR' }).length).toBeGreaterThan(0);
   });
 });
 

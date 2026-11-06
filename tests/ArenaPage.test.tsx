@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import ArenaPage from '../src/pages/ArenaPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta } from '../src/lib/data';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadNames, loadRta } from '../src/lib/data';
 import type { ArenaIndex, ArenaSeason, ArenaTier, DraftRow, PreBanRow, RtaStats } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadRta: vi.fn(),
+  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(),
 }));
 afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); });
 
@@ -141,6 +141,22 @@ describe('ArenaPage in French', () => {
     expect(screen.getByRole('button', { name: fr['arena.metricFirstPick'] })).toBeTruthy();
     const heads = within(screen.getByRole('table', { name: fr['arena.draftRates'] })).getAllByRole('columnheader').map((c) => c.textContent);
     expect(heads).toEqual(['#', fr['arena.colHero'], fr['arena.colPick'], fr['arena.colBan'], fr['arena.colWin']]);
+  });
+});
+
+describe('ArenaPage: names in French', () => {
+  it('names the heroes of the infographic and of the sample in French', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    vi.mocked(loadNames).mockResolvedValue({ lang: 'fr', updated: 'x', heroes: { c9: 'Étoile FR', c10: 'Autre FR' }, artifacts: {}, sets: {} });
+    vi.mocked(loadHeroes).mockResolvedValue([
+      { code: 'c9', name: 'champion Star', grade: 5, job: 'mage', element: 'fire' }, { code: 'c10', name: 'Beta', grade: 5, job: 'knight', element: 'ice' },
+    ]);
+    vi.mocked(loadRta).mockResolvedValue({ season: 'Fall 2026', code: 's', updated: 'x', players: 1, battles: 100, heroes: { c10: { pick: 50, played: 50, win: 25, first: 5, ban: 0, preban: 0 } } });
+    render(<I18nProvider><ArenaPage /></I18nProvider>);
+    const draft = await screen.findByRole('table', { name: fr['arena.draftRates'] });
+    await waitFor(() => expect(within(draft).getByRole('link', { name: 'Étoile FR' }).getAttribute('href')).toBe('#/hero/c9'));
+    const sample = await screen.findByRole('table', { name: fr['arena.sampleAria'] });
+    expect(within(sample).getByRole('link', { name: 'Autre FR' }).getAttribute('href')).toBe('#/hero/c10');
   });
 });
 

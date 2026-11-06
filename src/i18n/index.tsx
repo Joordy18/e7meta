@@ -1,4 +1,6 @@
 import { Fragment, createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { loadNames } from '../lib/data';
+import type { NamesFile } from '../shared/types';
 import { en } from './en';
 import { fr } from './fr';
 
@@ -27,8 +29,26 @@ export function detectLang(): Lang {
   return LANGS.find((l) => l.code === browser)?.code ?? 'en';
 }
 
+/** Names of heroes, artifacts and sets in the current language, by code; the data's own (English) name when there is none. */
+export type NameLookup = {
+  hero: (code: string, fallback: string) => string;
+  artifact: (code: string, fallback: string) => string;
+  set: (code: string, fallback: string) => string;
+  /** The names of the sets of a combination: `codes[i]` names `fallbacks[i]`; a missing or unknown code keeps the data name. */
+  sets: (codes: string[] | undefined, fallbacks: string[]) => string[];
+};
+const keep = (_code: string, fallback: string) => fallback;
+const NO_NAMES: NameLookup = { hero: keep, artifact: keep, set: keep, sets: (_codes, fallbacks) => fallbacks };
+const lookup = (n: NamesFile): NameLookup => ({
+  hero: (code, fallback) => n.heroes[code] ?? fallback,
+  artifact: (code, fallback) => n.artifacts[code] ?? fallback,
+  set: (code, fallback) => n.sets[code] ?? fallback,
+  sets: (codes, fallbacks) => fallbacks.map((fb, i) => (codes?.[i] ? n.sets[codes[i]] ?? fb : fb)),
+});
+
 export type I18n = {
   lang: Lang;
+  name: NameLookup;
   setLang: (l: Lang) => void;
   locale: string; // for numbers and dates
   t: (key: Key, values?: Values) => string;
@@ -36,10 +56,10 @@ export type I18n = {
   rich: (key: Key, values: Record<string, ReactNode>) => ReactNode;
 };
 
-function make(lang: Lang, setLang: (l: Lang) => void): I18n {
+function make(lang: Lang, setLang: (l: Lang) => void, name: NameLookup = NO_NAMES): I18n {
   const text = (key: Key) => DICT[lang][key] ?? DICT.en[key] ?? (key as string); // a missing key shows itself
   return {
-    lang, setLang, locale: LOCALE[lang],
+    lang, setLang, name, locale: LOCALE[lang],
     t: (key, values) => interpolate(text(key), values),
     rich: (key, values) => (
       <>
@@ -59,7 +79,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(STORAGE, lang); } catch { /* storage blocked: the choice lasts for this visit */ }
     document.documentElement.lang = lang;
   }, [lang]);
-  const value = useMemo(() => make(lang, setLang), [lang]);
+  const [names, setNames] = useState<NamesFile | null>(null);
+  useEffect(() => { // the names of heroes, artifacts and sets in that language: a bonus, English (the data) stays without them
+    setNames(null);
+    if (lang === 'en') return;
+    let live = true;
+    Promise.resolve(loadNames(lang)).then((n) => live && setNames(n)).catch(() => {});
+    return () => { live = false; };
+  }, [lang]);
+  const value = useMemo(() => make(lang, setLang, names ? lookup(names) : NO_NAMES), [lang, names]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

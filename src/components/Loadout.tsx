@@ -11,11 +11,11 @@ import type { ExclusiveEquipment, HeroSnapshot, SkillInfo, StatKey } from '../sh
 const AIM: StatKey[] = ['speed', 'critChance', 'critDamage', 'health'];
 
 function Identity({ hero }: { hero: HeroSnapshot['hero'] }) {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   return (
     <section aria-label={t('loadout.hero')} className="panel identity">
-      <HeroFace code={hero.code} name={hero.name} className="face portrait" />
-      <h1>{hero.name}</h1>
+      <HeroFace code={hero.code} name={name.hero(hero.code, hero.name)} className="face portrait" />
+      <h1>{name.hero(hero.code, hero.name)}</h1>
       <p className="tags">
         {hero.grade}★ <ElementIcon element={hero.element} /> <JobIcon job={hero.job} />
       </p>
@@ -25,11 +25,11 @@ function Identity({ hero }: { hero: HeroSnapshot['hero'] }) {
 
 /** What most players run on this hero, at a glance. The sources and periods behind each figure are listed in the sections below. */
 function Build({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipment }) {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const combo = hero.detail?.combos[0];
   const set = combo
-    ? { icons: (combo.codes ?? []).map(setIcon), label: combo.sets.join(' + '), share: combo.share }
-    : hero.sets[0] && { icons: [setIcon(hero.sets[0].code)], label: hero.sets[0].name, share: hero.sets[0].share };
+    ? { icons: (combo.codes ?? []).map(setIcon), label: name.sets(combo.codes, combo.sets).join(' + '), share: combo.share }
+    : hero.sets[0] && { icons: [setIcon(hero.sets[0].code)], label: name.set(hero.sets[0].code, hero.sets[0].name), share: hero.sets[0].share };
   const ex = hero.exclusive?.[0];
   const aim = hero.detail
     ? AIM.flatMap((k) => {
@@ -58,7 +58,7 @@ function Build({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipment }) {
             {hero.artifacts.slice(0, 3).map((a) => (
               <a key={a.code} href={`#/artifact/${a.code}`} className="art-tile" title={a.effect}>
                 <Icon src={artifactIcon(a.code)} className="art-icon" />
-                <span>{a.name}</span>
+                <span>{name.artifact(a.code, a.name)}</span>
                 <em>{formatValue(a.share)}</em>
               </a>
             ))}

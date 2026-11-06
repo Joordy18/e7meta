@@ -9,7 +9,7 @@ const LIMIT = 10;
 
 /** Quick jump to a hero, artifact, mode, guide or page: Ctrl+K (Cmd+K), or the button in the header. */
 export default function Search() {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -40,7 +40,7 @@ export default function Search() {
 
   useEffect(() => { if (open) input.current?.focus(); else { setQuery(''); setActive(0); } }, [open]);
 
-  const items = useMemo(() => buildSearchItems(data), [data]);
+  const items = useMemo(() => buildSearchItems(data, name), [data, name]);
   const results = useMemo(() => searchItems(items, query, LIMIT), [items, query]);
 
   const go = (item: SearchItem) => { location.hash = item.href; setOpen(false); };

@@ -25,7 +25,7 @@ function useGear(): State {
 }
 
 function Wearers({ heroes }: { heroes: ModeEntry[] }) {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   if (heroes.length === 0) return null;
   return (
     <section aria-label={t('gear.wornMost')} className="panel">
@@ -35,8 +35,8 @@ function Wearers({ heroes }: { heroes: ModeEntry[] }) {
         {heroes.map((h, i) => (
           <li key={h.code} className="rank-row">
             <span className="rank-n">{i + 1}</span>
-            <HeroIcon code={h.code} name={h.name} decorative />
-            <a href={`#/hero/${h.code}`}>{h.name}</a>
+            <HeroIcon code={h.code} name={name.hero(h.code, h.name)} decorative />
+            <a href={`#/hero/${h.code}`}>{name.hero(h.code, h.name)}</a>
             <span className="rank-bar" aria-hidden><span style={{ width: `${Math.min(100, h.share)}%` }} /></span>
             <strong>{formatValue(h.share)}</strong>
           </li>
@@ -60,7 +60,7 @@ function Frame({ state, missing, children }: { state: State; missing: string | n
 }
 
 export function ArtifactPage({ code }: { code: string }) {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const labels = useLabels();
   const state = useGear();
   const a = state.status === 'ok' ? state.gear.artifacts[code] : undefined;
@@ -72,7 +72,7 @@ export function ArtifactPage({ code }: { code: string }) {
           <div className="hero-head">
             <Icon src={artifactIcon(a.code)} className="gear-icon" />
             <div>
-              <h1>{a.name}</h1>
+              <h1>{name.artifact(a.code, a.name)}</h1>
               <p className="tags">{a.grade}★ <JobIcon job={a.job} /> {t('gear.exclusive', { job: labels.job(a.job) })}</p>
             </div>
           </div>

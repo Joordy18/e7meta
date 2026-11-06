@@ -31,6 +31,7 @@ function Delta({ value }: { value?: number }) {
 }
 
 function PveList({ title, leaders }: { title: string; leaders: Leader[] }) {
+  const { name } = useI18n();
   if (leaders.length === 0) return null;
   return (
     <section aria-label={title} className="panel">
@@ -38,8 +39,8 @@ function PveList({ title, leaders }: { title: string; leaders: Leader[] }) {
       <ol className="leaders">
         {leaders.map((l) => (
           <li key={l.code}>
-            <HeroIcon code={l.code} name={l.name} decorative />
-            <a href={`#/hero/${l.code}`}>{l.name}</a>
+            <HeroIcon code={l.code} name={name.hero(l.code, l.name)} decorative />
+            <a href={`#/hero/${l.code}`}>{name.hero(l.code, l.name)}</a>
             <strong>{l.share}%</strong>
             <Delta value={l.delta} />
           </li>
@@ -90,7 +91,8 @@ function SkillChanges({ details }: { details: SkillChange[] }) {
 
 /** The latest balance preview: who the developers change, which skills, and why, in their words. */
 function BalanceSection({ balance }: { balance: Balance }) {
-  const { t, rich } = useI18n();
+  const { t, rich, name } = useI18n();
+  const shownName = (c: Balance['changes'][number]) => (!c.code ? c.name : c.kind === 'hero' ? name.hero(c.code, c.name) : name.artifact(c.code, c.name));
   const live = balance.date <= new Date().toISOString().slice(0, 10); // the patch day has come
   return (
     <section id="balance-changes" aria-label={t('home.balance')} className="source">
@@ -104,10 +106,10 @@ function BalanceSection({ balance }: { balance: Balance }) {
           <ul className="changes">
             {balance.changes.map((c) => (
               <li key={`${c.kind}-${c.name}`}>
-                {c.code && (c.kind === 'hero' ? <HeroIcon code={c.code} name={c.name} decorative /> : <Icon src={artifactIcon(c.code)} className="hicon art" />)}
+                {c.code && (c.kind === 'hero' ? <HeroIcon code={c.code} name={shownName(c)} decorative /> : <Icon src={artifactIcon(c.code)} className="hicon art" />)}
                 <div>
                   <p className="who">
-                    {c.code ? <a href={c.kind === 'hero' ? `#/hero/${c.code}` : `#/artifact/${c.code}`}>{c.name}</a> : <span>{c.name}</span>}
+                    {c.code ? <a href={c.kind === 'hero' ? `#/hero/${c.code}` : `#/artifact/${c.code}`}>{shownName(c)}</a> : <span>{c.name}</span>}
                     <small className="meta">
                       {c.grade ? `${c.grade}★ ` : ''}
                       {c.element && <ElementIcon element={c.element} />}{' '}
@@ -136,7 +138,7 @@ function BalanceSection({ balance }: { balance: Balance }) {
 }
 
 export default function HomePage() {
-  const { t, rich } = useI18n();
+  const { t, rich, name } = useI18n();
   const [state, setState] = useState<State>({ status: 'loading' });
 
   useEffect(() => {
@@ -201,10 +203,10 @@ export default function HomePage() {
                           <ul className="news">
                             {items.map((r) => (
                               <li key={r.code ?? r.name} className="release">
-                                {r.code && (kind === 'hero' ? <HeroIcon code={r.code} name={r.name} decorative /> : <Icon src={artifactIcon(r.code)} className="hicon art" />)}
+                                {r.code && (kind === 'hero' ? <HeroIcon code={r.code} name={name.hero(r.code, r.name)} decorative /> : <Icon src={artifactIcon(r.code)} className="hicon art" />)}
                                 <span>
                                   {r.code
-                                    ? <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
+                                    ? <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{kind === 'hero' ? name.hero(r.code, r.name) : name.artifact(r.code, r.name)}</a>
                                     : <a href={r.announced?.url} target="_blank" rel="noopener noreferrer">{r.name}</a>}
                                   <small className="meta">
                                     {r.grade ? `${r.grade}★ ` : ''}
@@ -279,8 +281,8 @@ export default function HomePage() {
                   const code = heroCode(r.hero);
                   return (
                     <li key={r.hero}>
-                      {code ? <HeroIcon code={code} name={r.hero} decorative /> : <span />}
-                      {code ? <a href={`#/hero/${code}`}>{r.hero}</a> : <span>{r.hero}</span>}
+                      {code ? <HeroIcon code={code} name={name.hero(code, r.hero)} decorative /> : <span />}
+                      {code ? <a href={`#/hero/${code}`}>{name.hero(code, r.hero)}</a> : <span>{r.hero}</span>}
                       <strong>{r.rate}%</strong>
                       <span className="sub">{t('home.win', { n: r.win })}{r.isNew ? <small className="delta new"> {t('home.new')}</small> : <Delta value={r.delta} />}</span>
                     </li>
@@ -295,8 +297,8 @@ export default function HomePage() {
                   const code = heroCode(r.hero);
                   return (
                     <li key={r.hero}>
-                      {code ? <HeroIcon code={code} name={r.hero} decorative /> : <span />}
-                      {code ? <a href={`#/hero/${code}`}>{r.hero}</a> : <span>{r.hero}</span>}
+                      {code ? <HeroIcon code={code} name={name.hero(code, r.hero)} decorative /> : <span />}
+                      {code ? <a href={`#/hero/${code}`}>{name.hero(code, r.hero)}</a> : <span>{r.hero}</span>}
                       <strong>{r.rate}%</strong>
                       <span />
                     </li>
@@ -324,9 +326,9 @@ export default function HomePage() {
                 <ul className="shifts">
                   {trends.builds.slice(0, 10).map((b) => (
                     <li key={`${b.hero}-${b.kind}-${b.code}`}>
-                      <HeroIcon code={b.hero} name={b.name} decorative />
-                      <a href={`#/hero/${b.hero}`}>{b.name}</a>
-                      <span>{b.kind === 'artifact' ? <a href={`#/artifact/${b.code}`}>{b.item}</a> : b.item}</span>
+                      <HeroIcon code={b.hero} name={name.hero(b.hero, b.name)} decorative />
+                      <a href={`#/hero/${b.hero}`}>{name.hero(b.hero, b.name)}</a>
+                      <span>{b.kind === 'artifact' ? <a href={`#/artifact/${b.code}`}>{name.artifact(b.code, b.item)}</a> : name.set(b.code, b.item)}</span>
                       <strong className={b.after >= b.before ? 'delta up' : 'delta down'}>{b.before}% → {b.after}%</strong>
                     </li>
                   ))}

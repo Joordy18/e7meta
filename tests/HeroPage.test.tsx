@@ -5,13 +5,13 @@ import HeroPage from '../src/pages/HeroPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadRta, loadSkills, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot, RtaStats, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -50,6 +50,20 @@ describe('HeroPage in French', () => {
     expect(screen.getByRole('img', { name: fr['job.assassin'] })).toBeTruthy();
     expect(screen.getByRole('navigation', { name: fr['pageNav.label'] })).toBeTruthy();
   });
+  it('shows the names of the hero, its sets and its artifacts in French', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    vi.mocked(loadNames).mockResolvedValue({
+      lang: 'fr', updated: 'x', heroes: { c1176: 'Setsuka FR' },
+      artifacts: { [snapshot.artifacts[0].code]: 'Artefact FR' }, sets: { [snapshot.sets[0].code]: 'Set FR' },
+    });
+    render(<I18nProvider><HeroPage code="c1176" /></I18nProvider>);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Setsuka FR' })).toBeTruthy();
+    const gear = screen.getByRole('region', { name: fr['hero.gearSource'] });
+    await waitFor(() => expect(within(gear).getByText('Set FR')).toBeTruthy());
+    expect(within(gear).getByRole('link', { name: 'Artefact FR' })).toBeTruthy();
+  });
+
   it('says in French when the hero has no data', async () => {
     localStorage.setItem('e7.lang', 'fr');
     vi.mocked(loadHero).mockRejectedValue(new NotFoundError('2026-10-29/hero/c1176.json'));

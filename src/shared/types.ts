@@ -103,6 +103,9 @@ export type Release = {
   kind: 'hero' | 'artifact'; name: string; code?: string; since?: string; announced?: { date: string; url: string };
   grade?: number; job?: string; element?: string; // job: the class of a hero, or of the class an artifact is exclusive to; element: heroes only (codes as in heroes.json)
 };
+// The names of heroes, artifacts and sets in one language (names/<lang>.json), by code; English is the data itself.
+export type NamesFile = { lang: string; updated: string; heroes: Record<string, string>; artifacts: Record<string, string>; sets: Record<string, string> };
+
 // A balance preview: the heroes and artifacts the developers will adjust on `date` (their own words), from the latest "Balance Adjustment Preview" post.
 // One changed skill: its text before and after (lines joined by "\n"), and the effect labels the developers add ("Damage Dealt Decreased", "Cooldown: 4 Turns").
 export type SkillChange = { skill: string; before: string; after: string; tags?: { before: string[]; after: string[] } };
