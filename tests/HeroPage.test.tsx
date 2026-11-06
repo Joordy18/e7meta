@@ -258,6 +258,16 @@ describe('HeroPage', () => {
     expect(within(panel).queryByText(/does not describe the options/)).toBeNull();
   });
 
+  it('still describes the options when the fan site gives no name for the exclusive equipment', async () => {
+    vi.mocked(loadHero).mockResolvedValue(withEE);
+    vi.mocked(loadSkills).mockResolvedValue({ ...skillsFile, exclusive: { c1176: { ...ee, name: '' } } });
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Exclusive equipment' });
+    expect(within(panel).getByRole('region', { name: 'Upgrade options' })).toBeTruthy();
+    expect(within(panel).getByText('Effectiveness 8% to 16%')).toBeTruthy();
+    expect(within(panel).getAllByRole('listitem')).toHaveLength(3);
+  });
+
   it('falls back to the usage bars (skill and option number) when the text of the exclusive equipment is not available', async () => {
     vi.mocked(loadHero).mockResolvedValue(withEE);
     render(<HeroPage code="c1176" />);

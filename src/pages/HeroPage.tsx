@@ -79,7 +79,7 @@ function ExclusivePanel({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipm
     .map((o, i) => ({ ...o, n: i + 1, use: uses.find((u) => u.option === i + 1) }))
     .sort((a, b) => (b.use?.share ?? -1) - (a.use?.share ?? -1) || a.n - b.n);
   return (
-    <Panel title={ee.name}>
+    <Panel title={ee.name || 'Upgrade options'}>
       {ee.stat && <p className="ee-stat"><span className="chip">{ee.stat.name} {ee.stat.min} to {ee.stat.max}</span></p>}
       <ol className="ee-options">
         {options.map((o, i) => {
