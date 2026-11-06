@@ -242,7 +242,7 @@ export const de: Record<keyof typeof en, string> = {
   "arena.sortPreban": "Nach Pre-Ban",
   "arena.showAll": "Alle {n} Helden anzeigen",
   "arena.showFewer": "Weniger anzeigen",
-  "arena.sampleCaption": "Von dieser Seite gezählt aus {battles} aktuellen Ranglistenkämpfen der Top {players} Spieler der weltweiten Rangliste in {season}, aktualisiert am {date}. Es ist eine Stichprobe der besten Spieler, nicht aller, daher weicht sie von der Infografik ab. Helden mit weniger als 20 Partien sind ausgelassen. Pick, Ban, Pre-Ban und First Pick sind Anteile an allen Kämpfen; die Siegesrate bezieht sich auf die Partien, in denen der Held gespielt wurde.",
+  "arena.sampleCaption": "Von dieser Seite gezählt aus {battles} aktuellen Ranglistenkämpfen von {players} Top-Spielern aus der Rangliste jedes Servers (Global, Korea, Asien, Europa, Japan) in {season}, aktualisiert am {date}. Es ist eine Stichprobe der besten Spieler, nicht aller, daher weicht sie von der Infografik ab. Helden mit weniger als 20 Partien sind ausgelassen. Pick, Ban, Pre-Ban und First Pick sind Anteile an allen Kämpfen; die Siegesrate bezieht sich auf die Partien, in denen der Held gespielt wurde.",
   "nav.tiers": "Tier-Liste",
   "tiers.title": "PvE-Tier-Liste",
   "tiers.lede": "Helden, geordnet danach, wie stark sie in den Erfolgsraten-Rankings des Spiels bei Jagden, Abgrund und Expeditionen vorkommen.",

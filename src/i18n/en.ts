@@ -240,7 +240,7 @@ export const en = {
   "arena.sortPreban": "By pre-ban",
   "arena.showAll": "Show all {n} heroes",
   "arena.showFewer": "Show fewer",
-  "arena.sampleCaption": "Counted by this site from {battles} recent ranked battles of the top {players} players of the global leaderboard in {season}, updated {date}. It is a sample of the best players, not of everyone, so it will differ from the infographic. Heroes with fewer than 20 games are left out. Pick, ban, pre-ban and first pick are shares of all battles; the win rate is over the games the hero was played.",
+  "arena.sampleCaption": "Counted by this site from {battles} recent ranked battles of {players} top players from the leaderboard of each server (Global, Korea, Asia, Europe, Japan) in {season}, updated {date}. It is a sample of the best players, not of everyone, so it will differ from the infographic. Heroes with fewer than 20 games are left out. Pick, ban, pre-ban and first pick are shares of all battles; the win rate is over the games the hero was played.",
   "nav.tiers": "Tier list",
   "tiers.title": "PvE tier list",
   "tiers.lede": "Heroes ranked by how much the game's own success-rate rankings feature them in hunts, the abyss and expeditions.",

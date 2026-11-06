@@ -97,14 +97,18 @@ describe('collectRta: accumulating', () => {
   const stats = () => JSON.parse(readFileSync(join(dir, 'rta', 'stats.json'), 'utf8'));
 
   /** Players and their battle pages (newest first, 10 a page like the API); `pages[player]` is a list of pages of raw battles. */
-  function fake(o: { pages: Record<number, Raw[][]>; season?: string; failAll?: boolean }) {
+  function fake(o: { pages: Record<number, Raw[][]>; season?: string; failAll?: boolean; rankings?: Record<string, number[]>; failRanking?: string[] }) {
     const calls: string[] = [];
+    const rankingCalls: string[] = [];
     const client = {
       async get(path: string, params: Record<string, string>) {
         if (path.endsWith('getSeasonList')) return env({ result_body: [{ season_code: o.season ?? 'pvp_rta_ss21', name: 'Fall 2026', is_now_season: 1 }] });
         if (path.endsWith('getWorldUserRankingDetail')) {
+          rankingCalls.push(`${params.world_code}:${params.current_page}`);
+          if (o.failRanking?.includes(params.world_code)) throw new Error('ranking down');
+          const nicks = o.rankings ? (o.rankings[params.world_code] ?? []) : Object.keys(o.pages).map(Number); // by default every leaderboard lists everybody
           return Number(params.current_page) === 1
-            ? env({ result_body: Object.keys(o.pages).map((n) => ({ nick_no: Number(n), world_code: 'world_kor', season_tiercode: 'legend', nickname: `secret${n}` })) })
+            ? env({ result_body: nicks.map((n) => ({ nick_no: n, world_code: n > 200 ? 'world_eu' : 'world_kor', season_tiercode: 'legend', nickname: `secret${n}` })) })
             : env({ result_body: [] });
         }
         calls.push(`${params.nick_no}:${params.current_page}`);
@@ -114,7 +118,7 @@ describe('collectRta: accumulating', () => {
         return env({ result_body: { total_count: 100, battle_list: pages[page - 1] ?? [] } }); // 100: the API keeps that many, so only an empty or a known page ends the walk
       },
     };
-    return { client: client as unknown as ReturnType<typeof createClient>, calls };
+    return { client: client as unknown as ReturnType<typeof createClient>, calls, rankingCalls };
   }
   const run = (client: ReturnType<typeof createClient>, log?: (m: string) => void) => collectRta({ outDir: dir, storeDir, client, now: () => '2026-11-06', ...(log ? { log } : {}) });
 
@@ -147,6 +151,25 @@ describe('collectRta: accumulating', () => {
     // next run: both players' pages start with a battle already known
     expect(await run(fake({ pages: { 101: [[mine]], 102: [[theirs]] } }).client)).toBe('written');
     expect(stats().battles).toBe(1);
+  });
+
+  it('reads the leaderboard of every server, since each one lists its top 100 only, and counts a player in two of them once', async () => {
+    const f = fake({
+      pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B)]], 201: [[raw(2, '2026-11-01 11:00:00', B, ['e1', 'e2', 'e3', 'e4', 'e5'])]] },
+      rankings: { all: [101], world_global: [], world_kor: [101], world_eu: [201], world_asia: [] }, failRanking: ['world_jpn'],
+    });
+    const logs: string[] = [];
+    expect(await run(f.client, (m) => logs.push(m))).toBe('written');
+    expect(stats()).toMatchObject({ battles: 2, players: 2 });
+    expect(new Set(f.rankingCalls.map((c) => c.split(':')[0]))).toEqual(new Set(['all', 'world_global', 'world_kor', 'world_asia', 'world_eu', 'world_jpn']));
+    expect(f.calls.filter((c) => c.startsWith('101:'))).toEqual(['101:1', '101:2']); // listed twice, read once (the empty second page ends the walk)
+    expect(logs.some((m) => /world_jpn/.test(m))).toBe(true); // a leaderboard that fails does not stop the others
+  });
+
+  it('fails when no leaderboard can be read', async () => {
+    const f = fake({ pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B)]] }, failRanking: ['all', 'world_global', 'world_kor', 'world_asia', 'world_eu', 'world_jpn'] });
+    expect(await run(f.client)).toBe('failed');
+    expect(existsSync(join(dir, 'rta', 'stats.json'))).toBe(false);
   });
 
   it('says when the battles were played', async () => {

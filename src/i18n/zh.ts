@@ -242,7 +242,7 @@ export const zh: Record<keyof typeof en, string> = {
   "arena.sortPreban": "依預先禁用",
   "arena.showAll": "顯示全部 {n} 位英雄",
   "arena.showFewer": "顯示較少",
-  "arena.sampleCaption": "本站統計自 {season} 全球排行前 {players} 名玩家近期 {battles} 場排名戰（{date} 更新）。這是頂尖玩家的樣本，而非所有人，因此會與資訊圖表不同。少於 20 場的英雄已省略。選用、禁用、預先禁用與先手選用為占全部對戰的比例；勝率則是該英雄出戰場次中的勝率。",
+  "arena.sampleCaption": "本站統計自 {season} 各伺服器（國際服、韓服、亞服、歐服、日服）排行前列的 {players} 名玩家近期 {battles} 場排名戰（{date} 更新）。這是頂尖玩家的樣本，而非所有人，因此會與資訊圖表不同。少於 20 場的英雄已省略。選用、禁用、預先禁用與先手選用為占全部對戰的比例；勝率則是該英雄出戰場次中的勝率。",
   "nav.tiers": "強度排行",
   "tiers.title": "PvE 強度排行",
   "tiers.lede": "依遊戲自己的成功率排行，看英雄在狩獵、深淵與探險中出現的程度來排序。",

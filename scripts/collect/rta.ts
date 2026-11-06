@@ -12,7 +12,8 @@ type Client = ReturnType<typeof createClient>;
 
 // The game's public record API (the one behind the player rankings and match histories of epic7.onstove.com), asked with our own identity.
 const BASE = 'https://e7api.onstove.com';
-const PLAYERS = 200; // top of the global leaderboard
+const PLAYERS = 600; // the most players read: each leaderboard below lists 100 at most
+const LEADERBOARDS = ['all', 'world_global', 'world_kor', 'world_asia', 'world_eu', 'world_jpn']; // every server has its own top 100 (checked: a page 11 is always empty)
 const BATTLES = 100; // most recent battles per player (the API keeps 100)
 const PAGE = 10; // rows per page, fixed by the API
 const MIN_PLAYERS_OK = 0.8; // below this share of players loaded, the run is not trusted
@@ -91,7 +92,7 @@ export function listPlayers(raw: unknown): { nick: number; world: string; tier?:
 }
 
 /**
- * Accumulates the ranked battles of the top players for the current season and writes the counts to rta/stats.json.
+ * Accumulates the ranked battles of the top players (the top 100 of each server's leaderboard) for the current season and writes the counts to rta/stats.json.
  * Every battle is kept once in the store (see rtaStore.ts); a player's history is read from the newest battle back to the first one already
  * known, so a daily run asks for little. The statistics cover everything kept for the season. One request at a time through the client's delay.
  * 'failed' when no battle was found or too many players could not be loaded; then nothing is written.
@@ -111,16 +112,18 @@ export async function collectRta(opts: {
   }
 
   const ranked: { nick: number; world: string; tier?: string }[] = [];
-  try {
-    for (let page = 1; ranked.length < players; page++) {
-      const rows = listPlayers(await client.get('/gameApi/getWorldUserRankingDetail', { season_code: season.season_code, world_code: 'all', current_page: String(page), ...lang }));
-      if (rows.length === 0) break;
-      for (const r of rows) if (!ranked.some((x) => x.nick === r.nick && x.world === r.world)) ranked.push(r);
+  for (const world of LEADERBOARDS) {
+    try {
+      for (let page = 1; ranked.length < players; page++) {
+        const rows = listPlayers(await client.get('/gameApi/getWorldUserRankingDetail', { season_code: season.season_code, world_code: world, current_page: String(page), ...lang }));
+        if (rows.length === 0) break;
+        for (const r of rows) if (!ranked.some((x) => x.nick === r.nick && x.world === r.world)) ranked.push(r);
+      }
+    } catch (e) {
+      log(`rta: could not read the ${world} ranking: ${(e as Error).message}`);
     }
-  } catch (e) {
-    log(`rta: could not read the ranking: ${(e as Error).message}`);
-    if (ranked.length === 0) return 'failed';
   }
+  if (ranked.length === 0) return 'failed';
   ranked.length = Math.min(ranked.length, players);
 
   const store = await loadStore(storeDir, season.season_code);
