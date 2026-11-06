@@ -243,4 +243,12 @@ export const zh: Record<keyof typeof en, string> = {
   "arena.showAll": "顯示全部 {n} 位英雄",
   "arena.showFewer": "顯示較少",
   "arena.sampleCaption": "本站統計自 {season} 全球排行前 {players} 名玩家近期 {battles} 場排名戰（{date} 更新）。這是頂尖玩家的樣本，而非所有人，因此會與資訊圖表不同。少於 20 場的英雄已省略。選用、禁用、預先禁用與先手選用為占全部對戰的比例；勝率則是該英雄出戰場次中的勝率。",
+  "nav.tiers": "強度排行",
+  "tiers.title": "PvE 強度排行",
+  "tiers.lede": "依遊戲自己的成功率排行，看英雄在狩獵、深淵與探險中出現的程度來排序。",
+  "tiers.all": "全部 PvE",
+  "tiers.modeLabel": "模式",
+  "tiers.tier": "{tier} 級",
+  "tiers.shareTitle": "平均占比 {n}%",
+  "tiers.how": "梯隊是把英雄在排行中的平均占比，與該模式最常用的英雄相比：達一半為 S、達四分之一為 A、達十分之一為 B、達 3% 為 C、以下為 D。它反映玩家使用且成功的英雄，而非純粹的強度；新英雄與冷門英雄的占比較低。",
 };

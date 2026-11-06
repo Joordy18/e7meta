@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadGear, loadHeroes, loadIndex, loadModes } from '../lib/data';
 import { artifactIcon } from '../lib/images';
 import { useI18n, type Key } from '../i18n';
-import { buildSearchItems, searchItems, type SearchItem } from '../lib/search';
+import { buildSearchItems, searchItems, type PageLink, type SearchItem } from '../lib/search';
 import { HeroIcon, Icon } from './Art';
 
 const LIMIT = 10;
@@ -40,7 +40,8 @@ export default function Search() {
 
   useEffect(() => { if (open) input.current?.focus(); else { setQuery(''); setActive(0); } }, [open]);
 
-  const items = useMemo(() => buildSearchItems(data, name), [data, name]);
+  const pages = useMemo<PageLink[]>(() => [[t('nav.home'), '#/'], [t('nav.heroes'), '#/heroes'], [t('nav.modes'), '#/modes'], [t('nav.tiers'), '#/tiers'], [t('nav.rta'), '#/arena'], [t('nav.guides'), '#/guides']], [t]);
+  const items = useMemo(() => buildSearchItems(data, name, pages), [data, name, pages]);
   const results = useMemo(() => searchItems(items, query, LIMIT), [items, query]);
 
   const go = (item: SearchItem) => { location.hash = item.href; setOpen(false); };

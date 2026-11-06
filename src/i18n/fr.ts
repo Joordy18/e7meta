@@ -243,4 +243,12 @@ export const fr: Record<keyof typeof en, string> = {
   "arena.showAll": "Afficher les {n} héros",
   "arena.showFewer": "Afficher moins",
   "arena.sampleCaption": "Compté par ce site à partir de {battles} combats classés récents des {players} meilleurs joueurs du classement mondial en {season}, mis à jour le {date}. C'est un échantillon des meilleurs joueurs, pas de tout le monde : il diffère donc de l'infographie. Les héros avec moins de 20 parties sont écartés. Pick, ban, pré-ban et premier pick sont des parts de tous les combats ; le taux de victoire porte sur les parties où le héros a été joué.",
+  "nav.tiers": "Tier list",
+  "tiers.title": "Tier list PvE",
+  "tiers.lede": "Les héros classés selon la place que leur donnent les classements de réussite du jeu dans les chasses, l'abysse et les expéditions.",
+  "tiers.all": "Tout le PvE",
+  "tiers.modeLabel": "Mode",
+  "tiers.tier": "Tier {tier}",
+  "tiers.shareTitle": "Part moyenne {n} %",
+  "tiers.how": "Un tier compare la part moyenne du héros dans les classements à celle du héros le plus utilisé du mode : S à partir de la moitié, A à partir d'un quart, B à partir d'un dixième, C à partir de 3 %, D en dessous. Cela montre ce que les joueurs utilisent et avec quoi ils réussissent, pas la puissance brute ; les héros récents ou de niche pèsent moins.",
 };

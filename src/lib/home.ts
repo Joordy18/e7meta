@@ -6,7 +6,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export type Leader = { code: string; name: string; share: number; delta?: number };
 
 /** Average share of each hero over the rankings of a mode (a ranking that lacks the hero counts as 0). */
-function averages(modes: Modes, mode: ModeList['mode']) {
+export function modeAverages(modes: Modes, mode: ModeList['mode']) {
   const lists = modes.lists.filter((l) => l.mode === mode);
   const sums = new Map<string, { name: string; sum: number }>();
   for (const l of lists) {
@@ -24,8 +24,8 @@ function averages(modes: Modes, mode: ModeList['mode']) {
  * `delta` is the change in points (only pass one that holds different data, or every change is 0).
  */
 export function pveLeaders(modes: Modes, mode: ModeList['mode'], n: number, prev?: Modes): Leader[] {
-  const now = averages(modes, mode);
-  const before = prev ? averages(prev, mode) : undefined;
+  const now = modeAverages(modes, mode);
+  const before = prev ? modeAverages(prev, mode) : undefined;
   return [...now]
     .map(([code, e]) => ({
       code, name: e.name, share: round2(e.share),

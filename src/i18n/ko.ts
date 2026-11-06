@@ -243,4 +243,12 @@ export const ko: Record<keyof typeof en, string> = {
   "arena.showAll": "영웅 {n}명 모두 보기",
   "arena.showFewer": "줄여서 보기",
   "arena.sampleCaption": "이 사이트가 {season} 글로벌 랭킹 상위 {players}명 플레이어의 최근 랭크전 {battles}경기에서 집계했습니다({date} 업데이트). 전체가 아닌 최상위 플레이어의 표본이므로 인포그래픽과 다를 수 있습니다. 경기 수가 20회 미만인 영웅은 제외했습니다. 픽·밴·사전 밴·선픽은 전체 경기 대비 비율이며, 승률은 해당 영웅이 사용된 경기 기준입니다.",
+  "nav.tiers": "티어 리스트",
+  "tiers.title": "PvE 티어 리스트",
+  "tiers.lede": "사냥, 나락, 탐험에서 게임의 성공률 순위에 얼마나 많이 올라 있는지에 따라 영웅을 정렬했습니다.",
+  "tiers.all": "PvE 전체",
+  "tiers.modeLabel": "모드",
+  "tiers.tier": "{tier} 티어",
+  "tiers.shareTitle": "평균 비율 {n}%",
+  "tiers.how": "티어는 순위에서 영웅의 평균 비율을 해당 모드에서 가장 많이 쓰이는 영웅과 비교한 것입니다. S는 절반 이상, A는 4분의 1 이상, B는 10분의 1 이상, C는 3% 이상, D는 그 미만입니다. 플레이어가 쓰고 성공하는 영웅을 보여 줄 뿐 순수한 강함은 아니며, 신규·비주류 영웅은 불리합니다.",
 };

@@ -7,17 +7,18 @@ import type { Gear, HeroSummary, Modes } from '../shared/types';
 export type SearchItem = { kind: 'hero' | 'artifact' | 'mode' | 'guide' | 'page'; label: string; href: string; code?: string; alt?: string }; // alt: the English name, when label is a translation
 
 const KIND_ORDER: SearchItem['kind'][] = ['hero', 'artifact', 'mode', 'guide', 'page'];
-const PAGES: [string, string][] = [['Home', '#/'], ['Heroes', '#/heroes'], ['Modes', '#/modes'], ['RTA', '#/arena'], ['Guides', '#/guides']];
+export type PageLink = [label: string, href: string];
+const PAGES: PageLink[] = [['Home', '#/'], ['Heroes', '#/heroes'], ['Modes', '#/modes'], ['Tier list', '#/tiers'], ['RTA', '#/arena'], ['Guides', '#/guides']];
 
 /** Everything that can be jumped to: the pages and guides always, heroes, artifacts and modes when their data is loaded. */
-export function buildSearchItems(data: { heroes?: HeroSummary[]; gear?: Gear | null; modes?: Modes | null }, name?: Pick<NameLookup, 'hero' | 'artifact'>): SearchItem[] {
+export function buildSearchItems(data: { heroes?: HeroSummary[]; gear?: Gear | null; modes?: Modes | null }, name?: Pick<NameLookup, 'hero' | 'artifact'>, pages: PageLink[] = PAGES): SearchItem[] {
   const named = (label: string, shown: string) => (shown === label ? { label } : { label: shown, alt: label });
   return [
     ...(data.heroes ?? []).map((h): SearchItem => ({ kind: 'hero', ...named(h.name, name?.hero(h.code, h.name) ?? h.name), href: `#/hero/${h.code}`, code: h.code })),
     ...Object.values(data.gear?.artifacts ?? {}).map((a): SearchItem => ({ kind: 'artifact', ...named(a.name, name?.artifact(a.code, a.name) ?? a.name), href: `#/artifact/${a.code}`, code: a.code })),
     ...(data.modes ? groupModes(data.modes).map((g): SearchItem => ({ kind: 'mode', label: g.group, href: `#/modes/${g.lists[0].id}` })) : []),
     ...guides.map((g): SearchItem => ({ kind: 'guide', label: g.title, href: `#/guides/${g.slug}` })),
-    ...PAGES.map(([label, href]): SearchItem => ({ kind: 'page', label, href })),
+    ...pages.map(([label, href]): SearchItem => ({ kind: 'page', label, href })),
   ];
 }
 
