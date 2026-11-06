@@ -72,7 +72,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
 .tags { color: var(--mute); font-size: 13px; }
 /* official element and class icons: one sheet (460 x 260) of the game's guide, hotlinked; --x/--y/--w/--h = the icon's box in the sheet */
-.attr { --s: .55; --w: 41; --h: 41; --x: 0; --y: 0; display: inline-block; vertical-align: middle; width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
+.attr { --s: .45; --w: 41; --h: 41; --x: 0; --y: 0; display: inline-block; vertical-align: middle; width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
   background: url(https://static-pubcomm.onstove.com/live/epic7/brand/images/guide/icon_spr.png) no-repeat; background-size: calc(460px * var(--s)) calc(260px * var(--s));
   background-position: calc(var(--x) * var(--s) * -1px) calc(var(--y) * var(--s) * -1px); }
 .attr[data-attr='el-dark'] { --y: 0; }
