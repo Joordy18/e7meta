@@ -3,13 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -17,6 +17,7 @@ beforeEach(() => {
   vi.mocked(loadTeams).mockResolvedValue(null);
   vi.mocked(loadHeroes).mockResolvedValue([]);
   vi.mocked(loadArenaIndex).mockResolvedValue(null);
+  vi.mocked(loadSkills).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -89,7 +90,7 @@ describe('HeroPage', () => {
   it('omits the hunts block when detail is missing but renders the rest', async () => {
     vi.mocked(loadHero).mockResolvedValue({ ...snapshot, detail: undefined });
     render(<HeroPage code="c1176" />);
-    expect(await screen.findByText('23.86%')).toBeTruthy();
+    expect(within(await screen.findByRole('region', { name: 'Sets' })).getByText('23.86%')).toBeTruthy();
     expect(screen.queryByText(/Source: hunts/)).toBeNull();
     expect(screen.queryAllByRole('group')).toHaveLength(0);
   });
@@ -149,19 +150,77 @@ describe('HeroPage', () => {
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
   });
 
-  it('shows the three skills with their icon and name, and a link to the descriptions on a fan site', async () => {
+  const skillsFile = {
+    fetchedAt: '2026-11-06', source: 'epic7db.com',
+    heroes: { c1176: [
+      { name: 'Horizontal Slash', soulGain: 1, effects: [{ name: 'Dual Attack', text: 'Chance to attack after an ally.' }],
+        description: 'Attack the enemy with a sword. Damage grows with the **caster\'s max HP**.', soulburn: 'Increases damage dealt. (-10 souls)',
+        upgrades: [{ level: 1, text: '+5% damage dealt' }, { level: 2, text: '+5% damage dealt' }] },
+      { name: 'Surpressed Desire', cooldown: 'Passive', effects: [], description: 'Increases **Evasion** of all allies by 30%.', upgrades: [] },
+      { name: 'Rouge Aroma', cooldown: '3 Turns', effects: [], description: 'Attacks all enemies.', upgrades: [{ level: 1, text: '+10% damage dealt' }] },
+    ] },
+  };
+
+  it('puts the recommended build up front: most used set combination, top artifacts and the stats to aim for', async () => {
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<HeroPage code="c1176" />);
+    const build = await screen.findByRole('region', { name: 'Recommended build' });
+    expect(within(build).getByText(snapshot.detail!.combos[0].sets.join(' + '))).toBeTruthy();
+    expect(within(build).getByText('39.2%')).toBeTruthy();
+    const arts = within(build).getAllByRole('link');
+    expect(arts.slice(0, 3).map((a) => a.getAttribute('href'))).toEqual(snapshot.artifacts.slice(0, 3).map((a) => `#/artifact/${a.code}`));
+    expect(within(build).getByText('77.81%')).toBeTruthy();
+    const aim = within(build).getByRole('list', { name: 'Stats to aim for' });
+    expect(within(aim).getAllByRole('listitem').map((li) => li.textContent)).toEqual(expect.arrayContaining([expect.stringMatching(/^Speed \d+\+$/)]));
+  });
+
+  it('falls back to the top set of the gear ranking when there is no hunt data', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, detail: undefined });
+    render(<HeroPage code="c1176" />);
+    const build = await screen.findByRole('region', { name: 'Recommended build' });
+    expect(within(build).getByText(snapshot.sets[0].name)).toBeTruthy();
+    expect(within(build).getByText('23.86%')).toBeTruthy();
+    expect(within(build).queryByRole('list', { name: 'Stats to aim for' })).toBeNull();
+  });
+
+  it('shows the most used exclusive equipment upgrade in the build', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, skills: ['Ambush', 'Blood Banquet', 'Scarlet Garden'], exclusive: [{ skill: 3, option: 2, share: 58.47 }] });
+    render(<HeroPage code="c1176" />);
+    const build = await screen.findByRole('region', { name: 'Recommended build' });
+    expect(within(build).getByText(/Scarlet Garden, option 2/)).toBeTruthy();
+    expect(within(build).getByText('58.47%')).toBeTruthy();
+  });
+
+  it('lists the three skills with icon, cooldown and soul gain, each opening on its description, effects, soulburn and enhancements', async () => {
+    vi.mocked(loadHero).mockResolvedValue({ ...snapshot, skills: ['Horizontal Slash', 'Suppressed Desire', 'Rouge Aroma'] });
+    vi.mocked(loadSkills).mockResolvedValue(skillsFile);
+    render(<HeroPage code="c1176" />);
+    const panel = await screen.findByRole('region', { name: 'Skills' });
+    const items = within(panel).getAllByRole('group'); // one <details> per skill
+    expect(items).toHaveLength(3);
+    expect(items[1].querySelector('img')!.getAttribute('src')).toContain('sk_c1176_2.png');
+    // the game's own name wins over the fan site's spelling
+    expect(within(items[1]).getByText('Suppressed Desire')).toBeTruthy();
+    expect(within(items[1]).getByText('Passive')).toBeTruthy();
+    expect(within(items[0]).getByText('+1 soul')).toBeTruthy();
+    expect(within(items[0]).getByText('Attack the enemy with a sword.', { exact: false })).toBeTruthy();
+    expect(within(items[0]).getByText("caster's max HP").tagName).toBe('STRONG');
+    expect(within(items[0]).getByText('Dual Attack').getAttribute('title')).toBe('Chance to attack after an ally.');
+    expect(within(items[0]).getByText('Increases damage dealt. (-10 souls)', { exact: false })).toBeTruthy();
+    expect(within(items[0]).getAllByText('+5% damage dealt')).toHaveLength(2);
+    expect(within(items[2]).getByText('3 Turns')).toBeTruthy();
+    expect(within(panel).getByRole('link', { name: /epic7db\.com/ }).getAttribute('href')).toBe('https://epic7db.com/heroes/setsuka');
+  });
+
+  it('shows just the skill names, and points to the fan site for the text, when the skill data is missing', async () => {
     vi.mocked(loadHero).mockResolvedValue({ ...snapshot, skills: ['Horizontal Slash', 'Suppressed Desire', 'Rouge Aroma'] });
     render(<HeroPage code="c1176" />);
     const panel = await screen.findByRole('region', { name: 'Skills' });
-    const items = within(panel).getAllByRole('listitem');
-    expect(items.map((i) => i.textContent)).toEqual(['Skill 1Horizontal Slash', 'Skill 2Suppressed Desire', 'Skill 3Rouge Aroma']);
-    expect(items[1].querySelector('img')!.getAttribute('src')).toContain('sk_c1176_2.png');
-    const link = within(panel).getByRole('link', { name: /descriptions/ });
-    expect(link.getAttribute('href')).toBe('https://epic7db.com/heroes/setsuka');
-    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(within(panel).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Skill 1Horizontal Slash', 'Skill 2Suppressed Desire', 'Skill 3Rouge Aroma']);
+    expect(within(panel).getByRole('link', { name: /epic7db\.com/ }).getAttribute('rel')).toBe('noopener noreferrer');
   });
 
-  it('leaves out the skills block when the data has none', async () => {
+  it('leaves out the skills block when there are no skills at all', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);
     await screen.findByRole('heading', { name: 'Setsuka' });

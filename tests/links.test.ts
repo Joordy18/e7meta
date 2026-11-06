@@ -11,6 +11,10 @@ describe('epic7dbUrl', () => {
     expect(epic7dbUrl("Archdemon's Shadow")).toBe('https://epic7db.com/heroes/archdemons-shadow');
     expect(epic7dbUrl('Archdemon’s Shadow')).toBe('https://epic7db.com/heroes/archdemons-shadow');
   });
+  it('spells & as "and" and drops dots, as the fan site does', () => {
+    expect(epic7dbUrl('Baal & Sezan')).toBe('https://epic7db.com/heroes/baal-and-sezan');
+    expect(epic7dbUrl('Ainos 2.0')).toBe('https://epic7db.com/heroes/ainos-20');
+  });
   it('turns other punctuation into dashes', () => {
     expect(epic7dbUrl('Bellona (Lone Moon)')).toBe('https://epic7db.com/heroes/bellona-lone-moon');
   });

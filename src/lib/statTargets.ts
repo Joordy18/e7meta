@@ -1,6 +1,17 @@
 import { STAT_RANGES } from '../shared/stats';
 import type { StatKey } from '../shared/types';
 
+export const STATS: [StatKey, string][] = [
+  ['attack', 'Attack'], ['defense', 'Defense'], ['health', 'Health'], ['speed', 'Speed'],
+  ['critChance', 'Crit chance'], ['critDamage', 'Crit damage'], ['effectiveness', 'Effectiveness'],
+  ['effectResistance', 'Effect resistance'],
+];
+export const PERCENT_STATS = new Set<StatKey>(['critChance', 'critDamage', 'effectiveness', 'effectResistance']);
+export const num = (n: number) => n.toLocaleString('en-US');
+/** "X+" for a lower bound; "Any" when the bound is the stat's minimum (nobody is held back by this stat). */
+export const lowerBound = (stat: StatKey, edge: number) =>
+  edge <= STAT_RANGES[stat][0] ? 'Any' : `${num(edge)}${PERCENT_STATS.has(stat) ? '%' : ''}+`;
+
 export type StatTarget = {
   typical: [number, number]; // the most common bucket
   median: [number, number]; // the bucket holding the 50th percentile

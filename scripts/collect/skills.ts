@@ -15,7 +15,7 @@ const grab = (s: string, re: RegExp) => {
 
 /** Description HTML to Markdown: key words (<strong>) become **bold**, every other tag goes. */
 const markdown = (html: string) =>
-  decode(html.replace(/<strong>([\s\S]*?)<\/strong>/g, '**$1**').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').replace(/\*\* /g, '**').trim();
+  decode(html.replace(/<strong>\s*([\s\S]*?)\s*<\/strong>/g, '**$1**').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 
 /**
  * Reads the skills section of an epic7db.com hero page: name, cooldown, soul gain, status effects, description,

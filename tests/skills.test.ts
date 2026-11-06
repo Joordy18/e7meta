@@ -39,6 +39,12 @@ describe('parseSkills', () => {
     expect(setsuka[0].effects).toEqual([]);
   });
 
+  it('keeps the spaces around the words in bold', () => {
+    const d = parseSkills(html('tamarinne'))[0].description;
+    expect(d).toContain('**heals** the ally');
+    expect(d).toContain('(**Tamarinne**) Attacks');
+  });
+
   it('turns a skill with a cooldown in turns into plain text', () => {
     const cds = parseSkills(html('tamarinne')).map((s) => s.cooldown);
     expect(cds.some((c) => /^\d+ Turns?$/.test(c ?? ''))).toBe(true);

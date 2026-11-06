@@ -1,26 +1,16 @@
 import { useEffect, useState } from 'react';
-import { HeroFace, HeroIcon, Icon } from '../components/Art';
+import { HeroIcon } from '../components/Art';
+import Loadout from '../components/Loadout';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadTeams, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
-import { epic7dbUrl } from '../lib/links';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
 import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes';
-import { statTarget } from '../lib/statTargets';
+import { PERCENT_STATS, STATS, lowerBound, num, statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { ArenaSeason, HeroSnapshot, Period, StatKey } from '../shared/types';
-import { elementLabel, jobLabel } from './HeroList';
+import type { ArenaSeason, HeroSnapshot, Period, SkillsFile, StatKey } from '../shared/types';
 
-const STATS: [StatKey, string][] = [
-  ['attack', 'Attack'], ['defense', 'Defense'], ['health', 'Health'], ['speed', 'Speed'],
-  ['critChance', 'Crit chance'], ['critDamage', 'Crit damage'], ['effectiveness', 'Effectiveness'],
-  ['effectResistance', 'Effect resistance'],
-];
-const PERCENT_STATS = new Set<StatKey>(['critChance', 'critDamage', 'effectiveness', 'effectResistance']);
-const num = (n: number) => n.toLocaleString('en-US');
-/** "X+" for a lower bound; "Any" when the bound is the stat's minimum (nobody is held back by this stat). */
-const from = (stat: StatKey, edge: number, unit: string) => (edge <= STAT_RANGES[stat][0] ? 'Any' : `${num(edge)}${unit}+`);
 const range = (p: Period) => `${p.start} to ${p.end}`;
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
@@ -60,8 +50,8 @@ function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
                 <>
                   <td>{num(t.typical[0])}–{num(t.typical[1])}{u}</td>
                   <td>{num(t.median[0])}–{num(t.median[1])}{u}</td>
-                  <td>{from(k, t.top25, u)}</td>
-                  <td>{from(k, t.top10, u)}</td>
+                  <td>{lowerBound(k, t.top25)}</td>
+                  <td>{lowerBound(k, t.top10)}</td>
                 </>
               ) : <td colSpan={4}>No data</td>}
             </tr>
@@ -90,6 +80,10 @@ export default function HeroPage({ code }: { code: string }) {
   const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
+  const [skills, setSkills] = useState<SkillsFile | null>(null);
+
+  // skill texts come from a separate file; without it the page still shows the skill names
+  useEffect(() => { loadSkills().then(setSkills).catch(() => {}); }, []);
 
   useEffect(() => {
     let live = true;
@@ -168,67 +162,7 @@ export default function HeroPage({ code }: { code: string }) {
       {state.status === 'error' && <p className="note error">{state.message}</p>}
       {h && (
         <>
-          <div className="hero-head">
-            <HeroFace code={h.hero.code} name={h.hero.name} className="face big" />
-            <div>
-              <h1>{h.hero.name}</h1>
-              <p className="tags">
-                {h.hero.grade}★ <span className="el" data-el={h.hero.element} aria-hidden /> {elementLabel(h.hero.element)}, {jobLabel(h.hero.job)}
-              </p>
-            </div>
-          </div>
-          {h.skills && h.skills.length > 0 && (
-            <section aria-label="Skills" className="source">
-              <header><h2>Skills</h2></header>
-              <div className="panels">
-                <section aria-label="Skill list" className="panel">
-                  <ul className="skills">
-                    {h.skills.map((name, i) => (
-                      <li key={i}>
-                        <Icon src={skillIcon(h.hero.code, i + 1)} className="skill-icon" />
-                        <span className="skill-n">Skill {i + 1}</span>
-                        <strong>{name}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="caption">
-                    The game's guide gives the names only.{' '}
-                    <a href={epic7dbUrl(h.hero.name)} target="_blank" rel="noopener noreferrer">Skill descriptions and upgrades on epic7db.com</a> (a fan site).
-                  </p>
-                </section>
-              </div>
-            </section>
-          )}
-          {h.exclusive && h.exclusive.length > 0 && (
-            <section aria-label="Exclusive equipment" className="source">
-              <header>
-                <h2>Exclusive equipment</h2>
-                <p className="period-chip">most used upgrades</p>
-              </header>
-              <div className="panels">
-                <Panel title="Upgrade options players choose">
-                  <Bars items={h.exclusive.map((e) => ({
-                    label: `${h.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(h.hero.code, e.skill)],
-                  }))} />
-                  <p className="caption">Each bar is an upgrade option of the exclusive equipment and the skill it improves. The game's guide does not describe the options.</p>
-                </Panel>
-              </div>
-            </section>
-          )}
-          <section aria-label="Source: gear ranking" className="source">
-            <header>
-              <h2>Source: gear ranking</h2>
-              <p className="period-chip">{range(h.period)}</p>
-            </header>
-            <div className="panels">
-              <Panel title="Sets">
-                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
-              </Panel>
-              <Panel title="Artifacts">
-                <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
-              </Panel>
-            </div>
-          </section>
+          <Loadout hero={h} skills={skills?.heroes[h.hero.code]} />
           {arena && (
             <section aria-label="World Arena (RTA)" className="source">
               <header>
@@ -302,6 +236,36 @@ export default function HeroPage({ code }: { code: string }) {
               </div>
             </section>
           )}
+          {h.exclusive && h.exclusive.length > 0 && (
+            <section aria-label="Exclusive equipment" className="source">
+              <header>
+                <h2>Exclusive equipment</h2>
+                <p className="period-chip">most used upgrades</p>
+              </header>
+              <div className="panels">
+                <Panel title="Upgrade options players choose">
+                  <Bars items={h.exclusive.map((e) => ({
+                    label: `${h.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(h.hero.code, e.skill)],
+                  }))} />
+                  <p className="caption">Each bar is an upgrade option of the exclusive equipment and the skill it improves. The game's guide does not describe the options.</p>
+                </Panel>
+              </div>
+            </section>
+          )}
+          <section aria-label="Source: gear ranking" className="source">
+            <header>
+              <h2>Source: gear ranking</h2>
+              <p className="period-chip">{range(h.period)}</p>
+            </header>
+            <div className="panels">
+              <Panel title="Sets">
+                <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
+              </Panel>
+              <Panel title="Artifacts">
+                <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
+              </Panel>
+            </div>
+          </section>
           {h.detail && (
             <section aria-label="Source: hunts" className="source">
               <header>

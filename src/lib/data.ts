@@ -1,4 +1,4 @@
-import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, Teams } from '../shared/types';
+import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -84,3 +84,11 @@ export async function loadArenaIndex(): Promise<ArenaIndex | null> {
   }
 }
 export const loadArenaSeason = (id: string) => getJson<ArenaSeason>(`arena/${id}.json`);
+
+/** Skill descriptions of every hero (from epic7db.com); not tied to a weekly period. null when not collected yet. */
+export async function loadSkills(): Promise<SkillsFile | null> {
+  try { return await getJson<SkillsFile>('skills.json'); } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
