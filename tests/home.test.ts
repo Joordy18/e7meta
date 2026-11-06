@@ -17,6 +17,10 @@ describe('pveLeaders', () => {
       { code: 'a', name: 'A', share: 50 }, { code: 'b', name: 'B', share: 15 }, { code: 'c', name: 'C', share: 10 },
     ]);
   });
+  it('ignores an entry without a name', () => {
+    const odd = modes('k', [{ ...list('h', 'hunts', []), heroes: [{ code: 'ghost', name: undefined as unknown as string, share: 80 }, { code: 'a', name: 'A', share: 20 }] }]);
+    expect(pveLeaders(odd, 'hunts', 5).map((l) => l.code)).toEqual(['a']);
+  });
   it('looks only at the rankings of that mode', () => {
     expect(pveLeaders(cur, 'abyss', 10).map((l) => l.code)).toEqual(['z']);
     expect(pveLeaders(cur, 'expedition', 10)).toEqual([]);

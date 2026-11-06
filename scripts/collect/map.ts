@@ -95,7 +95,7 @@ export function mapDetail(raw: unknown, period: Period, setNames: Record<string,
 export function mapModeList(raw: unknown, shareField: 'specific_gravity' | 'success_rate'): ModeEntry[] {
   return list(raw)
     .map((h) => ({ code: h.hero_code, name: h.hero_name, share: h[shareField] as number }))
-    .filter((h) => h.share > 0)
+    .filter((h) => h.share > 0 && h.name) // a few old or internal heroes come without a name and have no page
     .sort((a, b) => b.share - a.share);
 }
 

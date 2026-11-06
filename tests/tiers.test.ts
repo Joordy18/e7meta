@@ -36,6 +36,13 @@ describe('tierList', () => {
     expect(codes(tierList(modes, 'all'))).toEqual([['S', ['z', 'a']], ['A', ['y', 'b']], ['C', ['c']], ['D', ['d']]]);
   });
 
+  it('leaves out an entry without a name, which would have no page to go to, and does not let it set the leader', () => {
+    const odd: Modes = { key: 'k', lists: [{ ...list('x', 'hunts', [['a', 40]]), heroes: [{ code: 'ghost', name: undefined as unknown as string, share: 90 }, { code: 'a', name: 'A', share: 40 }] }] };
+    const rows = tierList(odd, 'hunts');
+    expect(rows.flatMap((r) => r.heroes.map((h) => h.code))).toEqual(['a']);
+    expect(rows[0]).toMatchObject({ tier: 'S', heroes: [{ code: 'a', share: 40 }] });
+  });
+
   it('is empty when the mode has no ranking, and leaves out empty tiers', () => {
     expect(tierList({ key: 'k', lists: [] }, 'all')).toEqual([]);
     expect(tierList(modes, 'expedition').map((r) => r.tier)).toEqual(['S', 'A']); // y 44 and a 20: a is 45% of the leader

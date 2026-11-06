@@ -121,6 +121,11 @@ describe('mode rankings', () => {
       { hero_code: 'c', hero_name: 'C', specific_gravity: 30 } ] } };
     expect(mapModeList(raw, 'specific_gravity').map((h) => h.code)).toEqual(['c', 'a']);
   });
+  it('leaves out a hero the game lists without a name (old or internal ones)', () => {
+    const raw = { code: 0, value: { guide_list: [
+      { hero_code: 'a', hero_name: 'A', specific_gravity: 10 }, { hero_code: 'c0089', specific_gravity: 40 }, { hero_code: 'c0074', hero_name: '', specific_gravity: 30 } ] } };
+    expect(mapModeList(raw, 'specific_gravity').map((h) => h.code)).toEqual(['a']);
+  });
   it('maps the Rift season info', () => {
     expect(mapRift(fx('rift-info'))).toEqual({
       title: 'Nightmare of the Oceans', description: 'Only Earth elemental Heroes are allowed in this Rift.',

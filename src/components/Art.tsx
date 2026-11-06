@@ -16,7 +16,7 @@ export function HeroFace({ code, name, className = 'face' }: { code: string; nam
   return (
     <span className={className} aria-hidden>
       {broken
-        ? <span className="face-initials">{name.slice(0, 2)}</span>
+        ? <span className="face-initials">{(name || code).slice(0, 2)}</span>
         : <img src={heroPortrait(code)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />}
     </span>
   );
@@ -28,7 +28,7 @@ export function HeroIcon({ code, name, className = 'hicon', decorative = false }
   return (
     <span className={className} {...(decorative ? { 'aria-hidden': true } : { title: name, role: 'img', 'aria-label': name })}>
       {broken
-        ? <span className="face-initials">{name.slice(0, 2)}</span>
+        ? <span className="face-initials">{(name || code).slice(0, 2)}</span>
         : <img src={heroIcon(code)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />}
     </span>
   );

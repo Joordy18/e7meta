@@ -11,6 +11,7 @@ export function modeAverages(modes: Modes, mode: ModeList['mode']) {
   const sums = new Map<string, { name: string; sum: number }>();
   for (const l of lists) {
     for (const h of l.heroes) {
+      if (!h.name) continue; // data collected before nameless entries were dropped
       const e = sums.get(h.code) ?? { name: h.name, sum: 0 };
       e.sum += h.share;
       sums.set(h.code, e);
