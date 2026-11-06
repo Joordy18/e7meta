@@ -6,5 +6,6 @@ call npm run collect >> collect.log 2>&1
 call npm run arena >> collect.log 2>&1
 call npm run skills >> collect.log 2>&1
 call npm run feed >> collect.log 2>&1
+call npm run limited >> collect.log 2>&1
 call npm run names >> collect.log 2>&1
 call npm run rta >> collect.log 2>&1

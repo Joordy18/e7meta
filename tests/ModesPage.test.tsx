@@ -1,19 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import ModesPage, { ModePage } from '../src/pages/ModesPage';
-import { loadHeroes, loadIndex, loadModes, loadTeams } from '../src/lib/data';
+import { loadHeroes, loadIndex, loadLimited, loadModes, loadTeams } from '../src/lib/data';
 import { findGuide } from '../src/lib/guides';
 import type { ModeList, Modes, Teams } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadHeroes: vi.fn(),
+  loadIndex: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadHeroes: vi.fn(), loadLimited: vi.fn(),
 }));
 vi.mock('../src/lib/guides', () => ({ findGuide: vi.fn(), guides: [] }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-22'] });
   vi.mocked(loadTeams).mockResolvedValue(null);
   vi.mocked(loadHeroes).mockResolvedValue([]);
+  vi.mocked(loadLimited).mockResolvedValue(null);
   vi.mocked(findGuide).mockReturnValue(undefined);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -167,5 +168,40 @@ describe('ModePage (one boss, floor or level)', () => {
     render(<ModePage id="nope" />);
     expect(await screen.findByText('Unknown game mode')).toBeTruthy();
     expect(screen.getByRole('link', { name: /All modes/ })).toBeTruthy();
+  });
+});
+
+describe('ModesPage (limited-time modes)', () => {
+  it('puts the Rift and the seasonal and event modes in their own category, each saying the game has no hero statistics for it', async () => {
+    vi.mocked(loadModes).mockResolvedValue(modes);
+    render(<ModesPage />);
+    const block = await screen.findByRole('region', { name: 'Limited-time modes' });
+    expect(within(block).getByRole('region', { name: 'Rift' })).toBeTruthy();
+    for (const title of ['Otherworld Breach', 'Strategic Archive', 'Automaton Tower', 'Trial of the Constellations']) {
+      expect(within(block).getByRole('article', { name: title }).textContent).toContain('No official hero statistics.');
+    }
+    expect(within(block).getByRole('article', { name: 'Strategic Archive' }).textContent).toContain('Seasonal tab');
+    expect(within(block).getByRole('article', { name: 'Otherworld Breach' }).textContent).toContain('Event');
+    expect(within(block).getAllByText('No official post about this mode found.')).toHaveLength(5); // no file: nothing found anywhere, the Rift included
+  });
+
+  it('lists the latest official posts of a mode with their dates, as links to the community page of the game', async () => {
+    vi.mocked(loadModes).mockResolvedValue(modes);
+    vi.mocked(loadLimited).mockResolvedValue({ updated: '2026-11-06', modes: {
+      'otherworld-breach': [{ id: '8', board: 'event', title: 'Otherworld Breach Season 3 Full Buff Event', date: '2026-06-03', url: 'https://page.onstove.com/epicseven/global/view/8' }],
+    } });
+    render(<ModesPage />);
+    const card = await screen.findByRole('article', { name: 'Otherworld Breach' });
+    expect(within(card).getByRole('link', { name: 'Otherworld Breach Season 3 Full Buff Event' }).getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/8');
+    expect(card.textContent).toContain('2026-06-03');
+    expect(within(card).queryByText('No official post about this mode found.')).toBeNull();
+  });
+
+  it('keeps the boss cards and the category when the file is unreadable', async () => {
+    vi.mocked(loadModes).mockResolvedValue(modes);
+    vi.mocked(loadLimited).mockRejectedValue(new Error('offline'));
+    render(<ModesPage />);
+    expect(await screen.findByRole('article', { name: 'Wyvern Hunt' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Limited-time modes' })).toBeTruthy();
   });
 });

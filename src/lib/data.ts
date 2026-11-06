@@ -1,4 +1,4 @@
-import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Feed, NamesFile, RtaBuilds, RtaPairs, RtaStats, Trends } from '../shared/types';
+import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Feed, NamesFile, LimitedFile, RtaBuilds, RtaPairs, RtaStats, Trends } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -104,6 +104,14 @@ export async function loadTrends(): Promise<Trends | null> {
 /** Latest official posts and new heroes / artifacts (feed.json); not tied to a period. null when not collected yet. */
 export async function loadFeed(): Promise<Feed | null> {
   try { return await getJson<Feed>('feed.json'); } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+
+/** Official posts about the limited-time modes (limited.json); null when not collected yet. */
+export async function loadLimited(): Promise<LimitedFile | null> {
+  try { return await getJson<LimitedFile>('limited.json'); } catch (e) {
     if (e instanceof NotFoundError) return null;
     throw e;
   }

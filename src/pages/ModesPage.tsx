@@ -2,17 +2,18 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { HeroIcon } from '../components/Art';
 import { useI18n, type Key } from '../i18n';
 import { formatValue } from '../components/Bars';
-import { loadHeroes, loadIndex, loadModes, loadTeams } from '../lib/data';
+import { loadHeroes, loadIndex, loadLimited, loadModes, loadTeams } from '../lib/data';
 import { findGuide } from '../lib/guides';
 import { bossIcon } from '../lib/images';
 import { bestTeams, groupModes, guideSlug } from '../lib/modes';
-import type { ModeList, Modes, Team, Teams } from '../shared/types';
+import { LIMITED } from '../shared/limited';
+import type { FeedPost, ModeList, Modes, Team, Teams } from '../shared/types';
 
 const PAGE = 25;
 const SECTIONS: [ModeList['mode'], Key][] = [['hunts', 'modes.hunts'], ['abyss', 'modes.abyss'], ['expedition', 'modes.expeditions']];
 const VARIANT_LABEL: Record<ModeList['mode'], Key> = { hunts: 'modes.difficulty', abyss: 'modes.floor', expedition: 'modes.level' };
 
-type Loaded = { modes: Modes; teams: Teams | null; names: Map<string, string> };
+type Loaded = { modes: Modes; teams: Teams | null; names: Map<string, string>; limited: Record<string, FeedPost[]> };
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | ({ status: 'ok' } & Loaded);
 
 /** Modes of the latest period. Teams and hero names are extras: if they fail, the page still works without them. */
@@ -25,8 +26,8 @@ function useModes(): State {
       const period = index && index.periods.length > 0 ? index.periods[0] : null;
       const modes = period ? await loadModes(period) : null;
       if (!period || !modes) return live && setState({ status: 'none' });
-      const [teams, heroes] = await Promise.all([loadTeams(period).catch(() => null), loadHeroes(period).catch(() => [])]);
-      if (live) setState({ status: 'ok', modes, teams, names: new Map(heroes.map((h) => [h.code, h.name])) });
+      const [teams, heroes, limited] = await Promise.all([loadTeams(period).catch(() => null), loadHeroes(period).catch(() => []), loadLimited().catch(() => null)]);
+      if (live) setState({ status: 'ok', modes, teams, names: new Map(heroes.map((h) => [h.code, h.name])), limited: limited?.modes ?? {} });
     })().catch((e: unknown) => live && setState({ status: 'error', message: String(e) }));
     return () => { live = false; };
   }, []);
@@ -41,7 +42,21 @@ function Status({ state }: { state: State }) {
   return null;
 }
 
-function Rift({ rift }: { rift: NonNullable<Modes['rift']> }) {
+/** The official posts that name a limited-time mode, newest first (a missing file or none found says so). */
+function Posts({ posts }: { posts: FeedPost[] | undefined }) {
+  const { t } = useI18n();
+  if (!posts || posts.length === 0) return <p className="caption">{t('modes.limitedNoPost')}</p>;
+  return (
+    <>
+      <p className="caption">{t('modes.limitedPosts')}</p>
+      <ul className="limited-posts">
+        {posts.map((p) => <li key={p.id}><a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a> <span className="count">{p.date}</span></li>)}
+      </ul>
+    </>
+  );
+}
+
+function Rift({ rift, posts }: { rift: NonNullable<Modes['rift']>; posts?: FeedPost[] }) {
   const { t } = useI18n();
   const ended = rift.end < new Date().toISOString().slice(0, 10);
   return (
@@ -51,6 +66,7 @@ function Rift({ rift }: { rift: NonNullable<Modes['rift']> }) {
       <p className="caption">
         {t('modes.riftDates', { start: rift.start, end: rift.end })} {ended ? t('modes.seasonEnded') : t('modes.seasonOn')}
       </p>
+      <Posts posts={posts} />
     </section>
   );
 }
@@ -106,7 +122,21 @@ export default function ModesPage() {
           </section>
         );
       })}
-      {state.modes.rift && <Rift rift={state.modes.rift} />}
+      <section aria-label={t('modes.limited')} className="mode-section" id="limited">
+        <h2>{t('modes.limited')}</h2>
+        <p className="lede">{t('modes.limitedLede')}</p>
+        {state.modes.rift && <Rift rift={state.modes.rift} posts={state.limited.rift} />}
+        <div className="boss-grid">
+          {LIMITED.filter((m) => m.group !== 'rift').map((m) => (
+            <article key={m.id} aria-label={m.title} className="mode-card">
+              <h3>{m.title}</h3>
+              <span className="count">{t(m.group === 'seasonal' ? 'modes.limitedSeasonal' : 'modes.limitedEvent')}</span>
+              <p className="caption">{t('modes.limitedNoStats')}</p>
+              <Posts posts={state.limited[m.id]} />
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

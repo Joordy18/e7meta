@@ -114,6 +114,8 @@ export type BalanceChange = {
   code?: string; job?: string; element?: string; // from the game's data when the name is known
 };
 export type Balance = { id: string; title: string; url: string; posted: string; date: string; changes: BalanceChange[] }; // posted, date = YYYY-MM-DD
+// Official posts about the limited-time modes (limited.json), newest first per mode id of shared/limited.ts
+export type LimitedFile = { updated: string; modes: Record<string, FeedPost[]> };
 export type Feed = { updated: string; posts: FeedPost[]; releases: Release[]; balance?: Balance }; // posts: newest first per board, releases: newest first
 
 // RTA statistics counted by us from the recent matches of the top players (one file, the current season). Rates = counts / battles.

@@ -14,6 +14,7 @@
     "skills": "tsx scripts/collect/skills.ts",
     "trends": "tsx scripts/collect/trends.ts",
     "feed": "tsx scripts/collect/feed.ts",
+    "limited": "tsx scripts/collect/limited.ts",
     "rta": "tsx scripts/collect/rta.ts",
     "names": "tsx scripts/collect/names.ts"
   },
