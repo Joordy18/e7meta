@@ -5,13 +5,13 @@ import HeroPage from '../src/pages/HeroPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadRtaBuilds, loadSkills, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadRtaBuilds, loadRtaPairs, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
-import type { HeroSnapshot, RtaBuilds, RtaStats, SkillsFile } from '../src/shared/types';
+import type { HeroSnapshot, RtaBuilds, RtaPairs, RtaStats, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaBuilds: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaBuilds: vi.fn(), loadRtaPairs: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -22,6 +22,7 @@ beforeEach(() => {
   vi.mocked(loadSkills).mockResolvedValue(null);
   vi.mocked(loadRta).mockResolvedValue(null);
   vi.mocked(loadRtaBuilds).mockResolvedValue(null);
+  vi.mocked(loadRtaPairs).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -479,6 +480,44 @@ describe('HeroPage', () => {
       render(<HeroPage code="c1176" />);
       await screen.findByRole('region', { name: 'RTA, top players' });
       expect(screen.queryByRole('region', { name: 'Sets worn in RTA' })).toBeNull();
+    });
+
+    describe('partners and matchups', () => {
+      const pairs: RtaPairs = {
+        code: 'pvp_rta_ss21', updated: '2026-11-06', battles: 24158, minGames: 30,
+        heroes: { c1176: {
+          with: [{ code: 'c1001', n: 152, win: 56.6, edge: 9 }],
+          over: [{ code: 'c1002', n: 80, win: 62.5, edge: 11.8 }],
+          under: [{ code: 'c1003', n: 185, win: 40.5, edge: -9 }],
+        } },
+      };
+      it('lists the partners and the matchups with the gap to the expected win rate and the games behind it, and says it is not a cause', async () => {
+        vi.mocked(loadHero).mockResolvedValue(snapshot);
+        vi.mocked(loadHeroes).mockResolvedValue([{ code: 'c1001', name: 'Kawerik' }, { code: 'c1002', name: 'Iseria' }, { code: 'c1003', name: 'Estelle' }] as never);
+        vi.mocked(loadRtaPairs).mockResolvedValue(pairs);
+        render(<HeroPage code="c1176" />);
+        const block = await screen.findByRole('region', { name: 'Partners and matchups' });
+        const withP = within(block).getByRole('region', { name: 'Works well with' });
+        expect(within(withP).getByRole('link', { name: 'Kawerik' }).getAttribute('href')).toBe('#/hero/c1001');
+        expect(withP.textContent).toContain('+9');
+        expect(withP.textContent).toContain('56.6% in 152 games');
+        expect(within(block).getByRole('region', { name: 'Wins more than expected against' }).textContent).toContain('+11.8');
+        expect(within(block).getByRole('region', { name: 'Loses more than expected against' }).textContent).toContain('-9');
+        expect(block.textContent).toContain('24,158');
+        expect(block.textContent).toContain('at least 30 times');
+        expect(block.textContent).toContain('not why');
+      });
+      it('is left out without the file, or when nothing is clear for this hero', async () => {
+        vi.mocked(loadHero).mockResolvedValue(snapshot);
+        render(<HeroPage code="c1176" />);
+        await screen.findByRole('heading', { name: 'Setsuka' });
+        expect(screen.queryByRole('region', { name: 'Partners and matchups' })).toBeNull();
+        cleanup();
+        vi.mocked(loadRtaPairs).mockResolvedValue({ ...pairs, heroes: { c1176: { with: [], over: [], under: [] } } });
+        render(<HeroPage code="c1176" />);
+        await screen.findByRole('heading', { name: 'Setsuka' });
+        expect(screen.queryByRole('region', { name: 'Partners and matchups' })).toBeNull();
+      });
     });
 
     it('is left out when the hero has too few games, or without a sample', async () => {

@@ -132,5 +132,11 @@ export type RtaHeroBuilds = {
 };
 export type RtaBuilds = { code: string; updated: string; heroes: Record<string, RtaHeroBuilds>; setNames: Record<string, string>; artifactNames: Record<string, string> };
 
+// Partners and matchups of each hero in the RTA battles counted (rta/pairs.json). win: win rate of the pair in %, n: games, edge: points above (or below)
+// what the two heroes predict alone. Only pairs seen often enough and clearly off that expectation are listed.
+export type RtaPairEntry = { code: string; n: number; win: number; edge: number };
+export type RtaHeroPairs = { with: RtaPairEntry[]; over: RtaPairEntry[]; under: RtaPairEntry[] };
+export type RtaPairs = { code: string; updated: string; battles: number; minGames: number; heroes: Record<string, RtaHeroPairs> };
+
 // since / until: the day of the oldest and of the newest battle counted (the battles of the season are accumulated run after run)
 export type RtaStats = { season: string; code: string; updated: string; players: number; battles: number; since?: string; until?: string; heroes: Record<string, RtaHeroCount> };
