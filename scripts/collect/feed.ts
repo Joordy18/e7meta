@@ -13,10 +13,11 @@ const KEEP_RELEASES = 20;
 
 /** The newest posts of a board list, with the date (UTC) and the public link. Throws on a bad envelope. */
 export function listPosts(raw: unknown, board: FeedBoard, n: number): FeedPost[] {
-  const items = unwrap<{ list?: { article_id: string | number; title: string; create_datetime: number }[] }>(raw).list ?? [];
+  const items = unwrap<{ list?: { article_id: string | number; title: string; create_datetime: number; media_thumbnail_url?: string | null }[] }>(raw).list ?? [];
   return items.slice(0, n).map((a) => ({
     id: String(a.article_id), board, title: a.title.trim(), date: new Date(a.create_datetime).toISOString().slice(0, 10),
     url: `https://page.onstove.com/epicseven/global/view/${a.article_id}`,
+    ...(a.media_thumbnail_url ? { image: a.media_thumbnail_url.replace(/^\/\//, 'https://') } : {}), // protocol-relative link to the official banner
   }));
 }
 

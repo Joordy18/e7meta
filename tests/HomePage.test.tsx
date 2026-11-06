@@ -40,7 +40,8 @@ const feed: Feed = {
     { kind: 'artifact', code: 'efk99', name: 'New Blade', since: '2026-10-29' },
   ],
   posts: [
-    { id: '1', board: 'patch', title: '11/5 (Thu) Patch Information', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/1' },
+    { id: '1', board: 'patch', title: '11/5 (Thu) Patch Information', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/1', image: 'https://image.onstove.com/a.png' },
+    { id: '4', board: 'patch', title: 'Older patch', date: '2026-10-30', url: 'https://page.onstove.com/epicseven/global/view/4', image: 'https://image.onstove.com/b.png' },
     { id: '2', board: 'notice', title: 'Known Issues', date: '2026-10-29', url: 'https://page.onstove.com/epicseven/global/view/2' },
     { id: '3', board: 'dev', title: '11/19 (Thu) Balance Adjustment Preview', date: '2026-11-06', url: 'https://page.onstove.com/epicseven/global/view/3' },
   ],
@@ -185,6 +186,17 @@ describe('HomePage: what is new', () => {
     expect(within(screen.getByRole('region', { name: 'Notices' })).getByText('Known Issues')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: 'Developer notes' })).getByText(/Balance Adjustment Preview/)).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Events' })).toBeNull(); // no post on that board: no empty panel
+  });
+
+  it('shows the official banner of the latest post of a board only, inside the link to the post', async () => {
+    setup({ feed });
+    render(<HomePage />);
+    const patches = await screen.findByRole('region', { name: 'Patches' });
+    const imgs = patches.querySelectorAll('img');
+    expect(imgs).toHaveLength(1); // the older patch has a banner too, but only the latest post of the board shows it
+    expect(imgs[0].getAttribute('src')).toBe('https://image.onstove.com/a.png');
+    expect(imgs[0].closest('a')?.getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/1');
+    expect(screen.getByRole('region', { name: 'Notices' }).querySelectorAll('img')).toHaveLength(0); // that post has no banner
   });
 
   it('leaves out the new-releases panel when nothing appeared', async () => {

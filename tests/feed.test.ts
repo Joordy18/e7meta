@@ -6,7 +6,7 @@ import { findReleases, listPosts, refreshFeed } from '../scripts/collect/feed';
 import type { createClient } from '../scripts/collect/api';
 import type { Release } from '../src/shared/types';
 
-const post = (id: number, title: string, iso: string) => ({ article_id: String(id), title, create_datetime: Date.parse(iso) });
+const post = (id: number, title: string, iso: string, thumb?: string) => ({ article_id: String(id), title, create_datetime: Date.parse(iso), ...(thumb ? { media_thumbnail_url: thumb } : {}) });
 const envelope = (list: unknown[]) => ({ code: 0, message: 'ok', value: { list } });
 
 describe('listPosts', () => {
@@ -16,6 +16,11 @@ describe('listPosts', () => {
       { id: '3', board: 'patch', title: 'Third', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/3' },
       { id: '2', board: 'patch', title: 'Second', date: '2026-11-01', url: 'https://page.onstove.com/epicseven/global/view/2' },
     ]);
+  });
+  it('keeps the official banner of a post as an https link, and has no image field when the post has none', () => {
+    const r = listPosts(envelope([post(5, 'With', '2026-11-05T10:00:00Z', '//image.onstove.com/850x0//cdn/a.png'), post(4, 'Without', '2026-11-04T10:00:00Z')]), 'event', 5);
+    expect(r[0].image).toBe('https://image.onstove.com/850x0//cdn/a.png');
+    expect(r[1]).not.toHaveProperty('image');
   });
   it('throws on a bad envelope', () => expect(() => listPosts({ code: 1 }, 'patch', 2)).toThrow());
 });

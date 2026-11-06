@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HeroIcon } from '../components/Art';
+import { HeroIcon, Icon } from '../components/Art';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
@@ -119,9 +119,9 @@ export default function HomePage() {
                 <section key={board} aria-label={title} className="panel">
                   <h3>{title}</h3>
                   <ul className="news">
-                    {posts.map((p) => (
+                    {posts.map((p, i) => (
                       <li key={p.id}>
-                        <a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a>
+                        <a href={p.url} target="_blank" rel="noopener noreferrer">{i === 0 && p.image && <Icon src={p.image} className="banner" />}{p.title}</a>
                         <small className="when">{p.date}</small>
                       </li>
                     ))}
