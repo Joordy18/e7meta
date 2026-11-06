@@ -6,8 +6,12 @@ describe('epic7dbUrl', () => {
     expect(epic7dbUrl('Setsuka')).toBe('https://epic7db.com/heroes/setsuka');
     expect(epic7dbUrl('Mei Lin')).toBe('https://epic7db.com/heroes/mei-lin');
   });
-  it('drops accents and punctuation', () => {
+  it('drops accents, and apostrophes without splitting the word', () => {
     expect(epic7dbUrl('Abigaëlle')).toBe('https://epic7db.com/heroes/abigaelle');
-    expect(epic7dbUrl("Bellona (Lone Moon)'s")).toBe('https://epic7db.com/heroes/bellona-lone-moon-s');
+    expect(epic7dbUrl("Archdemon's Shadow")).toBe('https://epic7db.com/heroes/archdemons-shadow');
+    expect(epic7dbUrl('Archdemon’s Shadow')).toBe('https://epic7db.com/heroes/archdemons-shadow');
+  });
+  it('turns other punctuation into dashes', () => {
+    expect(epic7dbUrl('Bellona (Lone Moon)')).toBe('https://epic7db.com/heroes/bellona-lone-moon');
   });
 });
