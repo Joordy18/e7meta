@@ -38,6 +38,8 @@ const feed: Feed = {
   releases: [
     { kind: 'hero', code: 'c7016', name: 'Bunny Girl Mafia Yufine', since: '2026-10-29' },
     { kind: 'artifact', code: 'efk99', name: 'New Blade', since: '2026-10-29' },
+    { kind: 'artifact', name: "A Boss's Dignity", announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
+    { kind: 'hero', code: 'c2187', name: 'Moro', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
   ],
   posts: [
     { id: '1', board: 'patch', title: '11/5 (Thu) Patch Information', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/1', image: 'https://image.onstove.com/a.png' },
@@ -160,11 +162,26 @@ describe('HomePage: what is new', () => {
     render(<HomePage />);
     const news = await screen.findByRole('region', { name: 'New in the game' });
     const heroes = within(within(news).getByRole('region', { name: 'New heroes' })).getAllByRole('listitem');
-    expect(heroes).toHaveLength(1);
+    expect(heroes).toHaveLength(2);
     expect(heroes[0].textContent).toContain('2026-10-29');
     expect(within(heroes[0]).getByRole('link', { name: 'Bunny Girl Mafia Yufine' }).getAttribute('href')).toBe('#/hero/c7016');
     const artifacts = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem');
     expect(within(artifacts[0]).getByRole('link', { name: 'New Blade' }).getAttribute('href')).toBe('#/artifact/efk99');
+  });
+
+  it('shows an item the update posts announced before the game data lists it, linking to the official post', async () => {
+    setup({ feed });
+    render(<HomePage />);
+    const news = await screen.findByRole('region', { name: 'New in the game' });
+    const item = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem').find((li) => li.textContent?.includes("A Boss's Dignity"))!;
+    const link = within(item).getByRole('link', { name: "A Boss's Dignity" });
+    expect(link.getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(item.textContent).toContain('announced 2026-10-28');
+    // a hero that has both a page and an announcement links to its page and shows the announcement date
+    const moro = within(within(news).getByRole('region', { name: 'New heroes' })).getByRole('link', { name: 'Moro' });
+    expect(moro.getAttribute('href')).toBe('#/hero/c2187');
+    expect(moro.closest('li')?.textContent).toContain('announced 2026-10-28');
   });
 
   it('says so in a column that has nothing new yet, while the other one shows its releases', async () => {

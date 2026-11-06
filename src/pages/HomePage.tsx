@@ -100,9 +100,13 @@ export default function HomePage() {
                         {items.length === 0 ? <p className="note">Nothing new yet.</p> : (
                           <ul className="news">
                             {items.map((r) => (
-                              <li key={r.code}>
-                                <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
-                                <small className="when" title="First week of data that lists it">week of {r.since}</small>
+                              <li key={r.code ?? r.name}>
+                                {r.code
+                                  ? <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
+                                  : <a href={r.announced?.url} target="_blank" rel="noopener noreferrer">{r.name}</a>}
+                                <small className="when" title={r.announced ? 'Date of the official update post that announced it' : 'First week of data that lists it'}>
+                                  {r.announced ? `announced ${r.announced.date}` : `week of ${r.since}`}
+                                </small>
                               </li>
                             ))}
                           </ul>

@@ -97,5 +97,7 @@ export type Trends = { from: string; to: string; builds: BuildShift[] }; // buil
 // What is new in the game: the latest official posts of four boards, and heroes / artifacts that appeared in the data.
 export type FeedBoard = 'patch' | 'notice' | 'dev' | 'event';
 export type FeedPost = { id: string; board: FeedBoard; title: string; date: string; url: string; image?: string }; // date = YYYY-MM-DD, image = the post's official banner
-export type Release = { kind: 'hero' | 'artifact'; code: string; name: string; since: string }; // since = the weekly period that first listed it
+// A hero or artifact that is new. `announced`: the update post that announced it (the game's data can lag behind); `code` and `since` come
+// from the game's data (since = the weekly period that first listed it), so an entry may have only one of the two sources.
+export type Release = { kind: 'hero' | 'artifact'; name: string; code?: string; since?: string; announced?: { date: string; url: string } };
 export type Feed = { updated: string; posts: FeedPost[]; releases: Release[] }; // posts: newest first per board, releases: newest first
