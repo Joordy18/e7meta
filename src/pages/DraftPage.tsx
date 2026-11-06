@@ -99,7 +99,7 @@ export default function DraftPage() {
       go(game.stage === 0 ? { ...game, youPre: game.selected, selected: [], stage: 1 } : { ...game, botPre: game.selected, selected: [], stage: 0, phase: 'draft' });
       return;
     }
-    const next = { ...game, youPre: game.selected, botPre: botPreBans(pool, game.selected, rng.current), selected: [] };
+    const next = { ...game, youPre: game.selected, botPre: botPreBans(pool, rng.current), selected: [] };
     const picks = botTurns(pool, next, [], rng.current);
     setGame({ ...next, picks, phase: picks.length === 10 ? 'ban' : 'draft' });
   };
@@ -123,7 +123,7 @@ export default function DraftPage() {
 
   const q = normalize(search.trim());
   const filtered = (rows: RtaRow[]) => rows.filter((r) => !q || normalize(shown(r.code)).includes(q));
-  const stateOf = (code: string) => (game.youPre.includes(code) || game.botPre.includes(code) ? 'prebanned' : mine.includes(code) ? 'you' : theirs.includes(code) ? 'bot' : 'free');
+  const stateOf = (code: string) => (game.phase !== 'preban' && (game.youPre.includes(code) || game.botPre.includes(code)) ? 'prebanned' : mine.includes(code) ? 'you' : theirs.includes(code) ? 'bot' : 'free');
   const tip = (r: RtaRow) => `${t('hero.pick')}: ${r.pick}% · ${t('hero.winRate')}: ${r.win === null ? '—' : `${r.win}%`}`;
   const icon = (code: string) => <HeroIcon code={code} name={shown(code)} />; // a picture with the name for the reader of the screen, not written
   const icons = (codes: string[], side: Side) => <span className="draft-icons" data-side={side}>{codes.map((c) => <span key={c}>{icon(c)}</span>)}</span>;
@@ -293,7 +293,7 @@ export default function DraftPage() {
             pressed: game.selected.includes(r.code), disabled: i === PROTECTED_SLOT, protectedHero: i === PROTECTED_SLOT, onClick: () => toggle(r.code),
           }))
           : filtered(pool).map((r) => heroButton(r, game.phase === 'preban'
-            ? { pressed: game.selected.includes(r.code), disabled: game.analysis && game.stage === 1 && game.youPre.includes(r.code), onClick: () => toggle(r.code) }
+            ? { pressed: game.selected.includes(r.code), onClick: () => toggle(r.code) }
             : { disabled: !myTurn || unavailable.has(r.code), onClick: () => pick(r.code) }))}
       </ul>
     </div>

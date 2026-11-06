@@ -39,13 +39,12 @@ describe('the bot', () => {
     expect(counts.get('l') ?? 0).toBe(0); // the bot only draws among the top of the most picked
   });
 
-  it('pre-bans two different heroes among the most pre-banned ones, never one that is already taken', () => {
+  it('pre-bans two different heroes among the six most pre-banned ones, blind to what the other side chose', () => {
     for (let seed = 0; seed < 100; seed++) {
-      const out = botPreBans(pool, ['a'], mulberry32(seed));
+      const out = botPreBans(pool, mulberry32(seed));
       expect(out).toHaveLength(PRE_BANS);
       expect(new Set(out).size).toBe(PRE_BANS);
-      expect(out).not.toContain('a');
-      for (const c of out) expect(['b', 'c', 'd', 'e', 'f', 'g']).toContain(c); // the six after a by pre-ban rate
+      for (const c of out) expect(['a', 'b', 'c', 'd', 'e', 'f']).toContain(c); // the six best by pre-ban rate
     }
   });
 

@@ -242,15 +242,15 @@ describe('analysing a draft: both sides by hand', () => {
     expect(screen.getByRole('region', { name: 'Analyze a draft' })).toBeTruthy();
   });
 
-  it('asks for the pre-bans of Team A, then those of Team B, which cannot repeat a hero Team A removed', async () => {
+  it('asks for the pre-bans of Team A, then those of Team B, which may remove the same hero as Team A (both sides did in 42% of the recorded battles)', async () => {
     await analysis();
     expect(screen.getByText('Team A: choose 2 pre-bans')).toBeTruthy();
     const [a, b] = free();
     fireEvent.click(a); fireEvent.click(b);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm pre-bans' }));
     expect(screen.getByText('Team B: choose 2 pre-bans')).toBeTruthy();
-    for (const el of [a, b]) expect((within(grid()).getByRole('button', { name: el.textContent! }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(free()[0]); fireEvent.click(free()[1]);
+    for (const el of [a, b]) expect((within(grid()).getByRole('button', { name: el.textContent! }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(a); fireEvent.click(free()[3]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm pre-bans' }));
     expect(await screen.findByText('Team A: pick 1 of 5')).toBeTruthy();
     expect(within(screen.getByTestId('draft-prebans')).getAllByRole('img')).toHaveLength(4);
