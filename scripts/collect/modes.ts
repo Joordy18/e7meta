@@ -8,13 +8,14 @@ type Client = ReturnType<typeof createClient>;
 const HUNT_BOSSES: [number, string][] = [[1, 'Wyvern'], [2, 'Golem'], [3, 'Banshee'], [4, 'Azimanak'], [5, 'Caides']];
 const HUNT_STAGES: [number, string][] = [[13, 'Hell'], [11, 'Hard'], [9, 'Normal']];
 const ABYSS_FLOORS = [120, 110, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
+const CHALLENGE_FLOORS = Array.from({ length: 20 }, (_, i) => 20 - i); // the Challenge Mode of the abyss: floors 1 to 20, from the top
 const EXPEDITION_BOSSES: [number, string][] = [[1, 'Pherus'], [2, 'Snag Lich'], [3, 'Symaqus'], [4, 'Gigantes'], [5, 'Moroi']];
 const EXPEDITION_LEVELS = [1, 2, 3];
 
 const base = { world_code: 'world_global', lang_code: 'en' };
 
 /**
- * Hero success-rate rankings for hunts, abyss and expeditions, plus the Rift season.
+ * Hero success-rate rankings for hunts, abyss (normal and Challenge Mode) and expeditions, plus the Rift season.
  * A list that fails is skipped (and logged): other modes must never block the hero snapshot.
  * Returns undefined when no list could be fetched.
  */
@@ -26,6 +27,7 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
     }
   };
   const abyssPeriod = await periodOf('abyss/last-update-time');
+  const challengePeriod = await periodOf('abyss-challenge/last-update-time');
   const expeditionPeriod = await periodOf('expedition/last-update-time');
 
   const lists: ModeList[] = [];
@@ -52,6 +54,10 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
   for (const floor of ABYSS_FLOORS) {
     await add(`abyss-${floor}`, 'abyss', 'Abyss', `Floor ${floor}`, `Abyss, floor ${floor}`, abyssPeriod,
       'abyss/hero-ranking/all', { floor: String(floor) }, 'specific_gravity');
+  }
+  for (const floor of CHALLENGE_FLOORS) {
+    await add(`challenge-${floor}`, 'challenge', 'Abyss Challenge', `Floor ${floor}`, `Abyss Challenge, floor ${floor}`, challengePeriod,
+      'abyss-challenge/hero-ranking/all', { floor: String(floor) }, 'specific_gravity');
   }
   for (const [boss, name] of EXPEDITION_BOSSES) {
     for (const level of EXPEDITION_LEVELS) {

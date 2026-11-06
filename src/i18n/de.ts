@@ -96,6 +96,7 @@ export const de: Record<keyof typeof en, string> = {
   "loadout.epic7db": "Beschreibungen auf {link}, einer Fanseite.",
   "modes.hunts": "Jagden",
   "modes.abyss": "Abgrund",
+  "modes.challenge": "Abgrund Challenge",
   "modes.expeditions": "Expeditionen",
   "modes.difficulty": "Schwierigkeit",
   "modes.floor": "Etage",

@@ -10,8 +10,8 @@ import { LIMITED } from '../shared/limited';
 import type { FeedPost, ModeList, Modes, Team, Teams } from '../shared/types';
 
 const PAGE = 25;
-const SECTIONS: [ModeList['mode'], Key][] = [['hunts', 'modes.hunts'], ['abyss', 'modes.abyss'], ['expedition', 'modes.expeditions']];
-const VARIANT_LABEL: Record<ModeList['mode'], Key> = { hunts: 'modes.difficulty', abyss: 'modes.floor', expedition: 'modes.level' };
+const SECTIONS: [ModeList['mode'], Key][] = [['hunts', 'modes.hunts'], ['abyss', 'modes.abyss'], ['challenge', 'modes.challenge'], ['expedition', 'modes.expeditions']];
+const VARIANT_LABEL: Record<ModeList['mode'], Key> = { hunts: 'modes.difficulty', abyss: 'modes.floor', challenge: 'modes.floor', expedition: 'modes.level' };
 
 type Loaded = { modes: Modes; teams: Teams | null; names: Map<string, string>; limited: Record<string, FeedPost[]> };
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | ({ status: 'ok' } & Loaded);
@@ -96,7 +96,7 @@ export default function ModesPage() {
         return (
           <section key={mode} aria-label={label} className="mode-section">
             <h2>{label}</h2>
-            {mode === 'abyss' ? (
+            {mode === 'abyss' || mode === 'challenge' ? (
               <div className="floors">
                 {items[0].lists.map((l) => (
                   <a key={l.id} href={`#/modes/${l.id}`} className="floor">

@@ -27,8 +27,8 @@ export type Index = { periods: string[] }; // period start dates, newest first
 // Other game modes: how often each hero shows up in successful teams (the guide's "success rate" rankings)
 export type ModeEntry = { code: string; name: string; share: number }; // share in %
 export type ModeList = {
-  id: string; // e.g. hunt-1-13, abyss-120, expedition-1-1
-  mode: 'hunts' | 'abyss' | 'expedition';
+  id: string; // e.g. hunt-1-13, abyss-120, challenge-20, expedition-1-1
+  mode: 'hunts' | 'abyss' | 'challenge' | 'expedition'; // challenge: the abyss Challenge Mode, floors 1 to 20
   title: string; // e.g. "Wyvern Hunt, Hell"
   group: string; // the boss or mode, e.g. "Wyvern Hunt", "Abyss", "Moroi Expedition"
   variant: string; // the difficulty, floor or level, e.g. "Hell", "Floor 120", "Level 3"

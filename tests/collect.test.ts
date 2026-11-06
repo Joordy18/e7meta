@@ -24,10 +24,10 @@ function fake(o: Opts = {}) {
         return ok({ ...v, ...(o.wearingStart ? { week_start_date: o.wearingStart } : {}) });
       }
       if (path === 'hunt/last-update-time') return fx('hunt-last-update-time');
-      if (/^(hunt\/hero-ranking|abyss\/hero-ranking|expedition\/ranking)\/all$|^abyss\/last-update-time$|^crack\/info$/.test(path)) {
+      if (/^(hunt\/hero-ranking|abyss\/hero-ranking|abyss-challenge\/hero-ranking|expedition\/ranking)\/all$|^abyss(-challenge)?\/last-update-time$|^crack\/info$/.test(path)) {
         if (o.noModes) throw new Error('modes down');
         if (path === 'hunt/hero-ranking/all') return fx('mode-hunt');
-        if (path === 'abyss/hero-ranking/all') return fx('mode-abyss');
+        if (path === 'abyss/hero-ranking/all' || path === 'abyss-challenge/hero-ranking/all') return fx('mode-abyss');
         if (path === 'expedition/ranking/all') return fx('mode-expedition');
         if (path === 'crack/info') return fx('rift-info');
         return fx('hunt-last-update-time'); // abyss/last-update-time
@@ -305,17 +305,20 @@ describe('collect', () => {
   }, 20000); // writes 392 files: slow on a loaded disk
 
   describe('other game modes', () => {
-    it('writes modes.json: hunts, abyss and expedition lists plus the Rift season', async () => {
+    it('writes modes.json: hunts, abyss, Challenge Mode and expedition lists plus the Rift season', async () => {
       await collect({ outDir: dir, client: fake().client });
       const m = read('2026-10-22', 'modes.json');
       expect(m.key).toBe('2026-10-29');
-      expect(m.lists).toHaveLength(15 + 12 + 15);
-      expect(new Set(m.lists.map((l: { id: string }) => l.id)).size).toBe(42);
+      expect(m.lists).toHaveLength(15 + 12 + 20 + 15);
+      expect(new Set(m.lists.map((l: { id: string }) => l.id)).size).toBe(62);
       expect(m.lists[0]).toMatchObject({ id: 'hunt-1-13', mode: 'hunts', title: 'Wyvern Hunt, Hell', period: { start: '2026-10-29', end: '2026-11-04' } });
       expect(m.lists[0].heroes[0]).toEqual({ code: 'c1145', name: 'Brieg', share: 46.11 });
       const abyss = m.lists.find((l: { id: string }) => l.id === 'abyss-120');
       expect(abyss.title).toBe('Abyss, floor 120');
       expect(abyss.heroes[0].name).toBe('Fenne');
+      const challenge = m.lists.filter((l: { mode: string }) => l.mode === 'challenge');
+      expect(challenge.map((l: { id: string }) => l.id)).toEqual(Array.from({ length: 20 }, (_, i) => `challenge-${20 - i}`)); // floors 20 down to 1, like the abyss
+      expect(challenge[0]).toMatchObject({ group: 'Abyss Challenge', variant: 'Floor 20', title: 'Abyss Challenge, floor 20', period: { start: '2026-10-29', end: '2026-11-04' } });
       const exp = m.lists.find((l: { id: string }) => l.id === 'expedition-5-3');
       expect(exp).toMatchObject({ mode: 'expedition', title: 'Moroi Expedition, level 3' });
       expect(exp.period).toBeUndefined(); // the API gives none for expeditions
@@ -333,7 +336,7 @@ describe('collect', () => {
     it('a skipped run still fetches modes when they are missing', async () => {
       await collect({ outDir: dir, client: fake({ noModes: true }).client });
       expect(await collect({ outDir: dir, client: fake().client })).toBe('skipped');
-      expect(read('2026-10-22', 'modes.json').lists).toHaveLength(42);
+      expect(read('2026-10-22', 'modes.json').lists).toHaveLength(62);
     });
 
     it('a skipped run refreshes modes fetched for an older hunt period, and leaves current ones alone', async () => {
@@ -357,12 +360,14 @@ describe('collect', () => {
       await collect({ outDir: dir, client });
       const t = read('2026-10-22', 'teams.json');
       expect(t.key).toBe('2026-10-29');
-      expect(Object.keys(t.lists)).toHaveLength(42);
+      expect(Object.keys(t.lists)).toHaveLength(62);
       expect(t.lists['hunt-1-13']['c1145'][0]).toEqual({ share: 8.08, heroes: ['c1145', 'c1072', 'c1087', 'c3132'] });
       expect(t.lists['abyss-120']['c1170'][0].share).toBe(19.09);
       expect(t.lists['expedition-1-1']['c1145'][0].share).toBe(4.79);
-      // each list fixture has 5 heroes: 42 lists x 5 heroes, one call each
-      expect(teamCalls(calls)).toHaveLength(42 * 5);
+      expect(Object.keys(t.lists['challenge-20']).length).toBeGreaterThan(0);
+      // each list fixture has 5 heroes: 62 lists x 5 heroes, one call each
+      expect(teamCalls(calls)).toHaveLength(62 * 5);
+      expect(teamCalls(calls).find((c) => c.path === 'abyss-challenge/hero-team-ranking')!.params).toMatchObject({ floor: '20', is_paging: 'N' });
       expect(teamCalls(calls)[0].params).toMatchObject({ hero_code: 'c1145', current_page: '1', is_paging: 'N', dungeon: '1', stage: '13', lang_code: 'en' });
     });
 
@@ -417,6 +422,7 @@ describe('collect', () => {
     expect(pick('hunt-2-13')).toMatchObject({ group: 'Golem Hunt', variant: 'Hell', title: 'Golem Hunt, Hell' });
     expect(pick('abyss-120')).toMatchObject({ group: 'Abyss', variant: 'Floor 120', title: 'Abyss, floor 120' });
     expect(pick('expedition-5-3')).toMatchObject({ group: 'Moroi Expedition', variant: 'Level 3' });
+    expect(pick('challenge-7')).toMatchObject({ mode: 'challenge', group: 'Abyss Challenge', variant: 'Floor 7' });
   });
 
   describe('artifact catalog', () => {

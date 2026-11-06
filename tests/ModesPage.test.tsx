@@ -30,6 +30,8 @@ const modes: Modes = {
     L('hunt-2-13', 'hunts', 'Golem Hunt', 'Hell', [{ code: 'g', name: 'Golem Slayer', share: 55.5 }], hunt),
     L('abyss-120', 'abyss', 'Abyss', 'Floor 120', [{ code: 'f', name: 'Fenne', share: 72.32 }], { start: '2026-08-07', end: '2026-11-04' }),
     L('abyss-110', 'abyss', 'Abyss', 'Floor 110', [{ code: 'f', name: 'Fenne', share: 55 }]),
+    L('challenge-20', 'challenge', 'Abyss Challenge', 'Floor 20', [{ code: 'tam', name: 'Tamarinne', share: 64.79 }]),
+    L('challenge-19', 'challenge', 'Abyss Challenge', 'Floor 19', [{ code: 'tam', name: 'Tamarinne', share: 60 }]),
     L('expedition-2-1', 'expedition', 'Snag Lich Expedition', 'Level 1', [{ code: 'b', name: 'Brieg', share: 50.86 }]),
   ],
   rift: { title: 'Nightmare of the Oceans', description: 'Only Earth elemental Heroes are allowed in this Rift.', start: '2026-01-08', end: '2026-08-27', elements: ['wind'] },
@@ -47,6 +49,23 @@ describe('ModesPage (the picker)', () => {
     // the first list of the group (the hardest) gives its three best heroes
     expect(within(wyvern).getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual(['Hero 0', 'Hero 1', 'Hero 2']);
     expect(within(hunts).getByRole('article', { name: 'Golem Hunt' })).toBeTruthy();
+  });
+
+  it('shows the Challenge Mode of the abyss as its own grid of floors, apart from the normal abyss', async () => {
+    vi.mocked(loadModes).mockResolvedValue(modes);
+    render(<ModesPage />);
+    const challenge = await screen.findByRole('region', { name: 'Abyss Challenge' });
+    expect(within(challenge).getByRole('link', { name: /Floor 20/ }).getAttribute('href')).toBe('#/modes/challenge-20');
+    expect(within(challenge).getAllByRole('link')).toHaveLength(2);
+    expect(within(screen.getByRole('region', { name: 'Abyss' })).queryByRole('link', { name: /Floor 20/ })).toBeNull();
+  });
+
+  it('opens a Challenge floor as a page of its own, with the floors of the mode as chips', async () => {
+    vi.mocked(loadModes).mockResolvedValue(modes);
+    render(<ModePage id="challenge-20" />);
+    expect(await screen.findByRole('heading', { name: 'Abyss Challenge' })).toBeTruthy();
+    const chips = screen.getByRole('navigation', { name: 'Floor' });
+    expect(within(chips).getAllByRole('link').map((a) => a.textContent)).toEqual(['Floor 20', 'Floor 19']);
   });
 
   it('shows the abyss as a grid of floors, each with its best hero', async () => {

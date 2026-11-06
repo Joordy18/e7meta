@@ -94,6 +94,7 @@ export const en = {
   "loadout.epic7db": "Descriptions on {link}, a fan site.",
   "modes.hunts": "Hunts",
   "modes.abyss": "Abyss",
+  "modes.challenge": "Abyss Challenge",
   "modes.expeditions": "Expeditions",
   "modes.difficulty": "Difficulty",
   "modes.floor": "Floor",

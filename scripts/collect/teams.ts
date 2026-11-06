@@ -7,12 +7,14 @@ type Client = ReturnType<typeof createClient>;
 const TOP_HEROES = 15; // heroes per mode list whose teams are fetched: the ones most used there
 const TEAMS_PER_HERO = 5;
 
-/** Where a mode list id (hunt-2-13, abyss-120, expedition-5-3) is asked for its teams. */
+/** Where a mode list id (hunt-2-13, abyss-120, challenge-20, expedition-5-3) is asked for its teams. */
 function request(id: string): { path: string; params: Record<string, string>; field: 'specific_gravity' | 'success_rate' } | undefined {
   let m = /^hunt-(\d+)-(\d+)$/.exec(id);
   if (m) return { path: 'hunt/hero-team-ranking', params: { dungeon: m[1], stage: m[2] }, field: 'specific_gravity' };
   m = /^abyss-(\d+)$/.exec(id);
   if (m) return { path: 'abyss/hero-team-ranking', params: { floor: m[1] }, field: 'specific_gravity' };
+  m = /^challenge-(\d+)$/.exec(id);
+  if (m) return { path: 'abyss-challenge/hero-team-ranking', params: { floor: m[1] }, field: 'specific_gravity' };
   m = /^expedition-(\d+)-(\d+)$/.exec(id);
   if (m) return { path: 'expedition/team-ranking', params: { boss_type: m[1], boss_level: m[2] }, field: 'success_rate' };
   return undefined;

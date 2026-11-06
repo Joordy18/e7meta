@@ -96,6 +96,7 @@ export const ja: Record<keyof typeof en, string> = {
   "loadout.epic7db": "説明は {link}（ファンサイト）より。",
   "modes.hunts": "ハント",
   "modes.abyss": "アビス",
+  "modes.challenge": "アビスチャレンジ",
   "modes.expeditions": "探検",
   "modes.difficulty": "難易度",
   "modes.floor": "階層",

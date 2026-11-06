@@ -96,6 +96,7 @@ export const ko: Record<keyof typeof en, string> = {
   "loadout.epic7db": "설명 출처: {link} (팬 사이트).",
   "modes.hunts": "사냥",
   "modes.abyss": "나락",
+  "modes.challenge": "나락 챌린지",
   "modes.expeditions": "탐험",
   "modes.difficulty": "난이도",
   "modes.floor": "층",

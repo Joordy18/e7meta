@@ -96,6 +96,7 @@ export const zh: Record<keyof typeof en, string> = {
   "loadout.epic7db": "說明來自 {link}（粉絲網站）。",
   "modes.hunts": "狩獵",
   "modes.abyss": "深淵",
+  "modes.challenge": "深淵挑戰",
   "modes.expeditions": "探險",
   "modes.difficulty": "難度",
   "modes.floor": "層數",
