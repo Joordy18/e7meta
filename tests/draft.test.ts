@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PRE_BANS, PROTECTED_SLOT, botBan, botPick, botPreBans, mulberry32, pickSides, rarityOf, scoreDraft } from '../src/lib/draft';
 import type { RtaRow } from '../src/lib/rta';
+import type { RtaHeroPairs } from '../src/shared/types';
 
 const row = (code: string, pick: number, win: number | null, ban = 0, preban = 0): RtaRow => ({ code, pick, win, ban, preban, first: 0, played: 100 });
 // 12 heroes: a is the most picked, l the least
@@ -123,5 +124,45 @@ describe('scoreDraft', () => {
     const out = scoreDraft(q, { you: ['a', 'b'], bot: ['a', 'b'], youBan: 'a', botBan: 'a', youPreBans: [] });
     expect(out.you.avgWin).toBe(55);
     expect(Number.isFinite(out.score)).toBe(true);
+  });
+});
+
+describe('scoreDraft with partnerships and matchups', () => {
+  const row = (code: string, win: number): RtaRow => ({ code, pick: 10, win, ban: 0, preban: 0, first: 0, played: 100 });
+  const p = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((c) => row(c, 50));
+  const draft = { you: ['a', 'b', 'c', 'd', 'e'], bot: ['f', 'g', 'h', 'i', 'j'], youBan: 'g', botBan: 'c', youPreBans: [] as string[] }; // c and g are banned: they do not play
+  const none: RtaHeroPairs = { with: [], over: [], under: [] };
+  const entry = (code: string, edge: number) => ({ code, n: 100, win: 50 + edge, edge });
+  const pairs: Record<string, RtaHeroPairs> = {
+    a: { ...none, with: [entry('b', 8), entry('c', 9)], over: [entry('f', 6)] }, // a and c: c is banned, so it does not count
+    b: { ...none, with: [entry('a', 12)] }, // listed from both sides: the mean of 8 and 12 counts once
+    f: { ...none, under: [entry('a', -4)] }, // f loses to a: that is +4 for you, and the mean with the +6 above is 5
+    h: { ...none, with: [entry('i', 3)] },
+  };
+  const base = scoreDraft(p, draft);
+  const r = scoreDraft(p, draft, pairs);
+
+  it('adds up the partnerships of each team and the matchups across, once per pair, leaving out the banned heroes', () => {
+    expect(r.synergy).toEqual({ you: 10, bot: 3 });
+    expect(r.matchup).toBe(5);
+  });
+
+  it('moves the score by a fifth of the points: partnerships for your team raise it, those of the other team lower it', () => {
+    expect(base.score).toBe(50); // equal teams
+    expect(r.score).toBe(Math.round(50 + 0.2 * (10 - 3 + 5) * 10)); // 74
+    expect(scoreDraft(p, draft, { h: { ...none, with: [entry('i', 5)] } }).score).toBeLessThan(50);
+  });
+
+  it('gives the strongest notes first, each for the side it helps', () => {
+    expect(r.notes[0]).toEqual({ kind: 'with', side: 'you', a: 'a', b: 'b', edge: 10 });
+    expect(r.notes.map((n) => n.kind).sort()).toEqual(['over', 'with', 'with']);
+    expect(r.notes.find((n) => n.kind === 'over')).toMatchObject({ side: 'you', a: 'a', b: 'f', edge: 5 });
+  });
+
+  it('is the same as before without pair data', () => {
+    expect(base.synergy).toBeNull();
+    expect(base.matchup).toBeNull();
+    expect(base.notes).toEqual([]);
+    expect(scoreDraft(p, draft, {}).score).toBe(50);
   });
 });

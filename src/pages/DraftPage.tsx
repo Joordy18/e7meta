@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HeroIcon } from '../components/Art';
 import { useI18n, type Key } from '../i18n';
 import { PRE_BANS, PROTECTED_SLOT, botBan, botPick, botPreBans, mulberry32, pickSides, scoreDraft, type Rarity, type Side } from '../lib/draft';
-import { loadHeroes, loadIndex, loadRta, normalize } from '../lib/data';
+import { loadHeroes, loadIndex, loadRta, loadRtaPairs, normalize } from '../lib/data';
+import type { RtaHeroPairs } from '../shared/types';
 import { MIN_PLAYED, rtaRows, type RtaRow } from '../lib/rta';
 
 const MIN_POOL = 20; // heroes with data needed for a draft to make sense
@@ -15,7 +16,7 @@ type Pick = { code: string; side: Side };
 type Game = { analysis: boolean; phase: Phase; youFirst: boolean; stage: 0 | 1; youPre: string[]; botPre: string[]; picks: Pick[]; selected: string[]; youBan?: string; botBan?: string };
 const NEW_GAME: Game = { analysis: false, phase: 'setup', youFirst: true, stage: 0, youPre: [], botPre: [], picks: [], selected: [] };
 
-type Data = { pool: RtaRow[]; names: Map<string, string> };
+type Data = { pool: RtaRow[]; names: Map<string, string>; pairs?: Record<string, RtaHeroPairs> };
 type Load = { status: 'loading' } | { status: 'none' } | { status: 'few' } | { status: 'error'; message: string } | ({ status: 'ok' } & Data);
 
 /** Plays the bot's turns in a row until it is yours again (or the ten picks are done). */
@@ -35,6 +36,8 @@ function botTurns(pool: RtaRow[], g: Game, picks: Pick[], rng: () => number): Pi
  * Practice the RTA draft against a bot that plays like the top players of the sample, and get a score (see lib/draft.ts); or analyse a draft by
  * choosing everything for both teams. The third pick of each team is protected from the ban, like in the game.
  */
+const signed = (n: number) => `${n > 0 ? '+' : ''}${n}`;
+
 export default function DraftPage() {
   const { t, rich, name, locale } = useI18n();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
@@ -52,7 +55,8 @@ export default function DraftPage() {
       const heroes = period ? await loadHeroes(period) : [];
       const names = new Map(heroes.map((h) => [h.code, h.name]));
       const pool = rtaRows(stats).filter((r) => r.played >= MIN_PLAYED && names.has(r.code));
-      if (live) setLoad(pool.length < MIN_POOL ? { status: 'few' } : { status: 'ok', pool, names });
+      const pairs = (await loadRtaPairs().catch(() => null))?.heroes; // without the file the score just leaves partnerships and matchups out
+      if (live) setLoad(pool.length < MIN_POOL ? { status: 'few' } : { status: 'ok', pool, names, pairs });
     })().catch((e: unknown) => live && setLoad({ status: 'error', message: String(e) }));
     return () => { live = false; };
   }, []);
@@ -70,7 +74,7 @@ export default function DraftPage() {
   );
   if (load.status === 'none') return <div>{head}<p className="note">{rich('draft.noData', { cmd: <code>npm run rta</code> })}</p></div>;
   if (load.status === 'few') return <div>{head}<p className="note">{t('draft.tooFew')}</p></div>;
-  const { pool } = load;
+  const { pool, pairs } = load;
   const byCode = new Map(pool.map((r) => [r.code, r]));
   const mine = game.picks.filter((p) => p.side === 'you').map((p) => p.code); // in pick order
   const theirs = game.picks.filter((p) => p.side === 'bot').map((p) => p.code);
@@ -193,18 +197,22 @@ export default function DraftPage() {
   if (game.phase === 'result') {
     const youTeam = teamLabel('you');
     const botTeam = teamLabel('bot');
-    const s = scoreDraft(pool, { you: mine, bot: theirs, youBan: game.youBan!, botBan: game.botBan!, youPreBans: game.youPre, botPreBans: game.botPre });
+    const s = scoreDraft(pool, { you: mine, bot: theirs, youBan: game.youBan!, botBan: game.botBan!, youPreBans: game.youPre, botPreBans: game.botPre }, pairs);
     const verdict: Key = s.score >= 65 ? 'draft.verdictStrong' : s.score >= 55 ? 'draft.verdictGood' : s.score >= 45 ? 'draft.verdictEven' : 'draft.verdictRisky';
-    const side = (label: string, x: typeof s.you) => (
+    const side = (label: string, x: typeof s.you, synergy?: number) => (
       <div className="draft-side">
         <h3>{label}</h3>
         <dl>
           <dt>{t('draft.avgWin')}</dt><dd>{x.avgWin === null ? '—' : `${x.avgWin.toLocaleString(locale)}%`}</dd>
           <dt>{t('draft.typicalPick')}</dt><dd>{x.typicalPick.toLocaleString(locale)}% · {t(STYLE[x.style])}</dd>
+          {synergy !== undefined && <><dt>{t('draft.synergy')}</dt><dd>{signed(synergy)}</dd></>}
         </dl>
       </div>
     );
     const lines: ReactNode[] = [];
+    const noteKey = { with: 'draft.noteWith', over: 'draft.noteOver', under: 'draft.noteUnder' } as const;
+    s.notes.forEach((n, i) => lines.push(<li key={`pair-${i}`}>{rich(noteKey[n.kind], { team: teamLabel(n.side), a: icon(n.a), b: icon(n.b), edge: signed(n.edge) })}</li>));
+    if (s.matchup !== null) lines.push(<li key="matchup">{t('draft.matchupNet', { edge: signed(s.matchup) })}</li>);
     if (game.analysis) {
       for (const [team, ban, rank] of [[youTeam, game.youBan!, s.banRank], [botTeam, game.botBan!, s.botBanRank]] as const) {
         if (rank !== null) lines.push(<li key={`ban-${team}`}>{rich('draft.banFeedbackTeam', { team, hero: icon(ban), rank, n: s.bannable })}</li>);
@@ -227,7 +235,7 @@ export default function DraftPage() {
             <strong>{t('hero.preBan')}</strong> {icons(game.youPre, 'you')} {icons(game.botPre, 'bot')}
             <strong>{t('draft.bans')}</strong> {icons([game.botBan!], 'you')} {icons([game.youBan!], 'bot')}
           </p>
-          <div className="draft-sides">{side(youTeam, s.you)}{side(botTeam, s.bot)}</div>
+          <div className="draft-sides">{side(youTeam, s.you, s.synergy?.you)}{side(botTeam, s.bot, s.synergy?.bot)}</div>
           <h3>{t('draft.feedback')}</h3>
           <ul className="notes">{lines}</ul>
           <table className="targets draft">

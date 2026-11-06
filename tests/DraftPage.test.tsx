@@ -3,12 +3,12 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import DraftPage from '../src/pages/DraftPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
-import { loadHeroes, loadIndex, loadNames, loadRta } from '../src/lib/data';
-import type { RtaStats } from '../src/shared/types';
+import { loadHeroes, loadIndex, loadNames, loadRta, loadRtaPairs } from '../src/lib/data';
+import type { RtaHeroPairs, RtaStats } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(),
+  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaPairs: vi.fn(),
 }));
 
 const codes = Array.from({ length: 24 }, (_, i) => `h${String(i + 1).padStart(2, '0')}`);
@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.mocked(loadHeroes).mockResolvedValue(heroes);
   vi.mocked(loadRta).mockResolvedValue(stats());
   vi.mocked(loadNames).mockResolvedValue(null);
+  vi.mocked(loadRtaPairs).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.restoreAllMocks(); vi.resetAllMocks(); });
 
@@ -133,7 +134,8 @@ describe('DraftPage', () => {
     expect(within(result).getAllByText(/Your pre-ban .*is #\d+ of all heroes/)).toHaveLength(2);
     expect(within(result).getByText(/The bot banned .*from your team\./)).toBeTruthy();
     expect(within(within(result).getByRole('table')).getAllByRole('row')).toHaveLength(11); // the header and ten heroes
-    expect(within(result).getByText(/does not count synergies or counters yet/)).toBeTruthy();
+    expect(within(result).getByText(/adds a fifth of the points of the partnerships and matchups/)).toBeTruthy();
+    expect(within(result).queryByText('Partnerships (points)')).toBeNull(); // no pair data: nothing about them
   });
 
   it('starts over with Play again', async () => {
@@ -322,5 +324,31 @@ describe('analysing a draft: both sides by hand', () => {
   it('has no Undo against the bot, where the bot\'s choices cannot be taken back', async () => {
     await start('I pick first');
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
+  });
+});
+
+describe('partnerships and matchups in the score', () => {
+  // every hero wins more with every other one, and the lower code beats the higher one: whoever is picked, there are pairs to show
+  const everyone = (): Record<string, RtaHeroPairs> => Object.fromEntries(codes.map((c) => [c, {
+    with: codes.filter((o) => o !== c).map((o) => ({ code: o, n: 50, win: 60, edge: 6 })),
+    over: codes.filter((o) => o > c).map((o) => ({ code: o, n: 50, win: 54, edge: 4 })), // the lower code beats the higher one
+    under: codes.filter((o) => o < c).map((o) => ({ code: o, n: 50, win: 46, edge: -4 })),
+  }]));
+
+  it('shows the partnerships of each team, the strongest pairs with the heroes as pictures, and the net of the matchups', async () => {
+    vi.mocked(loadRtaPairs).mockResolvedValue({ code: 's', updated: 'x', battles: 1000, minGames: 30, heroes: everyone() });
+    await playAll(true);
+    fireEvent.click(within(screen.getByTestId('draft-grid')).getAllByRole('button').find((b) => !(b as HTMLButtonElement).disabled)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm ban' }));
+    const result = await screen.findByRole('region', { name: 'Result' });
+    expect(within(result).getAllByText('Partnerships (points)')).toHaveLength(2); // one per team
+    expect(within(result).getAllByText(/win more together than expected|wins more than expected against/).length).toBeGreaterThan(0);
+    expect(within(result).getByText(/^Matchups across the two teams/).textContent).toMatch(/[+-]?\d+(\.\d+)? points\.$/);
+  });
+
+  it('plays on without the pair file', async () => {
+    vi.mocked(loadRtaPairs).mockRejectedValue(new Error('offline'));
+    await playAll(true);
+    expect(screen.getByRole('button', { name: 'Confirm ban' })).toBeTruthy();
   });
 });
