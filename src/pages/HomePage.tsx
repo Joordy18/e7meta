@@ -4,7 +4,7 @@ import { artifactIcon } from '../lib/images';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
-import type { ArenaSeason, Feed, FeedBoard, Modes, Trends } from '../shared/types';
+import type { ArenaSeason, Balance, Feed, FeedBoard, Modes, Trends } from '../shared/types';
 
 type Data = {
   latest: string;
@@ -41,6 +41,47 @@ function PveList({ title, leaders }: { title: string; leaders: Leader[] }) {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+/** The latest balance preview: who the developers change, which skills, and why, in their words. */
+function BalanceSection({ balance }: { balance: Balance }) {
+  const live = balance.date <= new Date().toISOString().slice(0, 10); // the patch day has come
+  return (
+    <section aria-label="Balance changes" className="source">
+      <header>
+        <h2>Balance changes</h2>
+        <p className="period-chip">{balance.date}</p>
+        <p className="period-chip">{live ? 'live' : 'upcoming'}</p>
+      </header>
+      <div className="panels">
+        <section aria-label="Changes" className="panel wide-2">
+          <ul className="changes">
+            {balance.changes.map((c) => (
+              <li key={`${c.kind}-${c.name}`}>
+                {c.code && (c.kind === 'hero' ? <HeroIcon code={c.code} name={c.name} decorative /> : <Icon src={artifactIcon(c.code)} className="hicon art" />)}
+                <div>
+                  <p className="who">
+                    {c.code ? <a href={c.kind === 'hero' ? `#/hero/${c.code}` : `#/artifact/${c.code}`}>{c.name}</a> : <span>{c.name}</span>}
+                    <small className="meta">
+                      {c.grade ? `${c.grade}★ ` : ''}
+                      {c.element && <ElementIcon element={c.element} />}{' '}
+                      {c.job && <JobIcon job={c.job} />}
+                    </small>
+                  </p>
+                  {c.skills && c.skills.length > 0 && <p className="skills">{c.skills.join(', ')}</p>}
+                  {c.summary && <p className="summary">{c.summary}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="caption">
+            In the developers' own words, from the balance preview ({balance.title}). Changes apply on the patch day; the values may still change.{' '}
+            <a href={balance.url} target="_blank" rel="noopener noreferrer">Read the full preview</a>.
+          </p>
+        </section>
+      </div>
     </section>
   );
 }
@@ -146,6 +187,8 @@ export default function HomePage() {
           <p className="caption">Official posts from the game's community boards, and heroes or artifacts that appeared in the game's data.</p>
         </section>
       )}
+
+      {feed?.balance && <BalanceSection balance={feed.balance} />}
 
       {modes && (
         <section aria-label="Most used in PvE" className="source">

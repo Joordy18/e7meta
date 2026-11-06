@@ -103,4 +103,21 @@ export type Release = {
   kind: 'hero' | 'artifact'; name: string; code?: string; since?: string; announced?: { date: string; url: string };
   grade?: number; job?: string; element?: string; // job: the class of a hero, or of the class an artifact is exclusive to; element: heroes only (codes as in heroes.json)
 };
-export type Feed = { updated: string; posts: FeedPost[]; releases: Release[] }; // posts: newest first per board, releases: newest first
+// A balance preview: the heroes and artifacts the developers will adjust on `date` (their own words), from the latest "Balance Adjustment Preview" post.
+export type BalanceChange = {
+  kind: 'hero' | 'artifact'; name: string; grade?: number; skills?: string[]; summary?: string;
+  code?: string; job?: string; element?: string; // from the game's data when the name is known
+};
+export type Balance = { id: string; title: string; url: string; posted: string; date: string; changes: BalanceChange[] }; // posted, date = YYYY-MM-DD
+export type Feed = { updated: string; posts: FeedPost[]; releases: Release[]; balance?: Balance }; // posts: newest first per board, releases: newest first
+
+// RTA statistics counted by us from the recent matches of the top players (one file, the current season). Rates = counts / battles.
+export type RtaHeroCount = {
+  pick: number; // battles where either side drafted the hero (a banned hero counts)
+  played: number; // picks that were not banned afterwards
+  win: number; // wins among those that were played
+  first: number; // battles where it was the very first pick
+  ban: number; // banned after the draft
+  preban: number; // battles where it was pre-banned (by either side)
+};
+export type RtaStats = { season: string; code: string; updated: string; players: number; battles: number; heroes: Record<string, RtaHeroCount> };

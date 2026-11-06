@@ -49,6 +49,15 @@ const feed: Feed = {
   ],
 };
 
+const balance = (date: string): NonNullable<Feed['balance']> => ({
+  id: '9', title: '11/19 (Thu) Balance Adjustment Preview', url: 'https://page.onstove.com/epicseven/global/view/9', posted: '2026-11-06', date,
+  changes: [
+    { kind: 'hero', name: 'Death Dealer Ray', grade: 5, code: 'c2090', job: 'manauser', element: 'dark', skills: ['Cloud of Death', 'Constellation'], summary: 'Ray will be harder to dispel.' },
+    { kind: 'hero', name: 'Victorika', grade: 4, skills: ["Hilag's Pride"], summary: 'Victorika hits harder.' },
+    { kind: 'artifact', name: 'Elegiac Candle', grade: 5, code: 'efk9', summary: 'The candle heals more.' },
+  ],
+});
+
 function setup(o: { prev?: Modes; trends?: Trends | null; arena?: boolean; feed?: Feed | null } = {}) {
   vi.mocked(loadFeed).mockResolvedValue(o.feed === undefined ? null : o.feed);
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -247,6 +256,58 @@ describe('HomePage: what is new', () => {
     render(<HomePage />);
     await screen.findByRole('region', { name: 'Most used in PvE' });
     expect(screen.queryByRole('region', { name: "What's new" })).toBeNull();
+  });
+});
+
+describe('HomePage: balance changes', () => {
+  const setupWith = (b?: ReturnType<typeof balance>) => setup({ feed: { ...feed, ...(b ? { balance: b } : {}) } });
+
+  it('lists the heroes and artifacts of the latest balance preview with their skills and the developers own explanation', async () => {
+    setupWith(balance('2099-11-19'));
+    render(<HomePage />);
+    const sec = await screen.findByRole('region', { name: 'Balance changes' });
+    const rows = within(sec).getAllByRole('listitem');
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('Death Dealer Ray');
+    expect(rows[0].textContent).toContain('Cloud of Death');
+    expect(rows[0].textContent).toContain('Constellation');
+    expect(rows[0].textContent).toContain('Ray will be harder to dispel.');
+    expect(within(rows[0]).getByRole('img', { name: 'Dark' })).toBeTruthy();
+    expect(within(rows[0]).getByRole('img', { name: 'Soul Weaver' })).toBeTruthy();
+    expect(rows[0].querySelector('img')?.getAttribute('src')).toContain('c2090_s.png');
+  });
+
+  it('links a hero or artifact to its page when the data knows it, and shows the plain name otherwise', async () => {
+    setupWith(balance('2099-11-19'));
+    render(<HomePage />);
+    const sec = await screen.findByRole('region', { name: 'Balance changes' });
+    expect(within(sec).getByRole('link', { name: 'Death Dealer Ray' }).getAttribute('href')).toBe('#/hero/c2090');
+    expect(within(sec).getByRole('link', { name: 'Elegiac Candle' }).getAttribute('href')).toBe('#/artifact/efk9');
+    expect(within(sec).queryByRole('link', { name: 'Victorika' })).toBeNull();
+    expect(within(sec).getByText('Victorika')).toBeTruthy();
+  });
+
+  it('says whether the patch is still to come or already live, and links the full post', async () => {
+    setupWith(balance('2099-11-19'));
+    const { unmount } = render(<HomePage />);
+    let sec = await screen.findByRole('region', { name: 'Balance changes' });
+    expect(sec.textContent).toContain('2099-11-19');
+    expect(within(sec).getByText('upcoming')).toBeTruthy();
+    const post = within(sec).getByRole('link', { name: /full preview/i });
+    expect(post.getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
+    expect(post.getAttribute('target')).toBe('_blank');
+    unmount();
+    setupWith(balance('2020-01-02'));
+    render(<HomePage />);
+    sec = await screen.findByRole('region', { name: 'Balance changes' });
+    expect(within(sec).getByText('live')).toBeTruthy();
+  });
+
+  it('is left out when the feed has no balance preview', async () => {
+    setupWith();
+    render(<HomePage />);
+    await screen.findByRole('region', { name: "What's new" });
+    expect(screen.queryByRole('region', { name: 'Balance changes' })).toBeNull();
   });
 });
 

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { HeroIcon, Icon } from '../components/Art';
 import Loadout from '../components/Loadout';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
+import { heroRta, type RtaRow } from '../lib/rta';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
 import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes';
@@ -116,6 +117,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [teamList, setTeamList] = useState<HeroTeam[]>([]);
   const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
+  const [rtaSample, setRtaSample] = useState<{ season: string; battles: number; players: number; row: RtaRow } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [skills, setSkills] = useState<SkillsFile | null>(null);
 
@@ -184,6 +186,20 @@ export default function HeroPage({ code }: { code: string }) {
     return () => { live = false; };
   }, [heroName]);
 
+  // the sample of the top players' battles covers every hero: no file, a failure or too few games just hides the block
+  useEffect(() => {
+    setRtaSample(null);
+    if (!h) return;
+    let live = true;
+    Promise.resolve(loadRta())
+      .then((r) => {
+        const row = r ? heroRta(r, h.hero.code) : undefined;
+        if (live && r && row) setRtaSample({ season: r.season, battles: r.battles, players: r.players, row });
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [h?.hero.code]);
+
   return (
     <div>
       <div className="hero-bar">
@@ -220,6 +236,34 @@ export default function HeroPage({ code }: { code: string }) {
                     Rates are shares of matches in that league and above; "#" is the place in the published top 20.
                     Source: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {arena.season.published}.
                     The game does not publish matchups or team compositions for RTA.
+                  </p>
+                </section>
+              </div>
+            </section>
+          )}
+          {rtaSample && (
+            <section aria-label="RTA, top players" className="source">
+              <header>
+                <h2>RTA, top players</h2>
+                <p className="period-chip">{rtaSample.season}</p>
+              </header>
+              <div className="panels">
+                <section aria-label="RTA sample" className="panel rta">
+                  <table className="targets" aria-label="RTA, top players">
+                    <thead><tr><th>Pick</th><th>Win rate</th><th>Ban</th><th>Pre-ban</th><th>First pick</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td>{rtaSample.row.pick}%</td>
+                        <td>{rtaSample.row.win === null ? '—' : `${rtaSample.row.win}%`}</td>
+                        <td>{rtaSample.row.ban}%</td>
+                        <td>{rtaSample.row.preban}%</td>
+                        <td>{rtaSample.row.first}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="caption">
+                    Counted by this site from {rtaSample.battles.toLocaleString('en-US')} recent ranked battles of the top {rtaSample.players} players ({rtaSample.row.played} games with this hero).
+                    <a href="#/arena"> All heroes</a>.
                   </p>
                 </section>
               </div>

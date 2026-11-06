@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon } from '../components/Art';
 import { TIERS } from '../lib/arena';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, normalize } from '../lib/data';
-import type { ArenaIndex, ArenaSeason, ArenaTier } from '../shared/types';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta, normalize } from '../lib/data';
+import { rtaRows, type RtaRow } from '../lib/rta';
+import type { ArenaIndex, ArenaSeason, ArenaTier, RtaStats } from '../shared/types';
 
 const METRICS = [['pick', 'Pick'], ['firstPick', 'First pick'], ['preBan', 'Pre-ban']] as const;
 type Metric = (typeof METRICS)[number][0];
 const METRIC_COLUMN: Record<Metric, string> = { pick: 'Pick rate', firstPick: 'First pick rate', preBan: 'Pre-ban rate' };
 const pct = (n: number) => `${n}%`;
+
+const SAMPLE_SORTS = [['pick', 'By pick'], ['win', 'By win rate'], ['ban', 'By ban'], ['preban', 'By pre-ban']] as const;
+type SampleSort = (typeof SAMPLE_SORTS)[number][0];
+const SAMPLE_SHOWN = 30;
 
 type Load = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; index: ArenaIndex };
 
@@ -18,6 +23,10 @@ export default function ArenaPage() {
   const [tier, setTier] = useState<ArenaTier>('champion');
   const [metric, setMetric] = useState<Metric>('pick');
   const [codes, setCodes] = useState<Map<string, string>>(new Map()); // normalized hero name -> code
+  const [names, setNames] = useState<Map<string, string>>(new Map()); // code -> hero name
+  const [rta, setRta] = useState<RtaStats | null>(null);
+  const [sampleSort, setSampleSort] = useState<SampleSort>('pick');
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -32,8 +41,10 @@ export default function ArenaPage() {
     (async () => {
       const period = (await loadIndex())?.periods[0];
       const heroes = period ? await loadHeroes(period) : [];
-      if (live) setCodes(new Map(heroes.map((h) => [normalize(h.name), h.code])));
+      if (live) { setCodes(new Map(heroes.map((h) => [normalize(h.name), h.code]))); setNames(new Map(heroes.map((h) => [h.code, h.name]))); }
     })().catch(() => {});
+    // the sample of all heroes is a bonus: without it the page shows the infographic only
+    Promise.resolve(loadRta()).then((r) => live && setRta(r)).catch(() => {});
     return () => { live = false; };
   }, []);
 
@@ -138,6 +149,62 @@ export default function ArenaPage() {
           <p className="caption">Each table lists the 20 heroes the game ranks highest.</p>
         </section>
       </div>
+      {rta && <SampleSection rta={rta} names={names} sort={sampleSort} setSort={setSampleSort} showAll={showAll} setShowAll={setShowAll} />}
     </div>
+  );
+}
+
+function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
+  rta: RtaStats; names: Map<string, string>; sort: SampleSort; setSort: (s: SampleSort) => void; showAll: boolean; setShowAll: (b: boolean) => void;
+}) {
+  const key = (r: RtaRow) => (sort === 'win' ? r.win ?? -1 : r[sort]);
+  const rows = rtaRows(rta).sort((a, b) => key(b) - key(a) || b.pick - a.pick);
+  const shown = showAll ? rows : rows.slice(0, SAMPLE_SHOWN);
+  return (
+    <section aria-label="Top players sample" className="source">
+      <header>
+        <h2>All heroes, top players</h2>
+        <p className="period-chip">{rta.season}</p>
+      </header>
+      <div className="toolbar">
+        {SAMPLE_SORTS.map(([k, label]) => (
+          <button key={k} type="button" className="tab" aria-pressed={k === sort} onClick={() => setSort(k)}>{label}</button>
+        ))}
+      </div>
+      <div className="panels">
+        <section aria-label="Top players table" className="panel wide-2">
+          <table className="targets draft" aria-label="Top players, all heroes">
+            <thead><tr><th>#</th><th>Hero</th><th>Pick</th><th>Win rate</th><th>Ban</th><th>Pre-ban</th><th>First pick</th></tr></thead>
+            <tbody>
+              {shown.map((r, i) => {
+                const name = names.get(r.code) ?? r.code;
+                return (
+                  <tr key={r.code}>
+                    <td>{i + 1}</td>
+                    <td><span className="hero-cell">
+                      <HeroIcon code={r.code} name={name} decorative />
+                      <a href={`#/hero/${r.code}`}>{name}</a>
+                    </span></td>
+                    <td>{pct(r.pick)}</td>
+                    <td className={r.win !== null && r.win >= 50 ? 'win up' : 'win'}>{r.win === null ? '—' : pct(r.win)}</td>
+                    <td>{pct(r.ban)}</td>
+                    <td>{pct(r.preban)}</td>
+                    <td>{pct(r.first)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {rows.length > SAMPLE_SHOWN && (
+            <button type="button" className="tab" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show fewer' : `Show all ${rows.length} heroes`}</button>
+          )}
+          <p className="caption">
+            Counted by this site from {rta.battles.toLocaleString('en-US')} recent ranked battles of the top {rta.players} players of the global leaderboard in {rta.season}, updated {rta.updated}.
+            It is a sample of the best players, not of everyone, so it will differ from the infographic. Heroes with fewer than 20 games are left out.
+            Pick, ban, pre-ban and first pick are shares of all battles; the win rate is over the games the hero was played.
+          </p>
+        </section>
+      </div>
+    </section>
   );
 }

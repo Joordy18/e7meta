@@ -3,13 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadSkills, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadRta, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
-import type { HeroSnapshot, SkillsFile } from '../src/shared/types';
+import type { HeroSnapshot, RtaStats, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.mocked(loadHeroes).mockResolvedValue([]);
   vi.mocked(loadArenaIndex).mockResolvedValue(null);
   vi.mocked(loadSkills).mockResolvedValue(null);
+  vi.mocked(loadRta).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -379,6 +380,37 @@ describe('HeroPage', () => {
       ['Legend+', '—', '—', '—', '71% (#1)'],
     ]);
     expect(within(panel).getByRole('link', { name: /official infographic/ }).getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
+  });
+
+  describe('RTA among the top players', () => {
+    const rta = (heroes: RtaStats['heroes']): RtaStats => ({ season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000, heroes });
+
+    it('shows the pick, win, ban, pre-ban and first pick rates of the hero in the sample, even when it is not in the infographic', async () => {
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      vi.mocked(loadRta).mockResolvedValue(rta({ c1176: { pick: 250, played: 200, win: 110, first: 40, ban: 50, preban: 30 } }));
+      render(<HeroPage code="c1176" />);
+      const block = await screen.findByRole('region', { name: 'RTA, top players' });
+      const cells = within(within(block).getByRole('table', { name: 'RTA, top players' })).getAllByRole('cell').map((c) => c.textContent);
+      expect(cells).toEqual(['25%', '55%', '5%', '3%', '4%']);
+      expect(block.textContent).toContain('Fall 2026');
+      expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
+    });
+
+    it('is left out when the hero has too few games, or without a sample', async () => {
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      vi.mocked(loadRta).mockResolvedValue(rta({ c1176: { pick: 4, played: 4, win: 4, first: 0, ban: 0, preban: 0 } }));
+      render(<HeroPage code="c1176" />);
+      await screen.findByRole('heading', { name: 'Setsuka' });
+      expect(screen.queryByRole('region', { name: 'RTA, top players' })).toBeNull();
+    });
+
+    it('is left out when the sample cannot be loaded', async () => {
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      vi.mocked(loadRta).mockRejectedValue(new Error('down'));
+      render(<HeroPage code="c1176" />);
+      await screen.findByRole('heading', { name: 'Setsuka' });
+      expect(screen.queryByRole('region', { name: 'RTA, top players' })).toBeNull();
+    });
   });
 
   it('leaves out the World Arena block when the hero is in none of the top-20 tables', async () => {

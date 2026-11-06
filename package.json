@@ -13,7 +13,8 @@
     "arena": "tsx scripts/collect/arena.ts",
     "skills": "tsx scripts/collect/skills.ts",
     "trends": "tsx scripts/collect/trends.ts",
-    "feed": "tsx scripts/collect/feed.ts"
+    "feed": "tsx scripts/collect/feed.ts",
+    "rta": "tsx scripts/collect/rta.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

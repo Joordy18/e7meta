@@ -7,6 +7,7 @@ import GuidesPage, { GuidePage } from './pages/GuidesPage';
 import ModesPage, { ModePage } from './pages/ModesPage';
 import ArenaPage from './pages/ArenaPage';
 import { ArtifactPage } from './pages/GearPage';
+import Search from './components/Search';
 
 const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 const GUIDE_ROUTE = /^#\/guides\/([^/?]+)$/;
@@ -59,6 +60,7 @@ export default function App() {
           <a href="#/arena" aria-current={section(hash) === 'arena' ? 'page' : undefined}>RTA</a>
           <a href="#/guides" aria-current={section(hash) === 'guides' ? 'page' : undefined}>Guides</a>
         </nav>
+        <Search />
         {latest && <span className="week">Data: week of {latest}</span>}
       </header>
       <main><Page hash={hash} /></main>

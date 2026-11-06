@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import ArenaPage from '../src/pages/ArenaPage';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex } from '../src/lib/data';
-import type { ArenaIndex, ArenaSeason, ArenaTier, DraftRow, PreBanRow } from '../src/shared/types';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta } from '../src/lib/data';
+import type { ArenaIndex, ArenaSeason, ArenaTier, DraftRow, PreBanRow, RtaStats } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
+  loadIndex: vi.fn(), loadHeroes: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadRta: vi.fn(),
 }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
@@ -30,6 +30,7 @@ const index: ArenaIndex = { seasons: [summer, spring].map((s) => ({ id: s.id, se
 beforeEach(() => {
   vi.mocked(loadArenaIndex).mockResolvedValue(index);
   vi.mocked(loadArenaSeason).mockImplementation(async (id) => (id === '2' ? summer : spring));
+  vi.mocked(loadRta).mockResolvedValue(null);
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-22'] });
   vi.mocked(loadHeroes).mockResolvedValue([{ code: 'c9', name: 'champion Star', grade: 5, job: 'mage', element: 'fire' }]);
 });
@@ -126,5 +127,57 @@ describe('ArenaPage', () => {
     vi.mocked(loadArenaIndex).mockRejectedValue(new Error('boom'));
     render(<ArenaPage />);
     expect(await screen.findByText(/Failed to load: .*boom/)).toBeTruthy();
+  });
+});
+
+describe('ArenaPage: top players sample', () => {
+  const rta: RtaStats = {
+    season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000,
+    heroes: {
+      c9: { pick: 600, played: 500, win: 300, first: 100, ban: 100, preban: 50 },
+      c10: { pick: 200, played: 200, win: 80, first: 300, ban: 0, preban: 400 },
+      c11: { pick: 5, played: 5, win: 5, first: 0, ban: 0, preban: 0 },
+    },
+  };
+  const table = () => screen.findByRole('table', { name: 'Top players, all heroes' });
+
+  it('lists every hero of the sample with pick, win, ban, pre-ban and first pick rates, and says how it was counted', async () => {
+    vi.mocked(loadRta).mockResolvedValue(rta);
+    vi.mocked(loadHeroes).mockResolvedValue([
+      { code: 'c9', name: 'Alpha', grade: 5, job: 'mage', element: 'fire' }, { code: 'c10', name: 'Beta', grade: 5, job: 'knight', element: 'ice' },
+    ]);
+    render(<ArenaPage />);
+    const t = await table();
+    const heads = within(t).getAllByRole('columnheader').map((c) => c.textContent);
+    expect(heads).toEqual(['#', 'Hero', 'Pick', 'Win rate', 'Ban', 'Pre-ban', 'First pick']);
+    const first = within(within(t).getAllByRole('row')[1]).getAllByRole('cell').map((c) => c.textContent);
+    expect(first).toEqual(['1', 'Alpha', '60%', '60%', '10%', '5%', '10%']); // 600 / 1000 picks, 300 / 500 wins
+    expect(within(within(t).getAllByRole('row')[1]).getByRole('link', { name: 'Alpha' }).getAttribute('href')).toBe('#/hero/c9');
+    expect(within(t).queryByText('c11')).toBeNull(); // 5 games: too few
+    const sec = screen.getByRole('region', { name: 'Top players sample' });
+    expect(sec.textContent).toContain('1,000 recent ranked battles');
+    expect(sec.textContent).toContain('100 players');
+    expect(sec.textContent).toContain('Fall 2026');
+  });
+
+  it('sorts by another column when asked', async () => {
+    vi.mocked(loadRta).mockResolvedValue(rta);
+    vi.mocked(loadHeroes).mockResolvedValue([
+      { code: 'c9', name: 'Alpha', grade: 5, job: 'mage', element: 'fire' }, { code: 'c10', name: 'Beta', grade: 5, job: 'knight', element: 'ice' },
+    ]);
+    render(<ArenaPage />);
+    const t = await table();
+    expect(screen.getByRole('button', { name: 'By pick' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'By pre-ban' }));
+    expect(within(within(t).getAllByRole('row')[1]).getAllByRole('cell')[1].textContent).toBe('Beta'); // 40% pre-banned against 5%
+    expect(screen.getByRole('button', { name: 'By pre-ban' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'By win rate' }));
+    expect(within(within(t).getAllByRole('row')[1]).getAllByRole('cell')[1].textContent).toBe('Alpha'); // 60% against 40%
+  });
+
+  it('is left out when the sample has not been collected', async () => {
+    render(<ArenaPage />);
+    await screen.findByRole('table', { name: 'Draft rates' });
+    expect(screen.queryByRole('region', { name: 'Top players sample' })).toBeNull();
   });
 });
