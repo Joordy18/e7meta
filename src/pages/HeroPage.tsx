@@ -170,7 +170,7 @@ export default function HeroPage({ code }: { code: string }) {
                 <p className="period-chip">{arena.season.season}</p>
               </header>
               <div className="panels">
-                <section aria-label="RTA stats" className="panel">
+                <section aria-label="RTA stats" className="panel rta">
                   {arena.rows.length > 0 ? (
                     <table className="targets" aria-label="RTA stats">
                       <thead><tr><th>League</th><th>Pick</th><th>Win rate</th><th>First pick</th><th>Pre-ban</th></tr></thead>

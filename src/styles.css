@@ -148,6 +148,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .rank-bar { height: 8px; border-radius: 4px; background: var(--raise); overflow: hidden; }
 .rank-bar > span { display: block; height: 100%; background: var(--blue); }
 .rank-row:first-child .rank-bar > span { background: var(--gold); }
+.panel.rta { max-width: 780px; }
 .mates .rank-row { grid-template-columns: 36px minmax(120px, 200px) 1fr 110px; }
 .mates .rank-row strong { white-space: nowrap; }
 .face.small { width: 44px; border-radius: 10px; }
