@@ -237,6 +237,11 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .news li:has(.banner) { align-items: end; }
 .news .banner { display: block; width: 100%; aspect-ratio: 850 / 289; object-fit: cover; border-radius: 8px; margin-bottom: 6px; background: var(--ink); }
 .news a:hover { text-decoration: underline; }
+.news li.release { grid-template-columns: auto minmax(0, 1fr) auto; }
+.news li.release:not(:has(.hicon)) { grid-template-columns: minmax(0, 1fr) auto; }
+.news .release > span:not(.hicon) { display: grid; gap: 2px; min-width: 0; }
+.news .meta { color: var(--mute); }
+img.hicon.art { object-fit: contain; }
 .news .when { color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .panel .note { padding: 0; margin: 0 0 12px; }
 .source > .guide-list { max-width: none; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }

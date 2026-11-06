@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon, Icon } from '../components/Art';
+import { artifactIcon } from '../lib/images';
+import { elementLabel, jobLabel } from './HeroList';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
@@ -100,10 +102,18 @@ export default function HomePage() {
                         {items.length === 0 ? <p className="note">Nothing new yet.</p> : (
                           <ul className="news">
                             {items.map((r) => (
-                              <li key={r.code ?? r.name}>
-                                {r.code
-                                  ? <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
-                                  : <a href={r.announced?.url} target="_blank" rel="noopener noreferrer">{r.name}</a>}
+                              <li key={r.code ?? r.name} className="release">
+                                {r.code && (kind === 'hero' ? <HeroIcon code={r.code} name={r.name} decorative /> : <Icon src={artifactIcon(r.code)} className="hicon art" />)}
+                                <span>
+                                  {r.code
+                                    ? <a href={kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
+                                    : <a href={r.announced?.url} target="_blank" rel="noopener noreferrer">{r.name}</a>}
+                                  <small className="meta">
+                                    {r.grade ? `${r.grade}★ ` : ''}
+                                    {r.element && <><span className="el" data-el={r.element} aria-hidden /> {elementLabel(r.element)}{r.job ? ', ' : ''}</>}
+                                    {r.job && (kind === 'hero' ? jobLabel(r.job) : `${jobLabel(r.job)} exclusive`)}
+                                  </small>
+                                </span>
                                 <small className="when" title={r.announced ? 'Date of the official update post that announced it' : 'First week of data that lists it'}>
                                   {r.announced ? `announced ${r.announced.date}` : `week of ${r.since}`}
                                 </small>

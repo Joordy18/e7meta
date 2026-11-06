@@ -26,25 +26,45 @@ export function listPosts(raw: unknown, board: FeedBoard, n: number): FeedPost[]
 
 const HEADING = /^\d+\.\s*New\s+\d\s*★\s*(Hero|Artifact),\s*(.+)$/i;
 
-/** The new heroes and artifacts an update post announces: its numbered headings such as "2. New 5★ Hero, Name". */
-export function parseAnnouncements(html: string): { kind: 'hero' | 'artifact'; name: string }[] {
-  return [...html.matchAll(/<p[\s>][\s\S]*?<\/p>/g)].flatMap((p) => {
-    const m = HEADING.exec(text(p[0]));
-    return m ? [{ kind: m[1].toLowerCase() as 'hero' | 'artifact', name: m[2].trim() }] : [];
-  });
+const JOBS: Record<string, string> = { knight: 'knight', warrior: 'warrior', mage: 'mage', ranger: 'ranger', thief: 'assassin', 'soul weaver': 'manauser' }; // post wording -> job code
+
+type Announcement = { kind: 'hero' | 'artifact'; name: string; job?: string };
+
+/**
+ * The new heroes and artifacts an update post announces: its numbered headings such as "2. New 5★ Hero, Name".
+ * For an artifact the class comes from the text under the heading ("The Knight-exclusive 5★ Artifact, ...").
+ */
+export function parseAnnouncements(html: string): Announcement[] {
+  const out: Announcement[] = [];
+  let current: Announcement | undefined;
+  for (const p of html.matchAll(/<p[\s>][\s\S]*?<\/p>/g)) {
+    const t = text(p[0]);
+    const m = HEADING.exec(t);
+    if (m) out.push((current = { kind: m[1].toLowerCase() as 'hero' | 'artifact', name: m[2].trim() }));
+    else if (/^\d+\.\s/.test(t)) current = undefined; // another numbered section: what follows is not about the last item
+    else if (current?.kind === 'artifact' && !current.job) {
+      const job = JOBS[/The ([A-Za-z ]+?)-exclusive/.exec(t)?.[1].toLowerCase() ?? ''];
+      if (job) current.job = job;
+    }
+  }
+  return out;
 }
 
 const when = (r: Release) => r.announced?.date ?? r.since ?? ''; // newest first; ties keep their order
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const keyOf = (r: { kind: string; name: string }) => `${r.kind}:${slug(r.name)}`;
 
-type Week = { heroes: { code: string; name: string }[]; artifacts: Record<string, { name: string }> };
+type Info = { grade?: number; job?: string; element?: string };
+type Week = { heroes: ({ code: string; name: string } & Info)[]; artifacts: Record<string, { name: string; grade?: number; job?: string }> };
+
+/** Only the details the data has (no undefined fields in the JSON). */
+const details = ({ grade, job, element }: Info): Info => ({ ...(grade ? { grade } : {}), ...(job ? { job } : {}), ...(element ? { element } : {}) });
 
 /** Heroes and artifacts the latest week lists and the previous one does not. */
 export function findReleases(prev: Week, cur: Week, since: string): Release[] {
   const had = new Set(prev.heroes.map((h) => h.code));
-  const heroes = cur.heroes.filter((h) => !had.has(h.code)).map((h) => ({ kind: 'hero' as const, code: h.code, name: h.name, since }));
-  const artifacts = Object.entries(cur.artifacts).filter(([code]) => !(code in prev.artifacts)).map(([code, a]) => ({ kind: 'artifact' as const, code, name: a.name, since }));
+  const heroes = cur.heroes.filter((h) => !had.has(h.code)).map((h) => ({ kind: 'hero' as const, code: h.code, name: h.name, since, ...details(h) }));
+  const artifacts = Object.entries(cur.artifacts).filter(([code]) => !(code in prev.artifacts)).map(([code, a]) => ({ kind: 'artifact' as const, code, name: a.name, since, ...details(a) }));
   return [...heroes, ...artifacts];
 }
 
@@ -98,6 +118,7 @@ export async function refreshFeed(opts: {
     const e = byKey.get(keyOf(r));
     if (!e) { byKey.set(keyOf(r), r); added.push(r); return; }
     if (r.code) { e.code ??= r.code; e.since ??= r.since; } // the same item seen from another source
+    if (r.job) e.job ??= r.job;
     if (r.announced) e.announced ??= r.announced;
   };
   if (cur && prev) findReleases(prev, cur, to).forEach(add);
@@ -109,14 +130,16 @@ export async function refreshFeed(opts: {
       log(`feed: update post ${u.id} failed: ${(e as Error).message}`);
     }
   }
-  if (cur) { // an announced item shows up in the game's data later: take its code from there
-    const names = new Map<string, string>([
-      ...cur.heroes.map((h) => [keyOf({ kind: 'hero', name: h.name }), h.code] as const),
-      ...Object.entries(cur.artifacts).map(([code, a]) => [keyOf({ kind: 'artifact', name: a.name }), code] as const),
+  if (cur) { // an announced item shows up in the game's data later: take its code and details from there
+    const catalog = new Map<string, { code: string } & Info>([
+      ...cur.heroes.map((h) => [keyOf({ kind: 'hero', name: h.name }), { code: h.code, ...details(h) }] as const),
+      ...Object.entries(cur.artifacts).map(([code, x]) => [keyOf({ kind: 'artifact', name: x.name }), { code, ...details(x) }] as const),
     ]);
     for (const r of [...added, ...releases]) {
-      const code = names.get(keyOf(r));
-      if (!r.code && code) r.code = code; // no week: only the comparison of two weeks knows when it appeared
+      const c = catalog.get(keyOf(r));
+      if (!c) continue;
+      r.code ??= c.code; // no week here: only the comparison of two weeks knows when it appeared
+      r.grade ??= c.grade; r.job ??= c.job; r.element ??= c.element;
     }
   }
   const fresh = added;

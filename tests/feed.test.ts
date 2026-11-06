@@ -31,8 +31,15 @@ describe('parseAnnouncements', () => {
     expect(parseAnnouncements(update.value.content)).toEqual([
       { kind: 'hero', name: 'Bunny Girl Great Detective Moro' },
       { kind: 'hero', name: 'Bunny Girl Mafia Yufine' },
-      { kind: 'artifact', name: "A Boss's Dignity" },
+      { kind: 'artifact', name: "A Boss's Dignity", job: 'knight' },
     ]);
+  });
+  it('reads the class of an exclusive artifact from the text under its heading, and none when the post does not say', () => {
+    const exclusive = (job: string) => `<p>1. New 5 ★ Artifact, X</p><p>■ The ${job}-exclusive 5 ★ Artifact, X, will be added.</p>`;
+    expect(parseAnnouncements(exclusive('Thief'))[0].job).toBe('assassin');
+    expect(parseAnnouncements(exclusive('Soul Weaver'))[0].job).toBe('manauser');
+    expect(parseAnnouncements('<p>1. New 5 ★ Artifact, Land</p><p>■ A 5 ★ Artifact, Land, will be added.</p>')[0]).not.toHaveProperty('job');
+    expect(parseAnnouncements('<p>1. New 5 ★ Artifact, A</p><p>The Mage-exclusive</p><p>2. New 5 ★ Artifact, B</p><p>plain</p>')[1]).not.toHaveProperty('job'); // a class under another heading is not borrowed
   });
   it('ignores other paragraphs, including ones that only mention new heroes', () => {
     const html = '<p>* New Moonlight Heroes will not be released during this period.</p><p><span>1. New 4</span><span>★</span><span> Hero, Plain Name</span></p><p>Meet the new 5 ★ Hero, Not A Heading</p>';
@@ -42,12 +49,12 @@ describe('parseAnnouncements', () => {
 });
 
 describe('findReleases', () => {
-  const hero = (code: string, name = code) => ({ code, name });
-  const art = (...codes: string[]) => Object.fromEntries(codes.map((c) => [c, { code: c, name: `Art ${c}` }]));
-  it('lists the heroes and artifacts that the latest week has and the previous one has not, stamped with the week', () => {
-    expect(findReleases({ heroes: [hero('a'), hero('b', 'Bee')], artifacts: art('x') }, { heroes: [hero('a'), hero('b', 'Bee'), hero('c', 'Cee')], artifacts: art('x', 'y') }, '2026-10-29')).toEqual([
-      { kind: 'hero', code: 'c', name: 'Cee', since: '2026-10-29' },
-      { kind: 'artifact', code: 'y', name: 'Art y', since: '2026-10-29' },
+  const hero = (code: string, name = code, more = {}) => ({ code, name, ...more });
+  const art = (...codes: string[]) => Object.fromEntries(codes.map((c) => [c, { code: c, name: `Art ${c}`, job: 'mage', grade: 5 }]));
+  it('lists the heroes and artifacts that the latest week has and the previous one has not, stamped with the week, with grade, class and element', () => {
+    expect(findReleases({ heroes: [hero('a'), hero('b', 'Bee')], artifacts: art('x') }, { heroes: [hero('a'), hero('b', 'Bee'), hero('c', 'Cee', { grade: 5, job: 'knight', element: 'ice' })], artifacts: art('x', 'y') }, '2026-10-29')).toEqual([
+      { kind: 'hero', code: 'c', name: 'Cee', since: '2026-10-29', grade: 5, job: 'knight', element: 'ice' },
+      { kind: 'artifact', code: 'y', name: 'Art y', since: '2026-10-29', grade: 5, job: 'mage' },
     ]);
   });
   it('is empty when nothing appeared', () => expect(findReleases({ heroes: [hero('a')], artifacts: {} }, { heroes: [hero('a')], artifacts: {} }, 'p')).toEqual([]));
@@ -143,7 +150,7 @@ describe('refreshFeed', () => {
       expect(articles).toEqual(['1', '2']); // the two newest update posts only
       const r = read().releases as Release[];
       const boss = r.find((x) => x.name === "A Boss's Dignity")!;
-      expect(boss).toEqual({ kind: 'artifact', name: "A Boss's Dignity", announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/1' } });
+      expect(boss).toEqual({ kind: 'artifact', name: "A Boss's Dignity", job: 'knight', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/1' } });
       expect(r.find((x) => x.name === 'Bunny Girl Great Detective Moro')).toMatchObject({ kind: 'hero', announced: { date: '2026-10-28' } });
     });
 
@@ -152,6 +159,13 @@ describe('refreshFeed', () => {
       await refreshFeed({ outDir: dir, client: fake({ updates: true }).client });
       const yufine = (read().releases as Release[]).filter((x) => x.name === 'Bunny Girl Mafia Yufine');
       expect(yufine).toEqual([{ kind: 'hero', code: 'c7016', name: 'Bunny Girl Mafia Yufine', since: '2026-10-29', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/1' } }]);
+    });
+
+    it('copies grade, class and element from the data when an announced hero is listed', async () => {
+      const p = join(dir, '2026-10-29', 'heroes.json');
+      writeFileSync(p, JSON.stringify([...JSON.parse(readFileSync(p, 'utf8')), { code: 'c7016', name: 'Bunny Girl Mafia Yufine', grade: 5, job: 'knight', element: 'ice' }]));
+      await refreshFeed({ outDir: dir, client: fake({ updates: true }).client });
+      expect((read().releases as Release[]).find((x) => x.name === 'Bunny Girl Mafia Yufine')).toMatchObject({ grade: 5, job: 'knight', element: 'ice' });
     });
 
     it('fills in the code of an entry recorded as announced only when a later run finds it in the data', async () => {

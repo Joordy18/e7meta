@@ -36,10 +36,10 @@ const trends = (moves: [number, number][]): Trends => ({
 const feed: Feed = {
   updated: '2026-11-06',
   releases: [
-    { kind: 'hero', code: 'c7016', name: 'Bunny Girl Mafia Yufine', since: '2026-10-29' },
-    { kind: 'artifact', code: 'efk99', name: 'New Blade', since: '2026-10-29' },
-    { kind: 'artifact', name: "A Boss's Dignity", announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
-    { kind: 'hero', code: 'c2187', name: 'Moro', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
+    { kind: 'hero', code: 'c7016', name: 'Bunny Girl Mafia Yufine', since: '2026-10-29', grade: 5, job: 'knight', element: 'ice' },
+    { kind: 'artifact', code: 'efk99', name: 'New Blade', since: '2026-10-29', grade: 5, job: 'knight' },
+    { kind: 'artifact', name: "A Boss's Dignity", job: 'knight', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
+    { kind: 'hero', code: 'c2187', name: 'Moro', grade: 5, job: 'assassin', element: 'light', announced: { date: '2026-10-28', url: 'https://page.onstove.com/epicseven/global/view/9' } },
   ],
   posts: [
     { id: '1', board: 'patch', title: '11/5 (Thu) Patch Information', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/1', image: 'https://image.onstove.com/a.png' },
@@ -167,6 +167,24 @@ describe('HomePage: what is new', () => {
     expect(within(heroes[0]).getByRole('link', { name: 'Bunny Girl Mafia Yufine' }).getAttribute('href')).toBe('#/hero/c7016');
     const artifacts = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem');
     expect(within(artifacts[0]).getByRole('link', { name: 'New Blade' }).getAttribute('href')).toBe('#/artifact/efk99');
+  });
+
+  it('shows the official icon of each new hero and artifact with its grade, element and class', async () => {
+    setup({ feed });
+    render(<HomePage />);
+    const news = await screen.findByRole('region', { name: 'New in the game' });
+    const hero = within(within(news).getByRole('region', { name: 'New heroes' })).getAllByRole('listitem')[0];
+    expect(hero.querySelector('img')?.getAttribute('src')).toContain('c7016_s.png');
+    expect(hero.textContent).toContain('5★');
+    expect(hero.textContent).toContain('Ice');
+    expect(hero.textContent).toContain('Knight');
+    expect(hero.querySelector('.el')?.getAttribute('data-el')).toBe('ice');
+    expect(within(news).getByText(/Light/).closest('li')?.textContent).toContain('Thief'); // the game's "assassin" is called Thief in English
+    const artifacts = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem');
+    expect(artifacts[0].querySelector('img')?.getAttribute('src')).toContain('efk99_ico.png');
+    expect(artifacts[0].textContent).toContain('Knight');
+    expect(artifacts[1].querySelector('img')).toBeNull(); // announced only: no code yet, so no icon, but the class is known
+    expect(artifacts[1].textContent).toContain('Knight');
   });
 
   it('shows an item the update posts announced before the game data lists it, linking to the official post', async () => {
