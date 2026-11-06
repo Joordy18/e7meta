@@ -344,7 +344,6 @@ export default function HeroPage({ code }: { code: string }) {
                         <li key={e.code} className="rank-row">
                           <HeroIcon code={e.code} name={shownNames.get(e.code) ?? e.code} decorative />
                           <a href={`#/hero/${e.code}`}>{shownNames.get(e.code) ?? e.code}</a>
-                          <span className="rank-bar" aria-hidden><span style={{ width: `${Math.min(100, (Math.abs(e.edge) / 15) * 100)}%` }} /></span>
                           <strong className={e.edge < 0 ? 'neg' : undefined} title={t('hero.pairsEdge')}>{e.edge > 0 ? '+' : ''}{e.edge}<small>{t('hero.pairsGames', { win: e.win, n: e.n })}</small></strong>
                         </li>
                       ))}
