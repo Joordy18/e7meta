@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon, Icon } from '../components/Art';
 import Loadout from '../components/Loadout';
+import PageNav from '../components/PageNav';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
 import { heroRta, type RtaRow } from '../lib/rta';
@@ -200,8 +201,17 @@ export default function HeroPage({ code }: { code: string }) {
     return () => { live = false; };
   }, [h?.hero.code]);
 
+  const hasExclusive = !!h && !!((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]);
+  const navItems = !h ? [] : ([
+    { id: 'loadout', label: 'Build and skills' }, arena && { id: 'arena', label: 'World Arena (RTA)' }, rtaSample && { id: 'rta-sample', label: 'RTA, top players' },
+    (usage.length > 0 || teamList.length > 0 || mates.length > 0) && { id: 'other-modes', label: 'Other game modes' }, hasExclusive && { id: 'exclusive', label: 'Exclusive equipment' },
+    { id: 'gear', label: 'Gear ranking' }, h.detail && { id: 'hunts', label: 'Hunt statistics' },
+  ].filter(Boolean) as { id: string; label: string }[]);
+
   return (
-    <div>
+    <div className="with-rail">
+      <PageNav items={navItems} />
+      <div className="content">
       <div className="hero-bar">
         <a className="back" href="#/heroes">← All heroes</a>
       </div>
@@ -209,9 +219,9 @@ export default function HeroPage({ code }: { code: string }) {
       {state.status === 'error' && <p className="note error">{state.message}</p>}
       {h && (
         <>
-          <Loadout hero={h} skills={skills?.heroes[h.hero.code]} ee={skills?.exclusive?.[h.hero.code]} />
+          <div id="loadout"><Loadout hero={h} skills={skills?.heroes[h.hero.code]} ee={skills?.exclusive?.[h.hero.code]} /></div>
           {arena && (
-            <section aria-label="World Arena (RTA)" className="source">
+            <section id="arena" aria-label="World Arena (RTA)" className="source">
               <header>
                 <h2>World Arena (RTA)</h2>
                 <p className="period-chip">{arena.season.season}</p>
@@ -242,7 +252,7 @@ export default function HeroPage({ code }: { code: string }) {
             </section>
           )}
           {rtaSample && (
-            <section aria-label="RTA, top players" className="source">
+            <section id="rta-sample" aria-label="RTA, top players" className="source">
               <header>
                 <h2>RTA, top players</h2>
                 <p className="period-chip">{rtaSample.season}</p>
@@ -270,7 +280,7 @@ export default function HeroPage({ code }: { code: string }) {
             </section>
           )}
           {(usage.length > 0 || teamList.length > 0 || mates.length > 0) && (
-            <section aria-label="Other game modes" className="source">
+            <section id="other-modes" aria-label="Other game modes" className="source">
               <header>
                 <h2>Other game modes</h2>
                 <p className="period-chip">hero success rate, best first</p>
@@ -310,7 +320,7 @@ export default function HeroPage({ code }: { code: string }) {
             </section>
           )}
           {((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]) && (
-            <section aria-label="Exclusive equipment" className="source">
+            <section id="exclusive" aria-label="Exclusive equipment" className="source">
               <header>
                 <h2>Exclusive equipment</h2>
                 <p className="period-chip">most used upgrades</p>
@@ -320,7 +330,7 @@ export default function HeroPage({ code }: { code: string }) {
               </div>
             </section>
           )}
-          <section aria-label="Source: gear ranking" className="source">
+          <section id="gear" aria-label="Source: gear ranking" className="source">
             <header>
               <h2>Source: gear ranking</h2>
               <p className="period-chip">{range(h.period)}</p>
@@ -335,7 +345,7 @@ export default function HeroPage({ code }: { code: string }) {
             </div>
           </section>
           {h.detail && (
-            <section aria-label="Source: hunts" className="source">
+            <section id="hunts" aria-label="Source: hunts" className="source">
               <header>
                 <h2>Source: hunts</h2>
                 <p className="period-chip">{range(h.detail.period)}</p>
@@ -362,6 +372,7 @@ export default function HeroPage({ code }: { code: string }) {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

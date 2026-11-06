@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon } from '../components/Art';
+import PageNav from '../components/PageNav';
 import { TIERS } from '../lib/arena';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta, normalize } from '../lib/data';
 import { rtaRows, type RtaRow } from '../lib/rta';
@@ -69,7 +70,9 @@ export default function ArenaPage() {
   const cutoff = (league: string) => season.cutoffs.find((c) => c.league === league)?.points;
 
   return (
-    <div>
+    <div className="with-rail">
+      <PageNav items={[{ id: 'draft-rates', label: 'Draft rates' }, { id: 'leagues', label: 'Top leagues' }, { id: 'meaning', label: 'What the numbers mean' }, ...(rta ? [{ id: 'top-players', label: 'All heroes, top players' }] : [])]} />
+      <div className="content">
       <h1 className="page-title">World Arena: {season.season}</h1>
       <p className="lede">
         Draft statistics of the game's ranked real-time arena (RTA), from the season infographic the developers publish.
@@ -88,7 +91,7 @@ export default function ArenaPage() {
         ))}
       </div>
       <div className="panels">
-        <section aria-label="Draft rates" className="panel wide-2">
+        <section id="draft-rates" aria-label="Draft rates" className="panel wide-2">
           <table className="targets draft" aria-label="Draft rates">
             <thead>
               <tr>
@@ -119,7 +122,7 @@ export default function ArenaPage() {
             </tbody>
           </table>
         </section>
-        <section aria-label="Leagues" className="panel">
+        <section id="leagues" aria-label="Leagues" className="panel">
           <h3>Top leagues</h3>
           <table className="targets" aria-label="Leagues">
             <thead><tr><th /><th>Avg. win rate</th><th>Players</th><th>Cutoff</th></tr></thead>
@@ -138,7 +141,7 @@ export default function ArenaPage() {
             Source: <a href={season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {season.published}.
           </p>
         </section>
-        <section aria-label="What the numbers mean" className="panel">
+        <section id="meaning" aria-label="What the numbers mean" className="panel">
           <h3>What the numbers mean</h3>
           <ul className="notes">
             <li><strong>Pre-ban</strong>: share of matches where the hero was pre-banned.</li>
@@ -150,6 +153,7 @@ export default function ArenaPage() {
         </section>
       </div>
       {rta && <SampleSection rta={rta} names={names} sort={sampleSort} setSort={setSampleSort} showAll={showAll} setShowAll={setShowAll} />}
+      </div>
     </div>
   );
 }
@@ -161,7 +165,7 @@ function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
   const rows = rtaRows(rta).sort((a, b) => key(b) - key(a) || b.pick - a.pick);
   const shown = showAll ? rows : rows.slice(0, SAMPLE_SHOWN);
   return (
-    <section aria-label="Top players sample" className="source">
+    <section id="top-players" aria-label="Top players sample" className="source">
       <header>
         <h2>All heroes, top players</h2>
         <p className="period-chip">{rta.season}</p>

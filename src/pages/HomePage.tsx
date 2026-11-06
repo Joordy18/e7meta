@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ElementIcon, HeroIcon, Icon, JobIcon } from '../components/Art';
+import PageNav from '../components/PageNav';
 import { artifactIcon } from '../lib/images';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { diffWords } from '../lib/diff';
@@ -171,15 +172,12 @@ export default function HomePage() {
   ] as (readonly [string, string] | null | undefined | false)[]).filter((x): x is readonly [string, string] => !!x);
 
   return (
-    <div>
+    <div className="with-rail">
+      <PageNav items={sections.map(([id, label]) => ({ id, label }))} />
+      <div className="content">
       <h1 className="page-title">Meta of the week</h1>
       <p className="lede">What players use right now, from the game's own rankings. Gear ranking week of {latest}.</p>
 
-      <nav className="jump" aria-label="On this page">
-        {sections.map(([id, label]) => (
-          <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
-        ))}
-      </nav>
 
       {feed && (
         <section id="whats-new" aria-label="What's new" className="source">
@@ -346,6 +344,7 @@ export default function HomePage() {
           ))}
         </ul>
       </section>
+      </div>
     </div>
   );
 }
