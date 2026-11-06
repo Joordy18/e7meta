@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { ElementIcon, HeroIcon, Icon, JobIcon } from '../components/Art';
 import { artifactIcon } from '../lib/images';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
+import { diffWords } from '../lib/diff';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
-import type { ArenaSeason, Balance, Feed, FeedBoard, Modes, Trends } from '../shared/types';
+import type { ArenaSeason, Balance, Feed, FeedBoard, Modes, SkillChange, Trends } from '../shared/types';
 
 type Data = {
   latest: string;
@@ -45,11 +46,49 @@ function PveList({ title, leaders }: { title: string; leaders: Leader[] }) {
   );
 }
 
+const tagClass = (t: string) => (/increased/i.test(t) ? 'tag up' : /decreased/i.test(t) ? 'tag down' : 'tag');
+
+/** What changes in each skill: the effect labels, then the text before and after with the changed words marked. */
+function SkillChanges({ details }: { details: SkillChange[] }) {
+  return (
+    <div className="exact-list">
+      {details.map((d) => {
+        const same = d.before === d.after;
+        const parts = diffWords(d.before, d.after);
+        const pairs = d.tags && d.tags.before.length > 0 && d.tags.before.length === d.tags.after.length;
+        return (
+          <div key={d.skill} className="exact">
+            <h4>{d.skill}</h4>
+            {d.tags && (
+              <p className="tags-row">
+                {pairs
+                  ? d.tags.before.map((b, k) => <span key={k} className="tag">{`${b} → ${d.tags!.after[k]}`}</span>)
+                  : (<>
+                      {d.tags.before.map((t) => <span key={`b-${t}`} className="tag">{`was: ${t}`}</span>)}
+                      {d.tags.after.map((t) => <span key={`a-${t}`} className={tagClass(t)}>{t}</span>)}
+                    </>)}
+              </p>
+            )}
+            {same ? (
+              <p className="after">{d.after}<span className="unchanged"> The description is unchanged: the values behind it change.</span></p>
+            ) : (
+              <div className="cols">
+                <p className="before"><small>Before</small>{parts.filter((x) => x.kind !== 'add').map((x, k) => (x.kind === 'del' ? <mark key={k} className="del">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
+                <p className="after"><small>After</small>{parts.filter((x) => x.kind !== 'del').map((x, k) => (x.kind === 'add' ? <mark key={k} className="add">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The latest balance preview: who the developers change, which skills, and why, in their words. */
 function BalanceSection({ balance }: { balance: Balance }) {
   const live = balance.date <= new Date().toISOString().slice(0, 10); // the patch day has come
   return (
-    <section aria-label="Balance changes" className="source">
+    <section id="balance-changes" aria-label="Balance changes" className="source">
       <header>
         <h2>Balance changes</h2>
         <p className="period-chip">{balance.date}</p>
@@ -72,6 +111,12 @@ function BalanceSection({ balance }: { balance: Balance }) {
                   </p>
                   {c.skills && c.skills.length > 0 && <p className="skills">{c.skills.join(', ')}</p>}
                   {c.summary && <p className="summary">{c.summary}</p>}
+                  {c.details && c.details.length > 0 && (
+                    <details className="exact-changes">
+                      <summary>Exact changes</summary>
+                      <SkillChanges details={c.details} />
+                    </details>
+                  )}
                 </div>
               </li>
             ))}
@@ -120,14 +165,24 @@ export default function HomePage() {
   const prev = modes && prevModes && prevModes.key !== modes.key ? prevModes : undefined;
   const quiet = !trends || trends.builds.every((b) => Math.abs(b.after - b.before) < QUIET);
   const heroCode = (name: string) => codes.get(normalize(name));
+  const sections = ([
+    feed && ['whats-new', "What's new"], feed?.balance && ['balance-changes', 'Balance changes'], modes && ['pve', 'Most used in PvE'],
+    arena && ['arena', 'World Arena (RTA)'], trends && ['build-shifts', 'Build shifts'], ['guides', 'Guides'],
+  ] as (readonly [string, string] | null | undefined | false)[]).filter((x): x is readonly [string, string] => !!x);
 
   return (
     <div>
       <h1 className="page-title">Meta of the week</h1>
       <p className="lede">What players use right now, from the game's own rankings. Gear ranking week of {latest}.</p>
 
+      <nav className="jump" aria-label="On this page">
+        {sections.map(([id, label]) => (
+          <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
+        ))}
+      </nav>
+
       {feed && (
-        <section aria-label="What's new" className="source">
+        <section id="whats-new" aria-label="What's new" className="source">
           <header><h2>What's new</h2><p className="period-chip">updated {feed.updated}</p></header>
           <div className="panels">
             {feed.releases.length > 0 && (
@@ -191,8 +246,8 @@ export default function HomePage() {
       {feed?.balance && <BalanceSection balance={feed.balance} />}
 
       {modes && (
-        <section aria-label="Most used in PvE" className="source">
-          <header><h2>Most used in PvE</h2></header>
+        <section id="pve" aria-label="Most used in PvE" className="source">
+          <header><h2>Most used in PvE</h2><a className="see-all" href="#/modes">All modes</a></header>
           <div className="panels">
             <PveList title="Hunts" leaders={pveLeaders(modes, 'hunts', 5, prev)} />
             <PveList title="Abyss" leaders={pveLeaders(modes, 'abyss', 5, prev)} />
@@ -206,10 +261,11 @@ export default function HomePage() {
       )}
 
       {arena && (
-        <section aria-label="World Arena (RTA)" className="source">
+        <section id="arena" aria-label="World Arena (RTA)" className="source">
           <header>
             <h2>World Arena (RTA)</h2>
             <p className="period-chip">{arena.season.season}</p>
+            <a className="see-all" href="#/arena">Full RTA stats</a>
           </header>
           <div className="panels">
             <section aria-label="Most picked" className="panel">
@@ -253,7 +309,7 @@ export default function HomePage() {
       )}
 
       {trends && (
-        <section aria-label="Build shifts" className="source">
+        <section id="build-shifts" aria-label="Build shifts" className="source">
           <header>
             <h2>Build shifts</h2>
             <p className="period-chip">{trends.from} to {trends.to}</p>
@@ -279,8 +335,8 @@ export default function HomePage() {
         </section>
       )}
 
-      <section aria-label="Guides" className="source">
-        <header><h2>Guides</h2></header>
+      <section id="guides" aria-label="Guides" className="source">
+        <header><h2>Guides</h2><a className="see-all" href="#/guides">All guides</a></header>
         <ul className="guide-list">
           {guides.slice(0, 2).map((g) => (
             <li key={g.slug} className="panel">

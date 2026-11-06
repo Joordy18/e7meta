@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import HomePage from '../src/pages/HomePage';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed } from '../src/lib/data';
 import { guides } from '../src/lib/guides';
@@ -52,7 +52,12 @@ const feed: Feed = {
 const balance = (date: string): NonNullable<Feed['balance']> => ({
   id: '9', title: '11/19 (Thu) Balance Adjustment Preview', url: 'https://page.onstove.com/epicseven/global/view/9', posted: '2026-11-06', date,
   changes: [
-    { kind: 'hero', name: 'Death Dealer Ray', grade: 5, code: 'c2090', job: 'manauser', element: 'dark', skills: ['Cloud of Death', 'Constellation'], summary: 'Ray will be harder to dispel.' },
+    { kind: 'hero', name: 'Death Dealer Ray', grade: 5, code: 'c2090', job: 'manauser', element: 'dark', skills: ['Cloud of Death', 'Constellation'], summary: 'Ray will be harder to dispel.',
+      details: [
+        { skill: 'Cloud of Death', before: 'has a 30% chance to stun', after: 'has a 35% chance to stun' },
+        { skill: 'Touch of Darkness', before: 'same text', after: 'same text', tags: { before: [], after: ['Damage Dealt Decreased', 'Additional Damage Dealt Increased'] } },
+        { skill: 'Maelstrom Waltz', before: 'cools down slowly', after: 'cools down quickly', tags: { before: ['Cooldown: 4 Turns'], after: ['Cooldown: 3 Turns'] } },
+      ] },
     { kind: 'hero', name: 'Victorika', grade: 4, skills: ["Hilag's Pride"], summary: 'Victorika hits harder.' },
     { kind: 'artifact', name: 'Elegiac Candle', grade: 5, code: 'efk9', summary: 'The candle heals more.' },
   ],
@@ -277,6 +282,30 @@ describe('HomePage: balance changes', () => {
     expect(rows[0].querySelector('img')?.getAttribute('src')).toContain('c2090_s.png');
   });
 
+  it('opens the exact changes of a hero: each skill before and after, with the changed words marked', async () => {
+    setupWith(balance('2099-11-19'));
+    render(<HomePage />);
+    const sec = await screen.findByRole('region', { name: 'Balance changes' });
+    const ray = within(sec).getAllByRole('listitem')[0];
+    expect(within(ray).getByText('Exact changes')).toBeTruthy();
+    expect(within(sec).getAllByText('Exact changes')).toHaveLength(1); // only the hero that has details
+    const cloud = within(ray).getByRole('heading', { name: 'Cloud of Death' }).parentElement!;
+    expect(cloud.querySelector('.before mark.del')?.textContent).toBe('30%');
+    expect(cloud.querySelector('.after mark.add')?.textContent).toBe('35%');
+    expect(cloud.querySelector('.before')?.textContent).toContain('has a 30% chance to stun');
+    expect(cloud.querySelector('.after')?.textContent).toContain('has a 35% chance to stun');
+  });
+
+  it('shows the effect labels of a skill, green for increases and red for decreases, and old / new values together', async () => {
+    setupWith(balance('2099-11-19'));
+    render(<HomePage />);
+    const ray = within(await screen.findByRole('region', { name: 'Balance changes' })).getAllByRole('listitem')[0];
+    expect(within(ray).getByText('Damage Dealt Decreased').className).toContain('down');
+    expect(within(ray).getByText('Additional Damage Dealt Increased').className).toContain('up');
+    expect(within(ray).getByText('Cooldown: 4 Turns → Cooldown: 3 Turns')).toBeTruthy();
+    expect(within(ray).getByText(/description is unchanged/i)).toBeTruthy(); // Touch of Darkness: same text, other numbers
+  });
+
   it('links a hero or artifact to its page when the data knows it, and shows the plain name otherwise', async () => {
     setupWith(balance('2099-11-19'));
     render(<HomePage />);
@@ -308,6 +337,42 @@ describe('HomePage: balance changes', () => {
     render(<HomePage />);
     await screen.findByRole('region', { name: "What's new" });
     expect(screen.queryByRole('region', { name: 'Balance changes' })).toBeNull();
+  });
+});
+
+describe('HomePage: moving around', () => {
+  let scrolled: string[];
+  beforeEach(() => {
+    scrolled = [];
+    Element.prototype.scrollIntoView = function (this: Element) { scrolled.push(this.id); }; // jsdom has none
+  });
+
+  it('offers a button per section of the page, in page order, that scrolls down to it', async () => {
+    setup({ feed: { ...feed, balance: balance('2099-11-19') }, trends: trends([[50, 30]]) });
+    render(<HomePage />);
+    const bar = await screen.findByRole('navigation', { name: 'On this page' });
+    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(
+      ["What's new", 'Balance changes', 'Most used in PvE', 'World Arena (RTA)', 'Build shifts', 'Guides'],
+    );
+    fireEvent.click(within(bar).getByRole('button', { name: 'Balance changes' }));
+    fireEvent.click(within(bar).getByRole('button', { name: 'Guides' }));
+    expect(scrolled).toEqual(['balance-changes', 'guides']);
+  });
+
+  it('only offers the sections that are on the page', async () => {
+    setup({ arena: false });
+    render(<HomePage />);
+    const bar = await screen.findByRole('navigation', { name: 'On this page' });
+    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Most used in PvE', 'Guides']);
+  });
+
+  it('links the sections to their full pages', async () => {
+    setup({ feed: { ...feed } });
+    render(<HomePage />);
+    const pve = await screen.findByRole('region', { name: 'Most used in PvE' });
+    expect(within(pve).getByRole('link', { name: 'All modes' }).getAttribute('href')).toBe('#/modes');
+    expect(within(screen.getByRole('region', { name: 'World Arena (RTA)' })).getByRole('link', { name: 'Full RTA stats' }).getAttribute('href')).toBe('#/arena');
+    expect(within(screen.getByRole('region', { name: 'Guides' })).getByRole('link', { name: 'All guides' }).getAttribute('href')).toBe('#/guides');
   });
 });
 

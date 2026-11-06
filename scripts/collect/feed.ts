@@ -86,7 +86,11 @@ function clip(s: string): string {
  * adjusts, and for each the skills it changes and the developers' explanation. Null when the post has no such table.
  */
 export function parseBalance(html: string, posted: string): { date: string; changes: BalanceChange[] } | null {
-  const tokens = [...html.matchAll(/<(p|tr)[\s>][\s\S]*?<\/\1>/g)].map((m) => ({ tr: m[1] === 'tr', t: text(m[0]) })).filter((x) => x.t);
+  // a cell holds one or more paragraphs: its lines
+  const lines = (cell: string) => { const ps = [...cell.matchAll(/<p[\s>][\s\S]*?<\/p>/g)].map((p) => text(p[0])).filter(Boolean); return ps.length > 0 ? ps : [text(cell)].filter(Boolean); };
+  const tokens = [...html.matchAll(/<(p|tr)[\s>][\s\S]*?<\/\1>/g)]
+    .map((m) => ({ tr: m[1] === 'tr', t: text(m[0]), cells: m[1] === 'tr' ? [...m[0].matchAll(/<t[dh][\s>][\s\S]*?<\/t[dh]>/g)].map((c) => lines(c[0])) : [] }))
+    .filter((x) => x.t);
   let date: string | undefined;
   let listing: 'hero' | 'artifact' | undefined;
   const rows: { kind: 'hero' | 'artifact'; grade?: number; full: string; change?: BalanceChange }[] = [];
@@ -110,6 +114,7 @@ export function parseBalance(html: string, posted: string): { date: string; chan
   const names = (full: string) => full.split(' ').map((_, k, w) => w.slice(k).join(' ').toLowerCase());
   const text_: Record<number, string[]> = {};
   let current: (typeof rows)[number] | undefined;
+  let fresh = false; // the next row of a skill table holds its before / after texts
   for (; i < tokens.length; i++) {
     const { tr, t } = tokens[i];
     if (!tr && /^That concludes/.test(t)) break;
@@ -120,14 +125,24 @@ export function parseBalance(html: string, posted: string): { date: string; chan
       current = heading;
       text_[rows.indexOf(heading)] = [];
     } else if (current?.change) {
-      if (tr) {
-        const skill = /^(.+?) \(Before\)/.exec(t)?.[1].replace(/ \((Awakened|Skill Enhance)\)$/, '');
-        if (skill && !current.change.skills?.includes(skill)) (current.change.skills ??= []).push(skill);
+      if (tr) { // a skill table: a title row "Skill (Before) | Skill (After)", the texts, then optionally rows of effect labels
+        const [left = [], right = []] = tokens[i].cells;
+        const head = /^(.+?) \(Before\)$/.exec(left.join(' '));
+        const details = current.change.details ??= [];
+        if (head && right.join(' ').endsWith('(After)')) { details.push({ skill: head[1], before: '', after: '' }); fresh = true; }
+        else if (details.length > 0) {
+          const d = details[details.length - 1];
+          if (fresh) { d.before = left.join('\n'); d.after = right.join('\n'); fresh = false; }
+          else { const tags = (d.tags ??= { before: [], after: [] }); tags.before.push(...left); tags.after.push(...right); }
+        }
       } else if (!t.startsWith('*')) text_[rows.indexOf(current)].push(t);
     }
   }
   const changes = rows.map((r, k): BalanceChange => {
     const c = r.change ?? { kind: r.kind, name: r.full, ...(r.grade ? { grade: r.grade } : {}) };
+    // the awakened and enhanced versions of a skill fold into the skill
+    const skills = [...new Set((c.details ?? []).map((d) => d.skill.replace(/ \((Awakened|Skill Enhance)\)$/, '')))];
+    if (skills.length > 0) c.skills = skills;
     const summary = (text_[k] ?? []).join(' ');
     return summary ? { ...c, summary: clip(summary) } : c;
   });

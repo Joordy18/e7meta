@@ -114,3 +114,35 @@ describe('refreshFeed: balance changes', () => {
     expect(logs.some((m) => /balance preview/.test(m))).toBe(true);
   });
 });
+
+describe('parseBalance: exact changes', () => {
+  const b = parseBalance(html, '2026-11-06')!;
+  const by = (name: string) => b.changes.find((c) => c.name === name)!;
+
+  it('keeps, for each changed skill, its text before and after the patch', () => {
+    const ray = by('Death Dealer Ray').details!;
+    expect(ray.map((d) => d.skill)).toEqual(['Cloud of Death', 'Cloud of Death (Awakened)', 'Constellation']);
+    expect(ray[0].before).toBe('Releases a miasma of fatal poison, dispelling two buffs from all enemies and has a 100% chance to put them to sleep for 1 turn and inflict venom for 2 turns.');
+    expect(ray[0].after).toBe('Releases a miasma of fatal poison, dispelling two buffs from all enemies and has a 100% chance to inflict two venom effects and sleep for 1 turn.');
+    expect(ray[2]).toMatchObject({ skill: 'Constellation', before: 'Cancer', after: 'Scorpio' });
+  });
+
+  it('joins the paragraphs of a cell with a line break and decodes spaces', () => {
+    const lament = by('Requiem Roana').details!.find((d) => d.skill === 'Eternal Lament')!;
+    expect(lament.before).toBe('Attacks all enemies with a horde of illusions, dispelling one buff before increasing cooldowns by 1 turn and decreasing Combat Readiness by 30%.\nCannot trigger a critical hit or a heavy blow, but penetrates the target\'s Defense by 50%.');
+    const awakened = by('Requiem Roana').details!.find((d) => d.skill === 'Eternal Lament (Awakened)')!;
+    expect(awakened.after).toContain('a heavy blow, and penetrates'); // the non-breaking space of the post became a normal one
+  });
+
+  it('keeps the effect labels the developers add under a skill, on the side they belong to', () => {
+    const touch = by('Requiem Roana').details!.find((d) => d.skill === 'Touch of Darkness')!;
+    expect(touch.tags).toEqual({ before: [], after: ['Damage Dealt Decreased', 'Additional Damage Dealt Increased'] });
+    const waltz = by('Victorika').details!.find((d) => d.skill === 'Maelstrom Waltz')!;
+    expect(waltz.tags).toEqual({ before: ['Cooldown: 4 Turns'], after: ['Cooldown: 3 Turns'] });
+    expect(by('Death Dealer Ray').details![0]).not.toHaveProperty('tags');
+  });
+
+  it('has the skills list and the details in the same order', () => {
+    for (const c of b.changes) expect(c.details!.map((d) => d.skill.replace(/ \((Awakened|Skill Enhance)\)$/, '')).filter((s, i, a) => a.indexOf(s) === i)).toEqual(c.skills);
+  });
+});

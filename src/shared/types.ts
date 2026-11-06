@@ -104,8 +104,10 @@ export type Release = {
   grade?: number; job?: string; element?: string; // job: the class of a hero, or of the class an artifact is exclusive to; element: heroes only (codes as in heroes.json)
 };
 // A balance preview: the heroes and artifacts the developers will adjust on `date` (their own words), from the latest "Balance Adjustment Preview" post.
+// One changed skill: its text before and after (lines joined by "\n"), and the effect labels the developers add ("Damage Dealt Decreased", "Cooldown: 4 Turns").
+export type SkillChange = { skill: string; before: string; after: string; tags?: { before: string[]; after: string[] } };
 export type BalanceChange = {
-  kind: 'hero' | 'artifact'; name: string; grade?: number; skills?: string[]; summary?: string;
+  kind: 'hero' | 'artifact'; name: string; grade?: number; skills?: string[]; summary?: string; details?: SkillChange[];
   code?: string; job?: string; element?: string; // from the game's data when the name is known
 };
 export type Balance = { id: string; title: string; url: string; posted: string; date: string; changes: BalanceChange[] }; // posted, date = YYYY-MM-DD
