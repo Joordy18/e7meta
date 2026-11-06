@@ -162,7 +162,7 @@ describe('ArenaPage: names in French', () => {
 
 describe('ArenaPage: top players sample', () => {
   const rta: RtaStats = {
-    season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000,
+    season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000, since: '2026-10-20', until: '2026-11-03',
     heroes: {
       c9: { pick: 600, played: 500, win: 300, first: 100, ban: 100, preban: 50 },
       c10: { pick: 200, played: 200, win: 80, first: 300, ban: 0, preban: 400 },
@@ -188,6 +188,7 @@ describe('ArenaPage: top players sample', () => {
     expect(sec.textContent).toContain('1,000 recent ranked battles');
     expect(sec.textContent).toContain('100 players');
     expect(sec.textContent).toContain('Fall 2026');
+    expect(sec.textContent).toContain('2026-10-20 to 2026-11-03'); // the days the accumulated battles were played
   });
 
   it('sorts by another column when asked', async () => {

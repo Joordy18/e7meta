@@ -33,7 +33,7 @@ describe('parseBattle', () => {
 
 const h = (code: string, o: { first?: boolean; ban?: boolean } = {}) => ({ code, first: !!o.first, ban: !!o.ban });
 const battle = (seq: string, a: { heroes: ReturnType<typeof h>[]; prebans: string[]; won: boolean }, b: { heroes: ReturnType<typeof h>[]; prebans: string[] }): Battle =>
-  ({ seq, season: 's', decks: [a, { ...b, won: !a.won }] });
+  ({ seq, season: 's', date: '', decks: [a, { ...b, won: !a.won }] });
 
 describe('tally', () => {
   const sample = [
@@ -59,7 +59,7 @@ describe('listPlayers', () => {
   it('reads the ids of the ranked players, without keeping names', () => {
     const p = listPlayers(fx('rta-ranking'));
     expect(p).toHaveLength(2);
-    expect(p[0]).toEqual({ nick: expect.any(Number), world: expect.stringMatching(/^world_/) });
+    expect(p[0]).toEqual({ nick: expect.any(Number), world: expect.stringMatching(/^world_/), tier: expect.any(String) });
   });
 });
 
@@ -89,7 +89,7 @@ describe('collectRta', () => {
 
   it('counts the current season battles of the ranked players once each, and writes the counts without any name', async () => {
     const { client, calls } = fake({ players: 2 });
-    expect(await collectRta({ outDir: dir, client, now: () => '2026-11-06' })).toBe('written');
+    expect(await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client, now: () => '2026-11-06' })).toBe('written');
     const s = read();
     expect(s).toMatchObject({ season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 2, battles: 4 }); // the same 4 battles seen by both players count once
     expect(Object.keys(s.heroes).length).toBeGreaterThan(5);
@@ -98,22 +98,22 @@ describe('collectRta', () => {
   });
 
   it('ignores battles of another season', async () => {
-    expect(await collectRta({ outDir: dir, client: fake({ otherSeason: true }).client })).toBe('failed');
+    expect(await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client: fake({ otherSeason: true }).client })).toBe('failed');
     expect(existsSync(join(dir, 'rta', 'stats.json'))).toBe(false);
   });
 
   it('tolerates a few failing players but not many, and then writes nothing', async () => {
-    expect(await collectRta({ outDir: dir, client: fake({ players: 5, failNick: [101] }).client })).toBe('written'); // 4 of 5
+    expect(await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client: fake({ players: 5, failNick: [101] }).client })).toBe('written'); // 4 of 5
     rmSync(join(dir, 'rta'), { recursive: true });
     const logs: string[] = [];
-    expect(await collectRta({ outDir: dir, client: fake({ players: 5, failNick: [101, 102] }).client, log: (m) => logs.push(m) })).toBe('failed');
+    expect(await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client: fake({ players: 5, failNick: [101, 102] }).client, log: (m) => logs.push(m) })).toBe('failed');
     expect(existsSync(join(dir, 'rta', 'stats.json'))).toBe(false);
     expect(logs.some((m) => /too many players failed/.test(m))).toBe(true);
   });
 
   it('stops asking for pages when a player has no more battles', async () => {
     const { client, calls } = fake({ players: 1 });
-    await collectRta({ outDir: dir, client });
+    await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client });
     expect(calls.filter((c) => c.startsWith('getBattleList:100'))).toEqual(['getBattleList:100:1']); // total_count 4 fits one page
   });
 });

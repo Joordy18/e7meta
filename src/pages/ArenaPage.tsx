@@ -169,6 +169,7 @@ function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
       <header>
         <h2>{t('arena.sampleTitle')}</h2>
         <p className="period-chip">{rta.season}</p>
+        {rta.since && rta.until && <p className="period-chip">{t('modes.dates', { start: rta.since, end: rta.until })}</p>}
       </header>
       <div className="toolbar">
         {SAMPLE_SORTS.map(([k, labelKey]) => (

@@ -1,0 +1,180 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { battleKey, collectRta, parseBattle } from '../scripts/collect/rta';
+import { appendBattles, loadStore } from '../scripts/collect/rtaStore';
+import type { createClient } from '../scripts/collect/api';
+
+type Raw = Record<string, unknown>;
+const teamInfo = (rows: { c: string; art?: string; sets?: string[] }[]) =>
+  `"my_team":[${rows.map((r, i) => `{"pick_order" :${i + 1},"hero_code":"${r.c}","artifact":"${r.art ?? ''}","equip":${JSON.stringify(r.sets ?? [])},"level":60}`).join(',')}]`;
+
+/** A raw battle as the record API gives it, seen from one player. */
+function raw(seq: number, date: string, mine: string[], theirs: string[], o: { win?: boolean; season?: string; builds?: boolean } = {}): Raw {
+  const deck = (heroes: string[], first: boolean) => ({
+    hero_list: heroes.map((c, i) => ({ hero_code: c, first_pick: first && i === 0 ? 1 : 0, mvp: 0, ban: 0 })), preban_list: ['x1', 'x2'],
+  });
+  return {
+    battle_seq: seq, iswin: o.win === false ? 2 : 1, season_code: o.season ?? 'pvp_rta_ss21', battleCompletedate: `${date}.0`, enemy_grade_code: 'emperor',
+    my_deck: deck(mine, true), enemy_deck: deck(theirs, false),
+    ...(o.builds ? {
+      teamBettleInfo: teamInfo(mine.map((c) => ({ c, art: `art_${c}`, sets: ['set_speed', 'set_chase'] }))),
+      teamBettleInfoenemy: teamInfo(theirs.map((c) => ({ c, art: '', sets: [] }))),
+    } : {}),
+  };
+}
+const A = ['a1', 'a2', 'a3', 'a4', 'a5'];
+const B = ['b1', 'b2', 'b3', 'b4', 'b5'];
+
+describe('parseBattle: what is kept for later', () => {
+  it('reads the day and time of the battle and the league of each side', () => {
+    const b = parseBattle(raw(1, '2026-11-04 09:51:25', A, B), 'legend')!;
+    expect(b.date).toBe('2026-11-04 09:51:25');
+    expect(b.decks.map((d) => d.tier)).toEqual(['legend', 'emperor']);
+  });
+  it('reads the artifact and the sets of each hero when the record has them, and nothing otherwise', () => {
+    const b = parseBattle(raw(1, '2026-11-04 09:51:25', A, B, { builds: true }))!;
+    expect(b.decks[0].heroes[0]).toEqual({ code: 'a1', first: true, ban: false, artifact: 'art_a1', sets: ['set_speed', 'set_chase'] });
+    expect(b.decks[1].heroes[0]).toEqual({ code: 'b1', first: false, ban: false }); // an enemy hero without a build: no empty fields
+    const plain = parseBattle(raw(2, '2026-11-04 09:51:25', A, B))!;
+    expect(plain.decks[0].heroes[0]).toEqual({ code: 'a1', first: true, ban: false });
+  });
+  it('does not fail on a build text it cannot read', () => {
+    const r = { ...raw(1, '2026-11-04 09:51:25', A, B), teamBettleInfo: '"my_team":[{broken', teamBettleInfoenemy: 42 };
+    expect(parseBattle(r)!.decks[0].heroes[0]).toEqual({ code: 'a1', first: true, ban: false });
+  });
+});
+
+describe('battleKey', () => {
+  it('is the same for the two views of one battle, and different for another battle', () => {
+    const mine = parseBattle(raw(1, '2026-11-04 09:51:25', A, B, { win: true }))!;
+    const theirs = parseBattle(raw(2, '2026-11-04 09:51:25', B, A, { win: false }))!; // the opponent's record of the same battle
+    expect(battleKey(mine)).toBe(battleKey(theirs));
+    expect(battleKey(mine)).not.toBe(battleKey(parseBattle(raw(3, '2026-11-04 10:00:00', A, B))!));
+  });
+});
+
+describe('the store of battles', () => {
+  let dir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'e7-store-')); });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it('is empty at first, keeps what is appended, and gives it back next time', async () => {
+    const store = await loadStore(dir, 'pvp_rta_ss21');
+    expect(store.battles).toHaveLength(0);
+    const b = parseBattle(raw(7, '2026-11-04 09:51:25', A, B, { builds: true }), 'legend')!;
+    await appendBattles(store, [b]);
+    const again = await loadStore(dir, 'pvp_rta_ss21');
+    expect(again.battles).toEqual([{ ...b, seqs: ['7'] }]);
+    expect(again.seqs.has('7')).toBe(true);
+    expect(again.keys.has(battleKey(b))).toBe(true);
+  });
+
+  it('has one file per season', async () => {
+    await appendBattles(await loadStore(dir, 'pvp_rta_ss21'), [parseBattle(raw(1, '2026-11-04 09:00:00', A, B))!]);
+    await appendBattles(await loadStore(dir, 'pvp_rta_ss22'), [parseBattle(raw(2, '2026-12-04 09:00:00', A, B, { season: 'pvp_rta_ss22' }))!]);
+    expect(readdirSync(dir).sort()).toEqual(['pvp_rta_ss21.jsonl', 'pvp_rta_ss22.jsonl']);
+    expect((await loadStore(dir, 'pvp_rta_ss22')).battles).toHaveLength(1);
+  });
+
+  it('skips a damaged line instead of losing the rest', async () => {
+    const store = await loadStore(dir, 's');
+    await appendBattles(store, [parseBattle(raw(1, '2026-11-04 09:00:00', A, B))!]);
+    const { appendFileSync } = await import('node:fs');
+    appendFileSync(join(dir, 's.jsonl'), '{"seq": "9", "dec\n'); // a write cut short
+    await appendBattles(await loadStore(dir, 's'), [parseBattle(raw(2, '2026-11-04 10:00:00', A, B))!]);
+    expect((await loadStore(dir, 's')).battles.map((x) => x.seq)).toEqual(['1', '2']);
+  });
+});
+
+describe('collectRta: accumulating', () => {
+  let dir: string;
+  let storeDir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'e7-acc-')); storeDir = join(dir, 'store'); });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const env = (value: unknown) => ({ code: 0, message: 'SUCCESS', value });
+  const stats = () => JSON.parse(readFileSync(join(dir, 'rta', 'stats.json'), 'utf8'));
+
+  /** Players and their battle pages (newest first, 10 a page like the API); `pages[player]` is a list of pages of raw battles. */
+  function fake(o: { pages: Record<number, Raw[][]>; season?: string; failAll?: boolean }) {
+    const calls: string[] = [];
+    const client = {
+      async get(path: string, params: Record<string, string>) {
+        if (path.endsWith('getSeasonList')) return env({ result_body: [{ season_code: o.season ?? 'pvp_rta_ss21', name: 'Fall 2026', is_now_season: 1 }] });
+        if (path.endsWith('getWorldUserRankingDetail')) {
+          return Number(params.current_page) === 1
+            ? env({ result_body: Object.keys(o.pages).map((n) => ({ nick_no: Number(n), world_code: 'world_kor', season_tiercode: 'legend', nickname: `secret${n}` })) })
+            : env({ result_body: [] });
+        }
+        calls.push(`${params.nick_no}:${params.current_page}`);
+        if (o.failAll) throw new Error('down');
+        const pages = o.pages[Number(params.nick_no)];
+        const page = Number(params.current_page);
+        return env({ result_body: { total_count: 100, battle_list: pages[page - 1] ?? [] } }); // 100: the API keeps that many, so only an empty or a known page ends the walk
+      },
+    };
+    return { client: client as unknown as ReturnType<typeof createClient>, calls };
+  }
+  const run = (client: ReturnType<typeof createClient>, log?: (m: string) => void) => collectRta({ outDir: dir, storeDir, client, now: () => '2026-11-06', ...(log ? { log } : {}) });
+
+  it('keeps the battles of every run, and a later run asks only for what is new', async () => {
+    const a1 = raw(1, '2026-11-01 10:00:00', A, B);
+    const a2 = raw(2, '2026-11-01 09:00:00', A, B.map((c) => `${c}x`));
+    const first = fake({ pages: { 101: [[a1, a2]] } });
+    expect(await run(first.client)).toBe('written');
+    expect(stats().battles).toBe(2);
+
+    const b1 = raw(3, '2026-11-02 10:00:00', B, A);
+    const b2 = raw(4, '2026-11-02 09:00:00', ['c1', 'c2', 'c3', 'c4', 'c5'], A);
+    const old = raw(5, '2026-10-30 09:00:00', ['d1', 'd2', 'd3', 'd4', 'd5'], A); // older than anything stored: never asked for
+    const second = fake({ pages: { 101: [[b1, b2], [a1, a2], [old]] } });
+    const logs: string[] = [];
+    expect(await run(second.client, (m) => logs.push(m))).toBe('written');
+    expect(stats().battles).toBe(4); // a1 a2 b1 b2: the two runs together
+    expect(second.calls).toEqual(['101:1', '101:2']); // page 2 held a known battle: nothing older is asked
+    expect(logs.some((m) => /2 new/.test(m) && /4 in total/.test(m))).toBe(true);
+  });
+
+  it('counts a battle once although each of its two players has a record of it, with its own id', async () => {
+    const mine = raw(10, '2026-11-01 10:00:00', A, B, { win: true });
+    const theirs = raw(20, '2026-11-01 10:00:00', B, A, { win: false });
+    expect(await run(fake({ pages: { 101: [[mine]], 102: [[theirs]] } }).client)).toBe('written');
+    expect(stats().battles).toBe(1);
+    const store = await loadStore(storeDir, 'pvp_rta_ss21');
+    expect(store.battles).toHaveLength(1);
+    expect([...store.seqs].sort()).toEqual(['10', '20']); // both ids are remembered
+    // next run: both players' pages start with a battle already known
+    expect(await run(fake({ pages: { 101: [[mine]], 102: [[theirs]] } }).client)).toBe('written');
+    expect(stats().battles).toBe(1);
+  });
+
+  it('says when the battles were played', async () => {
+    await run(fake({ pages: { 101: [[raw(1, '2026-11-03 10:00:00', A, B), raw(2, '2026-10-20 08:30:00', A, B.map((c) => `${c}y`))]] } }).client);
+    expect(stats()).toMatchObject({ since: '2026-10-20', until: '2026-11-03' });
+  });
+
+  it('keeps each season in its own file and counts only the current one', async () => {
+    await run(fake({ pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B)]] } }).client);
+    await run(fake({ season: 'pvp_rta_ss22', pages: { 101: [[raw(2, '2027-01-02 10:00:00', A, B, { season: 'pvp_rta_ss22' })]] } }).client);
+    expect(readdirSync(storeDir).sort()).toEqual(['pvp_rta_ss21.jsonl', 'pvp_rta_ss22.jsonl']);
+    expect(stats().battles).toBe(1);
+    expect(stats().code).toBe('pvp_rta_ss22');
+  });
+
+  it('writes no nickname into the store or the stats', async () => {
+    await run(fake({ pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B, { builds: true })]] } }).client);
+    for (const text of [readFileSync(join(storeDir, 'pvp_rta_ss21.jsonl'), 'utf8'), readFileSync(join(dir, 'rta', 'stats.json'), 'utf8')]) {
+      expect(text).not.toMatch(/secret|nick/);
+    }
+  });
+
+  it('leaves the store and the stats alone when the run fails', async () => {
+    await run(fake({ pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B)]] } }).client);
+    const before = readFileSync(join(storeDir, 'pvp_rta_ss21.jsonl'), 'utf8');
+    expect(await run(fake({ pages: { 101: [[raw(2, '2026-11-02 10:00:00', B, A)]] }, failAll: true }).client)).toBe('failed');
+    expect(readFileSync(join(storeDir, 'pvp_rta_ss21.jsonl'), 'utf8')).toBe(before);
+    expect(stats().battles).toBe(1);
+    expect(existsSync(join(storeDir, 'other.jsonl'))).toBe(false);
+  });
+});

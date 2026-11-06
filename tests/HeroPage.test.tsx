@@ -421,7 +421,7 @@ describe('HeroPage', () => {
   });
 
   describe('RTA among the top players', () => {
-    const rta = (heroes: RtaStats['heroes']): RtaStats => ({ season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000, heroes });
+    const rta = (heroes: RtaStats['heroes']): RtaStats => ({ season: 'Fall 2026', code: 'pvp_rta_ss21', updated: '2026-11-06', players: 100, battles: 1000, since: '2026-10-20', until: '2026-11-03', heroes });
 
     it('shows the pick, win, ban, pre-ban and first pick rates of the hero in the sample, even when it is not in the infographic', async () => {
       vi.mocked(loadHero).mockResolvedValue(snapshot);
@@ -431,6 +431,7 @@ describe('HeroPage', () => {
       const cells = within(within(block).getByRole('table', { name: 'RTA, top players' })).getAllByRole('cell').map((c) => c.textContent);
       expect(cells).toEqual(['25%', '55%', '5%', '3%', '4%']);
       expect(block.textContent).toContain('Fall 2026');
+      expect(block.textContent).toContain('2026-10-20 to 2026-11-03');
       expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
     });
 

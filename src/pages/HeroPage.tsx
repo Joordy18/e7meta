@@ -123,7 +123,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [teamList, setTeamList] = useState<HeroTeam[]>([]);
   const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
-  const [rtaSample, setRtaSample] = useState<{ season: string; battles: number; players: number; row: RtaRow } | null>(null);
+  const [rtaSample, setRtaSample] = useState<{ season: string; battles: number; players: number; since?: string; until?: string; row: RtaRow } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [skills, setSkills] = useState<SkillsFile | null>(null);
 
@@ -201,7 +201,7 @@ export default function HeroPage({ code }: { code: string }) {
     Promise.resolve(loadRta())
       .then((r) => {
         const row = r ? heroRta(r, h.hero.code) : undefined;
-        if (live && r && row) setRtaSample({ season: r.season, battles: r.battles, players: r.players, row });
+        if (live && r && row) setRtaSample({ season: r.season, battles: r.battles, players: r.players, since: r.since, until: r.until, row });
       })
       .catch(() => {});
     return () => { live = false; };
@@ -266,6 +266,7 @@ export default function HeroPage({ code }: { code: string }) {
               <header>
                 <h2>{t('hero.rtaSample')}</h2>
                 <p className="period-chip">{rtaSample.season}</p>
+                {rtaSample.since && rtaSample.until && <p className="period-chip">{t('modes.dates', { start: rtaSample.since, end: rtaSample.until })}</p>}
               </header>
               <div className="panels">
                 <section aria-label={t('hero.rtaSampleRegion')} className="panel rta">
