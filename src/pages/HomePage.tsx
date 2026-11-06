@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon } from '../components/Art';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
-import type { ArenaSeason, Modes, Trends } from '../shared/types';
+import type { ArenaSeason, Feed, FeedBoard, Modes, Trends } from '../shared/types';
 
 type Data = {
   latest: string;
   modes: Modes | null;
   prevModes: Modes | null;
   trends: Trends | null;
+  feed: Feed | null;
   arena: { season: ArenaSeason; prev?: ArenaSeason } | null;
   codes: Map<string, string>; // normalized hero name -> code
 };
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; data: Data };
 
 const soft = <T,>(p: Promise<T>) => p.catch(() => null); // every block but the index is a bonus: a failure just hides it
+const BOARDS: [FeedBoard, string][] = [['patch', 'Patches'], ['notice', 'Notices'], ['dev', 'Developer notes'], ['event', 'Events']];
 const QUIET = 3; // points: below this, nothing moved much
 
 function Delta({ value }: { value?: number }) {
@@ -51,8 +53,8 @@ export default function HomePage() {
       const index = await loadIndex();
       if (!index || index.periods.length === 0) return live && setState({ status: 'none' });
       const [latest, before] = index.periods;
-      const [modes, prevModes, heroes, trends, arena] = await Promise.all([
-        soft(loadModes(latest)), before ? soft(loadModes(before)) : Promise.resolve(null), soft(loadHeroes(latest)), soft(loadTrends()),
+      const [modes, prevModes, heroes, trends, feed, arena] = await Promise.all([
+        soft(loadModes(latest)), before ? soft(loadModes(before)) : Promise.resolve(null), soft(loadHeroes(latest)), soft(loadTrends()), soft(loadFeed()),
         soft((async () => {
           const seasons = (await loadArenaIndex())?.seasons ?? [];
           if (seasons.length === 0) return null;
@@ -61,7 +63,7 @@ export default function HomePage() {
         })()),
       ]);
       if (live) {
-        setState({ status: 'ok', data: { latest, modes, prevModes, trends, arena, codes: new Map((heroes ?? []).map((h) => [normalize(h.name), h.code])) } });
+        setState({ status: 'ok', data: { latest, modes, prevModes, trends, feed, arena, codes: new Map((heroes ?? []).map((h) => [normalize(h.name), h.code])) } });
       }
     })().catch((e: unknown) => live && setState({ status: 'error', message: String(e) }));
     return () => { live = false; };
@@ -71,7 +73,7 @@ export default function HomePage() {
   if (state.status === 'error') return <p className="note error">Failed to load: {state.message}</p>;
   if (state.status === 'none') return <p className="note">No data yet. Run <code>npm run collect</code></p>;
 
-  const { latest, modes, prevModes, trends, arena, codes } = state.data;
+  const { latest, modes, prevModes, trends, feed, arena, codes } = state.data;
   // a previous week with the very same mode data would make every change 0: only compare weeks that differ
   const prev = modes && prevModes && prevModes.key !== modes.key ? prevModes : undefined;
   const quiet = !trends || trends.builds.every((b) => Math.abs(b.after - b.before) < QUIET);
@@ -81,6 +83,45 @@ export default function HomePage() {
     <div>
       <h1 className="page-title">Meta of the week</h1>
       <p className="lede">What players use right now, from the game's own rankings. Gear ranking week of {latest}.</p>
+
+      {feed && (
+        <section aria-label="What's new" className="source">
+          <header><h2>What's new</h2><p className="period-chip">updated {feed.updated}</p></header>
+          <div className="panels">
+            {feed.releases.length > 0 && (
+              <section aria-label="New in the game" className="panel">
+                <h3>New in the game</h3>
+                <ul className="news">
+                  {feed.releases.slice(0, 6).map((r) => (
+                    <li key={`${r.kind}-${r.code}`}>
+                      <small className="kind">{r.kind}</small>
+                      <a href={r.kind === 'hero' ? `#/hero/${r.code}` : `#/artifact/${r.code}`}>{r.name}</a>
+                      <small className="when" title="First week of data that lists it">week of {r.since}</small>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {BOARDS.map(([board, title]) => {
+              const posts = feed.posts.filter((p) => p.board === board).slice(0, 4);
+              return posts.length === 0 ? null : (
+                <section key={board} aria-label={title} className="panel">
+                  <h3>{title}</h3>
+                  <ul className="news">
+                    {posts.map((p) => (
+                      <li key={p.id}>
+                        <a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a>
+                        <small className="when">{p.date}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+          <p className="caption">Official posts from the game's community boards, and heroes or artifacts that appeared in the game's data.</p>
+        </section>
+      )}
 
       {modes && (
         <section aria-label="Most used in PvE" className="source">

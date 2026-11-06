@@ -5,3 +5,4 @@ echo ===== %date% %time% >> collect.log
 call npm run collect >> collect.log 2>&1
 call npm run arena >> collect.log 2>&1
 call npm run skills >> collect.log 2>&1
+call npm run feed >> collect.log 2>&1

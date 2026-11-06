@@ -230,6 +230,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .shifts a { color: var(--text); text-decoration: none; font-weight: 600; }
 .shifts a:hover { text-decoration: underline; }
 .shifts strong { font-variant-numeric: tabular-nums; }
+.news { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.news li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 7px 10px; background: var(--raise); border-radius: 10px; }
+.news a { color: var(--text); text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
+.news a:hover { text-decoration: underline; }
+.news .when { color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.news .kind { grid-column: 1 / -1; color: var(--gold); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .panel .note { padding: 0; margin: 0 0 12px; }
 .source > .guide-list { max-width: none; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 

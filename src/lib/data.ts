@@ -1,4 +1,4 @@
-import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Trends } from '../shared/types';
+import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Feed, Trends } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -96,6 +96,14 @@ export async function loadSkills(): Promise<SkillsFile | null> {
 /** Week-over-week build shifts (trends.json); not tied to a period. null when not computed yet (fewer than two weeks). */
 export async function loadTrends(): Promise<Trends | null> {
   try { return await getJson<Trends>('trends.json'); } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+
+/** Latest official posts and new heroes / artifacts (feed.json); not tied to a period. null when not collected yet. */
+export async function loadFeed(): Promise<Feed | null> {
+  try { return await getJson<Feed>('feed.json'); } catch (e) {
     if (e instanceof NotFoundError) return null;
     throw e;
   }

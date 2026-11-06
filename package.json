@@ -12,7 +12,8 @@
     "overlay:smoke": "vite build && electron electron/main.cjs --smoke",
     "arena": "tsx scripts/collect/arena.ts",
     "skills": "tsx scripts/collect/skills.ts",
-    "trends": "tsx scripts/collect/trends.ts"
+    "trends": "tsx scripts/collect/trends.ts",
+    "feed": "tsx scripts/collect/feed.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

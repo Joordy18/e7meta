@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import HomePage from '../src/pages/HomePage';
-import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends } from '../src/lib/data';
+import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed } from '../src/lib/data';
 import { guides } from '../src/lib/guides';
-import type { ArenaSeason, ArenaTier, DraftRow, ModeList, Modes, PreBanRow, Trends } from '../src/shared/types';
+import type { ArenaSeason, ArenaTier, DraftRow, Feed, ModeList, Modes, PreBanRow, Trends } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadModes: vi.fn(), loadHeroes: vi.fn(), loadTrends: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
+  loadIndex: vi.fn(), loadModes: vi.fn(), loadHeroes: vi.fn(), loadTrends: vi.fn(), loadFeed: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
 }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
@@ -33,7 +33,21 @@ const trends = (moves: [number, number][]): Trends => ({
   builds: moves.map(([before, after], i) => ({ hero: 'a', name: 'Ann', kind: i % 2 === 0 ? 'artifact' : 'set', code: i % 2 === 0 ? 'x' : 's1', item: i % 2 === 0 ? 'Lethal Whispers' : 'Speed Set', before, after })),
 });
 
-function setup(o: { prev?: Modes; trends?: Trends | null; arena?: boolean } = {}) {
+const feed: Feed = {
+  updated: '2026-11-06',
+  releases: [
+    { kind: 'hero', code: 'c7016', name: 'Bunny Girl Mafia Yufine', since: '2026-10-29' },
+    { kind: 'artifact', code: 'efk99', name: 'New Blade', since: '2026-10-29' },
+  ],
+  posts: [
+    { id: '1', board: 'patch', title: '11/5 (Thu) Patch Information', date: '2026-11-05', url: 'https://page.onstove.com/epicseven/global/view/1' },
+    { id: '2', board: 'notice', title: 'Known Issues', date: '2026-10-29', url: 'https://page.onstove.com/epicseven/global/view/2' },
+    { id: '3', board: 'dev', title: '11/19 (Thu) Balance Adjustment Preview', date: '2026-11-06', url: 'https://page.onstove.com/epicseven/global/view/3' },
+  ],
+};
+
+function setup(o: { prev?: Modes; trends?: Trends | null; arena?: boolean; feed?: Feed | null } = {}) {
+  vi.mocked(loadFeed).mockResolvedValue(o.feed === undefined ? null : o.feed);
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
   vi.mocked(loadModes).mockImplementation(async (p) => (p === '2026-10-29' ? cur : (o.prev ?? prevSame)));
   vi.mocked(loadHeroes).mockResolvedValue([{ code: 'a', name: 'A', grade: 5, job: 'mage', element: 'fire' }]);
@@ -139,6 +153,45 @@ describe('HomePage: build shifts', () => {
   });
 });
 
+describe('HomePage: what is new', () => {
+  it('lists the new heroes and artifacts, linking them to their pages', async () => {
+    setup({ feed });
+    render(<HomePage />);
+    const news = within(await screen.findByRole('region', { name: 'New in the game' })).getAllByRole('listitem');
+    expect(news[0].textContent).toContain('Bunny Girl Mafia Yufine');
+    expect(news[0].textContent).toContain('2026-10-29');
+    expect(within(news[0]).getByRole('link', { name: 'Bunny Girl Mafia Yufine' }).getAttribute('href')).toBe('#/hero/c7016');
+    expect(within(news[1]).getByRole('link', { name: 'New Blade' }).getAttribute('href')).toBe('#/artifact/efk99');
+  });
+
+  it('shows the official posts by board, each linking to the post in a new tab, with its date', async () => {
+    setup({ feed });
+    render(<HomePage />);
+    const patches = await screen.findByRole('region', { name: 'Patches' });
+    const link = within(patches).getByRole('link', { name: '11/5 (Thu) Patch Information' });
+    expect(link.getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/1');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(patches.textContent).toContain('2026-11-05');
+    expect(within(screen.getByRole('region', { name: 'Notices' })).getByText('Known Issues')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Developer notes' })).getByText(/Balance Adjustment Preview/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Events' })).toBeNull(); // no post on that board: no empty panel
+  });
+
+  it('leaves out the new-releases panel when nothing appeared', async () => {
+    setup({ feed: { ...feed, releases: [] } });
+    render(<HomePage />);
+    await screen.findByRole('region', { name: 'Patches' });
+    expect(screen.queryByRole('region', { name: 'New in the game' })).toBeNull();
+  });
+
+  it('is left out without a feed file', async () => {
+    setup({ feed: null });
+    render(<HomePage />);
+    await screen.findByRole('region', { name: 'Most used in PvE' });
+    expect(screen.queryByRole('region', { name: "What's new" })).toBeNull();
+  });
+});
+
 describe('HomePage: the rest', () => {
   it('links the latest guides', async () => {
     setup();
@@ -159,6 +212,7 @@ describe('HomePage: the rest', () => {
     setup();
     vi.mocked(loadArenaIndex).mockRejectedValue(new Error('down'));
     vi.mocked(loadTrends).mockRejectedValue(new Error('down'));
+    vi.mocked(loadFeed).mockRejectedValue(new Error('down'));
     render(<HomePage />);
     expect(await screen.findByRole('region', { name: 'Most used in PvE' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();

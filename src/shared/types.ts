@@ -93,3 +93,9 @@ export type SkillsFile = {
 // Week over week: how the share of a hero's sets and artifacts moved between the two latest weeks (in points)
 export type BuildShift = { hero: string; name: string; kind: 'set' | 'artifact'; code: string; item: string; before: number; after: number };
 export type Trends = { from: string; to: string; builds: BuildShift[] }; // builds: biggest moves first
+
+// What is new in the game: the latest official posts of four boards, and heroes / artifacts that appeared in the data.
+export type FeedBoard = 'patch' | 'notice' | 'dev' | 'event';
+export type FeedPost = { id: string; board: FeedBoard; title: string; date: string; url: string }; // date = YYYY-MM-DD
+export type Release = { kind: 'hero' | 'artifact'; code: string; name: string; since: string }; // since = the weekly period that first listed it
+export type Feed = { updated: string; posts: FeedPost[]; releases: Release[] }; // posts: newest first per board, releases: newest first
