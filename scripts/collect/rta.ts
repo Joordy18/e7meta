@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient, unwrap } from './api';
+import { writeBuilds } from './rtaBuilds';
 import { appendBattles, battleKey, loadStore, type Battle, type Deck } from './rtaStore';
 import type { RtaHeroCount, RtaStats } from '../../src/shared/types';
 
@@ -172,6 +173,7 @@ export async function collectRta(opts: {
   };
   await mkdir(join(outDir, 'rta'), { recursive: true });
   await writeFile(join(outDir, 'rta', 'stats.json'), JSON.stringify(stats));
+  await writeBuilds({ outDir, season: season.season_code, battles: store.battles, now });
   log(`rta: ${fresh.size} new battles, ${store.battles.length} in total, from ${stats.players} players, ${Object.keys(stats.heroes).length} heroes`);
   return 'written';
 }

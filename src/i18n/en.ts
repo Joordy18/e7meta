@@ -249,4 +249,7 @@ export const en = {
   "tiers.tier": "Tier {tier}",
   "tiers.shareTitle": "{n}% average share",
   "tiers.how": "A tier is the hero's average share in the rankings compared with the most used hero of the mode: S from half of it, A from a quarter, B from a tenth, C from 3%, D below. It shows what players use and clear with, not raw power; recent and niche heroes weigh less.",
+  "hero.rtaSets": "Sets worn in RTA",
+  "hero.rtaArtifacts": "Artifacts worn in RTA",
+  "hero.rtaBuildsCaption": "Sets and artifacts this hero wore in the counted battles ({n} with the sets known). In a combination, the set with the most pieces comes first.",
 } as const;

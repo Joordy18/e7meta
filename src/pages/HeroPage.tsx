@@ -4,7 +4,7 @@ import Loadout from '../components/Loadout';
 import { useI18n, type Key } from '../i18n';
 import PageNav from '../components/PageNav';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadRtaBuilds, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
 import { heroRta, type RtaRow } from '../lib/rta';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
@@ -12,7 +12,7 @@ import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes
 import { PERCENT_STATS, STATS, lowerBound, num, statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, SkillsFile, StatKey } from '../shared/types';
+import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, RtaBuilds, RtaHeroBuilds, SkillsFile, StatKey } from '../shared/types';
 
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
@@ -124,6 +124,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
   const [rtaSample, setRtaSample] = useState<{ season: string; battles: number; players: number; since?: string; until?: string; row: RtaRow } | null>(null);
+  const [rtaBuilds, setRtaBuilds] = useState<{ hero: RtaHeroBuilds; setNames: RtaBuilds['setNames']; artifactNames: RtaBuilds['artifactNames'] } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [skills, setSkills] = useState<SkillsFile | null>(null);
 
@@ -208,6 +209,17 @@ export default function HeroPage({ code }: { code: string }) {
   }, [h?.hero.code]);
 
   const shownNames = new Map([...names].map(([c, n]) => [c, name.hero(c, n)])); // heroes of the teams, in the language
+  // what the hero wears in RTA comes from the accumulated battles: no file, or no list for this hero, just hides the panels
+  useEffect(() => {
+    setRtaBuilds(null);
+    if (!h) return;
+    let live = true;
+    Promise.resolve(loadRtaBuilds())
+      .then((b) => { const hero = b?.heroes[h.hero.code]; if (live && b && hero) setRtaBuilds({ hero, setNames: b.setNames, artifactNames: b.artifactNames }); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [h?.hero.code]);
+
   const hasExclusive = !!h && !!((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]);
   const navItems = !h ? [] : ([
     { id: 'loadout', label: t('hero.navBuild') }, arena && { id: 'arena', label: t('home.arena') }, rtaSample && { id: 'rta-sample', label: t('hero.rtaSample') },
@@ -286,6 +298,23 @@ export default function HeroPage({ code }: { code: string }) {
                     {rich('hero.rtaCaption', { battles: rtaSample.battles.toLocaleString(locale), players: rtaSample.players, games: rtaSample.row.played, link: <a href="#/arena">{t('hero.rtaAllHeroes')}</a> })}
                   </p>
                 </section>
+                {rtaBuilds && (
+                  <>
+                    <Panel title={t('hero.rtaSets')}>
+                      <Bars items={rtaBuilds.hero.sets.combos.map((c) => ({
+                        label: name.sets(c.sets, c.sets.map((code) => rtaBuilds.setNames[code] ?? code)).join(' + '),
+                        value: Math.round((c.n / rtaBuilds.hero.sets.n) * 1000) / 10, icons: c.sets.map(setIcon),
+                      }))} />
+                      <p className="caption">{t('hero.rtaBuildsCaption', { n: rtaBuilds.hero.sets.n })}</p>
+                    </Panel>
+                    <Panel title={t('hero.rtaArtifacts')}>
+                      <Bars items={rtaBuilds.hero.artifacts.top.map((a) => ({
+                        label: name.artifact(a.code, rtaBuilds.artifactNames[a.code] ?? a.code),
+                        value: Math.round((a.n / rtaBuilds.hero.artifacts.n) * 1000) / 10, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}`,
+                      }))} />
+                    </Panel>
+                  </>
+                )}
               </div>
             </section>
           )}

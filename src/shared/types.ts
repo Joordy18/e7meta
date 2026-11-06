@@ -125,5 +125,12 @@ export type RtaHeroCount = {
   ban: number; // banned after the draft
   preban: number; // battles where it was pre-banned (by either side)
 };
+// What each hero wears in the battles counted for RTA (rta/builds.json). A combination lists its sets with the one with most pieces first.
+export type RtaHeroBuilds = {
+  sets: { n: number; combos: { sets: string[]; n: number }[] }; // n: battles with the sets of the hero known; the combos are the most worn
+  artifacts: { n: number; top: { code: string; n: number }[] };
+};
+export type RtaBuilds = { code: string; updated: string; heroes: Record<string, RtaHeroBuilds>; setNames: Record<string, string>; artifactNames: Record<string, string> };
+
 // since / until: the day of the oldest and of the newest battle counted (the battles of the season are accumulated run after run)
 export type RtaStats = { season: string; code: string; updated: string; players: number; battles: number; since?: string; until?: string; heroes: Record<string, RtaHeroCount> };

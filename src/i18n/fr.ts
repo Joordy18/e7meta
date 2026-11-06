@@ -251,4 +251,7 @@ export const fr: Record<keyof typeof en, string> = {
   "tiers.tier": "Tier {tier}",
   "tiers.shareTitle": "Part moyenne {n} %",
   "tiers.how": "Un tier compare la part moyenne du héros dans les classements à celle du héros le plus utilisé du mode : S à partir de la moitié, A à partir d'un quart, B à partir d'un dixième, C à partir de 3 %, D en dessous. Cela montre ce que les joueurs utilisent et avec quoi ils réussissent, pas la puissance brute ; les héros récents ou de niche pèsent moins.",
+  "hero.rtaSets": "Sets portés en RTA",
+  "hero.rtaArtifacts": "Artefacts portés en RTA",
+  "hero.rtaBuildsCaption": "Sets et artefacts portés par ce héros dans les combats comptés ({n} avec les sets connus). Dans une combinaison, le set avec le plus de pièces vient en premier.",
 };

@@ -251,4 +251,7 @@ export const zh: Record<keyof typeof en, string> = {
   "tiers.tier": "{tier} 級",
   "tiers.shareTitle": "平均占比 {n}%",
   "tiers.how": "梯隊是把英雄在排行中的平均占比，與該模式最常用的英雄相比：達一半為 S、達四分之一為 A、達十分之一為 B、達 3% 為 C、以下為 D。它反映玩家使用且成功的英雄，而非純粹的強度；新英雄與冷門英雄的占比較低。",
+  "hero.rtaSets": "RTA 中裝備的套裝",
+  "hero.rtaArtifacts": "RTA 中裝備的神器",
+  "hero.rtaBuildsCaption": "在統計的對戰中，這位英雄裝備的套裝與神器（已知套裝的有 {n} 筆）。組合中，件數最多的套裝排在前面。",
 };

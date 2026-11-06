@@ -251,4 +251,7 @@ export const de: Record<keyof typeof en, string> = {
   "tiers.tier": "Tier {tier}",
   "tiers.shareTitle": "Ø Anteil {n} %",
   "tiers.how": "Ein Tier vergleicht den durchschnittlichen Anteil des Helden in den Rankings mit dem meistgenutzten Helden des Modus: S ab der Hälfte, A ab einem Viertel, B ab einem Zehntel, C ab 3 %, D darunter. Es zeigt, was Spieler nutzen und womit sie erfolgreich sind, nicht die reine Stärke; neue und Nischen-Helden fallen weniger ins Gewicht.",
+  "hero.rtaSets": "In RTA getragene Sets",
+  "hero.rtaArtifacts": "In RTA getragene Artefakte",
+  "hero.rtaBuildsCaption": "Sets und Artefakte, die dieser Held in den gezählten Kämpfen trug ({n} mit bekannten Sets). In einer Kombination steht das Set mit den meisten Teilen zuerst.",
 };

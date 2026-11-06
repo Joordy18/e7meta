@@ -5,13 +5,13 @@ import HeroPage from '../src/pages/HeroPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadSkills, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadRtaBuilds, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
-import type { HeroSnapshot, RtaStats, SkillsFile } from '../src/shared/types';
+import type { HeroSnapshot, RtaBuilds, RtaStats, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaBuilds: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -21,6 +21,7 @@ beforeEach(() => {
   vi.mocked(loadArenaIndex).mockResolvedValue(null);
   vi.mocked(loadSkills).mockResolvedValue(null);
   vi.mocked(loadRta).mockResolvedValue(null);
+  vi.mocked(loadRtaBuilds).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -433,6 +434,51 @@ describe('HeroPage', () => {
       expect(block.textContent).toContain('Fall 2026');
       expect(block.textContent).toContain('2026-10-20 to 2026-11-03');
       expect(screen.queryByRole('region', { name: 'World Arena (RTA)' })).toBeNull();
+    });
+
+    const builds: RtaBuilds = {
+      code: 'pvp_rta_ss21', updated: '2026-11-06',
+      heroes: { c1176: {
+        sets: { n: 200, combos: [{ sets: ['set_speed', 'set_immune'], n: 100 }, { sets: ['set_cri'], n: 50 }] },
+        artifacts: { n: 200, top: [{ code: 'efk1', n: 120 }] },
+      } },
+      setNames: { set_speed: 'Speed Set', set_immune: 'Immunity Set', set_cri: 'Critical Set' }, artifactNames: { efk1: 'Sun Blade' },
+    };
+    const sample = () => vi.mocked(loadRta).mockResolvedValue(rta({ c1176: { pick: 250, played: 200, win: 110, first: 40, ban: 50, preban: 30 } }));
+
+    it('shows the sets and artifacts the hero wears in RTA, with the share of the battles that had them', async () => {
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      sample();
+      vi.mocked(loadRtaBuilds).mockResolvedValue(builds);
+      render(<HeroPage code="c1176" />);
+      const sets = await screen.findByRole('region', { name: 'Sets worn in RTA' });
+      expect(within(sets).getByText('Speed Set + Immunity Set').closest('.bar')?.textContent).toContain('50%'); // 100 of 200
+      expect(within(sets).getByText('Critical Set').closest('.bar')?.textContent).toContain('25%');
+      const arts = screen.getByRole('region', { name: 'Artifacts worn in RTA' });
+      expect(within(arts).getByRole('link', { name: 'Sun Blade' }).getAttribute('href')).toBe('#/artifact/efk1');
+      expect(within(arts).getByText('Sun Blade').closest('.bar')?.textContent).toContain('60%');
+      expect(screen.getByText(/with the sets known/).textContent).toContain('200');
+    });
+
+    it('names the sets and artifacts in the language of the page', async () => {
+      localStorage.setItem('e7.lang', 'fr');
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      sample();
+      vi.mocked(loadRtaBuilds).mockResolvedValue(builds);
+      vi.mocked(loadNames).mockResolvedValue({ lang: 'fr', updated: 'x', heroes: {}, artifacts: { efk1: 'Lame du soleil' }, sets: { set_speed: 'Set Vitesse' } });
+      render(<I18nProvider><HeroPage code="c1176" /></I18nProvider>);
+      const sets = await screen.findByRole('region', { name: fr['hero.rtaSets'] });
+      await waitFor(() => expect(within(sets).getByText('Set Vitesse + Immunity Set')).toBeTruthy());
+      expect(within(screen.getByRole('region', { name: fr['hero.rtaArtifacts'] })).getByRole('link', { name: 'Lame du soleil' })).toBeTruthy();
+    });
+
+    it('is left out when the hero has no builds in the file, or without the file', async () => {
+      vi.mocked(loadHero).mockResolvedValue(snapshot);
+      sample();
+      vi.mocked(loadRtaBuilds).mockResolvedValue({ ...builds, heroes: {} });
+      render(<HeroPage code="c1176" />);
+      await screen.findByRole('region', { name: 'RTA, top players' });
+      expect(screen.queryByRole('region', { name: 'Sets worn in RTA' })).toBeNull();
     });
 
     it('is left out when the hero has too few games, or without a sample', async () => {

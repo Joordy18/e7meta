@@ -172,6 +172,15 @@ describe('collectRta: accumulating', () => {
     expect(existsSync(join(dir, 'rta', 'stats.json'))).toBe(false);
   });
 
+  it('writes the builds of the heroes next to the stats, from every battle kept', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => raw(i + 1, `2026-11-01 10:${String(i).padStart(2, '0')}:00`, A, B, { builds: true }));
+    await run(fake({ pages: { 101: [many] } }).client);
+    const builds = JSON.parse(readFileSync(join(dir, 'rta', 'builds.json'), 'utf8'));
+    expect(builds.code).toBe('pvp_rta_ss21');
+    expect(builds.heroes.a1.sets).toEqual({ n: 20, combos: [{ sets: ['set_chase', 'set_speed'], n: 20 }] }); // two sets of two pieces: by code
+    expect(builds.heroes.a1.artifacts.top).toEqual([{ code: 'art_a1', n: 20 }]);
+  });
+
   it('says when the battles were played', async () => {
     await run(fake({ pages: { 101: [[raw(1, '2026-11-03 10:00:00', A, B), raw(2, '2026-10-20 08:30:00', A, B.map((c) => `${c}y`))]] } }).client);
     expect(stats()).toMatchObject({ since: '2026-10-20', until: '2026-11-03' });

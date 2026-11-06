@@ -251,4 +251,7 @@ export const ko: Record<keyof typeof en, string> = {
   "tiers.tier": "{tier} 티어",
   "tiers.shareTitle": "평균 비율 {n}%",
   "tiers.how": "티어는 순위에서 영웅의 평균 비율을 해당 모드에서 가장 많이 쓰이는 영웅과 비교한 것입니다. S는 절반 이상, A는 4분의 1 이상, B는 10분의 1 이상, C는 3% 이상, D는 그 미만입니다. 플레이어가 쓰고 성공하는 영웅을 보여 줄 뿐 순수한 강함은 아니며, 신규·비주류 영웅은 불리합니다.",
+  "hero.rtaSets": "RTA에서 착용한 세트",
+  "hero.rtaArtifacts": "RTA에서 착용한 아티팩트",
+  "hero.rtaBuildsCaption": "집계된 경기에서 이 영웅이 착용한 세트와 아티팩트입니다(세트가 확인된 {n}건). 조합에서는 부위 수가 많은 세트가 먼저 나옵니다.",
 };
