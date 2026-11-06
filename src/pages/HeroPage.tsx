@@ -188,7 +188,7 @@ export default function HeroPage({ code }: { code: string }) {
   return (
     <div>
       <div className="hero-bar">
-        <a className="back" href="#/">← All heroes</a>
+        <a className="back" href="#/heroes">← All heroes</a>
         {periods.length > 0 && (
           <label className="period">Period{' '}
             <select value={period} onChange={(e) => setPeriod(e.target.value)}>

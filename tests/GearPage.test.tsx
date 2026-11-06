@@ -67,7 +67,7 @@ describe('ArtifactPage', () => {
     vi.mocked(loadGear).mockResolvedValue(gear);
     render(<ArtifactPage code="nope" />);
     expect(await screen.findByText('Unknown artifact')).toBeTruthy();
-    expect(screen.getByRole('link', { name: /All heroes/ }).getAttribute('href')).toBe('#/');
+    expect(screen.getByRole('link', { name: /All heroes/ }).getAttribute('href')).toBe('#/heroes');
   });
 
   it('says how to collect when there is no gear data', async () => {

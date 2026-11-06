@@ -8,13 +8,15 @@ Build stats for Epic Seven: for every hero, the gear sets and artifacts players 
 - `npm run dev`: run the site locally.
 - `npm run skills`: fetch the skill descriptions of the heroes that do not have them yet from epic7db.com (one page a second; `-- --refresh` redoes everything). The daily task runs it too.
 - `npm run arena`: fetch the World Arena season infographics (a couple of calls; only seasons not saved yet are downloaded). Seasons since Fall 2025 are supported; the older posts use another layout. The daily task runs it too.
+- `npm run trends`: compute `public/data/trends.json` (the biggest moves of each hero's sets and artifacts between the two latest weeks, from files already on disk, no API call). `npm run collect` and the daily task do it too.
 - `npm run overlay`: build the site and open it in an **always-on-top** window (above a windowed or borderless game, not above exclusive fullscreen). `Ctrl+Alt+E` shows or hides the window without taking focus from the game.
 - `npm run overlay:smoke`: check that the overlay starts and loads the data (prints `SMOKE OK`).
 - `npm test`: run the tests. `npm run build` builds the static site.
 
 ## What the site shows
 
-- **Heroes**: every hero, with search, filters and a sort by top set or artifact share. A hero page has the gear ranking (sets, artifacts), the hunt statistics (set combinations, artifacts, a stat targets table with typical / median / top 25% / top 10% values, and histograms) and where the hero is used in other modes.
+- **Home** (`#/`): the meta of the week. The heroes used most in hunts, the abyss and expeditions (average share over the rankings of each mode, with the change in points once a second week of mode data exists), the most picked and most pre-banned heroes of the latest World Arena season (with the change against the previous season), the biggest set and artifact shifts of the week (a "quiet week" note when none moved by 3 points) and the latest guides.
+- **Heroes** (`#/heroes`): every hero, with search, filters and a sort by top set or artifact share. A hero page has the gear ranking (sets, artifacts), the hunt statistics (set combinations, artifacts, a stat targets table with typical / median / top 25% / top 10% values, and histograms) and where the hero is used in other modes.
 - **Modes**: a visual picker (one card per boss, one tile per floor) and, for each boss, floor or level, a page with the best teams and the heroes used most: hunts (5 bosses, 3 difficulties), the abyss (every tenth floor) and expeditions (5 bosses, 3 levels), plus the latest Rift season. A hero page opens on a "loadout": portrait, the recommended build (most used set combination, top three artifacts, the exclusive equipment upgrade most chosen, the stats to aim for) and the three skills, each opening on its description, effects, soulburn and enhancements. Below come the details: World Arena figures, where the hero is used, who it is played with, the best PvE teams, the gear ranking and the hunt statistics. Skill text and the description of the exclusive equipment (its stat bonus and what each upgrade option does, matched with the game's usage ranking) come from the fan site epic7db.com (`npm run skills`; the game's own guide only names the skills). epic7db describes the exclusive equipment of about 80 of the 139 heroes that have one; for the others the page shows the usage bars only. A hero page lists where the hero is used, the heroes it is most often played with (counted in the best hunt, abyss and expedition teams) and the best PvE teams it plays in. There is no official counter or RTA team data.
 - **Artifacts**: every artifact on a hero page is a link to its page: stars, class, base and max-level stats, the effect at level 1 and at max level, and the heroes wearing it most.
 - **RTA (World Arena)**: the draft mode's season statistics, from the infographic the developers publish after each season: pick, first pick and pre-ban rates with ban and win rates for the top 20 heroes of each league tier (Champion, Warlord, Emperor and Legend, each "and above"), the win rate and player count of the top leagues and the cutoffs. A hero is linked to its page when its name matches, and a hero page shows its own figures from the latest season (when it is in a top 20). The classic Arena has no official statistics that we found.
@@ -36,6 +38,8 @@ It runs `scripts/collect-daily.cmd` (output in `collect.log`, ignored by git). N
 Snapshots live in `public/data/<period>/` (`heroes.json` and `hero/<code>.json`); the list of periods is `public/data/index.json`. They are versioned in git.
 
 The numbers come from the game's official public API (`api.onstove.com`), which is undocumented and may change without notice. Check its terms of use before publishing the site.
+
+`trends.json` (at the root of `public/data/`) holds the build shifts between the two latest periods (`{from, to, builds}`); only gear sets and artifacts are compared, and a hero with no data in one of the weeks is left out.
 
 World Arena seasons are not tied to a weekly period: they live in `public/data/arena/` (`index.json` and one file per season).
 

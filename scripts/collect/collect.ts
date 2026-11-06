@@ -5,6 +5,7 @@ import { createClient } from './api';
 import { fetchGear } from './gear';
 import { fetchModes } from './modes';
 import { fetchTeams } from './teams';
+import { refreshTrends } from './trends';
 import { mapDetail, mapExclusive, mapHeroList, mapPeriod, mapSetNames, mapShares, mapSkills } from './map';
 import type { HeroSnapshot, HeroSummary, Index, Modes, Period, Teams } from '../../src/shared/types';
 
@@ -112,6 +113,7 @@ export async function collect(opts: {
     }
     await refreshModes(client, snapDir, huntPeriod, log, true);
     await refreshGear(client, snapDir, period.start, log, true);
+    await refreshTrends({ outDir, log });
     return 'written';
   }
   const prev = await readIndex(indexPath, log);
@@ -120,6 +122,7 @@ export async function collect(opts: {
     log(`period ${period.start} already collected`);
     await refreshModes(client, snapDir, huntPeriod, log, false);
     await refreshGear(client, snapDir, period.start, log, false);
+    await refreshTrends({ outDir, log });
     return 'skipped';
   }
 
@@ -188,6 +191,7 @@ export async function collect(opts: {
   await writeJson(indexPath, { periods } satisfies Index);
   await refreshModes(client, snapDir, huntPeriod, log, true);
   await refreshGear(client, snapDir, period.start, log, true);
+  await refreshTrends({ outDir, log });
   return 'written';
 }
 

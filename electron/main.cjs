@@ -32,7 +32,7 @@ app.whenReady().then(async () => {
   if (!registered) console.warn(`Shortcut ${SHORTCUT} unavailable (already taken by another app).`);
 
   if (smoke) {
-    const text = await waitForText(win, 'heroes', 10000);
+    const text = await waitForText(win, 'Most used in PvE', 10000);
     console.log(`SMOKE ${text ? 'OK' : 'FAIL'} alwaysOnTop=${win.isAlwaysOnTop()} shortcut=${registered} text=${JSON.stringify((text ?? '').slice(0, 60))}`);
     app.exit(text && registered && win.isAlwaysOnTop() ? 0 : 1);
   }

@@ -73,12 +73,12 @@ describe('App navigation', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1, name: guides[0].title })).toBeTruthy();
   });
-  it('offers Heroes, Modes, RTA and Guides', () => {
+  it('offers Home, Heroes, Modes, RTA and Guides', () => {
     location.hash = '#/';
     render(<App />);
     const nav = within(screen.getByRole('navigation', { name: 'Main' }));
     expect(nav.getAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
-      ['Heroes', '#/'], ['Modes', '#/modes'], ['RTA', '#/arena'], ['Guides', '#/guides'],
+      ['Home', '#/'], ['Heroes', '#/heroes'], ['Modes', '#/modes'], ['RTA', '#/arena'], ['Guides', '#/guides'],
     ]);
   });
 });

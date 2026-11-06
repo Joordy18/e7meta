@@ -89,3 +89,7 @@ export type SkillsFile = {
   heroes: Record<string, SkillInfo[]>; // hero code -> skills 1 to 3
   exclusive: Record<string, ExclusiveEquipment>; // only the heroes that have one
 };
+
+// Week over week: how the share of a hero's sets and artifacts moved between the two latest weeks (in points)
+export type BuildShift = { hero: string; name: string; kind: 'set' | 'artifact'; code: string; item: string; before: number; after: number };
+export type Trends = { from: string; to: string; builds: BuildShift[] }; // builds: biggest moves first

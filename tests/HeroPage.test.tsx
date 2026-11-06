@@ -39,7 +39,7 @@ describe('HeroPage', () => {
     render(<HeroPage code="c1176" />);
     expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
     expect(loadHero).toHaveBeenCalledWith('2026-10-29', 'c1176');
-    expect(screen.getByRole('link', { name: '← All heroes' }).getAttribute('href')).toBe('#/');
+    expect(screen.getByRole('link', { name: '← All heroes' }).getAttribute('href')).toBe('#/heroes');
 
     const equip = region('Source: gear ranking');
     expect(within(equip).getByText('2026-10-22 to 2026-10-28')).toBeTruthy();
@@ -456,12 +456,12 @@ describe('App hero route', () => {
     await at('#/hero/%');
     await waitFor(() => expect(loadHero).toHaveBeenCalledWith('2026-10-29', '%'));
   });
-  it('falls to the list for an empty or nested code', async () => {
+  it('falls to the home page for an empty or nested code', async () => {
     await at('#/hero/');
-    expect(await screen.findByText(/0 heroes/)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Meta of the week' })).toBeTruthy();
     cleanup();
     await at('#/hero/c1/extra');
-    expect(await screen.findByText(/0 heroes/)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Meta of the week' })).toBeTruthy();
     expect(loadHero).not.toHaveBeenCalled();
   });
 });

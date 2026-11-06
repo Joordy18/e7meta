@@ -111,6 +111,21 @@ describe('collect', () => {
     expect('exclusive' in snap).toBe(false); // the fixture hero has none
   });
 
+  it('writes trends.json once there are two weeks (and not before)', async () => {
+    await collect({ outDir: dir, client: fake({ wearingStart: '2026-10-15' }).client });
+    expect(existsSync(join(dir, 'trends.json'))).toBe(false);
+    await collect({ outDir: dir, client: fake().client });
+    expect(read('trends.json')).toMatchObject({ from: '2026-10-15', to: '2026-10-22', builds: [] }); // same fixture both weeks: nothing moved
+  });
+
+  it('a skipped run still brings trends.json up to date', async () => {
+    await collect({ outDir: dir, client: fake({ wearingStart: '2026-10-15' }).client });
+    await collect({ outDir: dir, client: fake().client });
+    rmSync(join(dir, 'trends.json'));
+    expect(await collect({ outDir: dir, client: fake().client })).toBe('skipped');
+    expect(read('trends.json').to).toBe('2026-10-22');
+  });
+
   it('skips an existing period, rewrites with force', async () => {
     await collect({ outDir: dir, client: fake().client });
     const before = readFileSync(join(dir, '2026-10-22', 'heroes.json'), 'utf8');

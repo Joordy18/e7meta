@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { loadIndex } from './lib/data';
 import HeroList from './pages/HeroList';
+import HomePage from './pages/HomePage';
 import HeroPage from './pages/HeroPage';
 import GuidesPage, { GuidePage } from './pages/GuidesPage';
 import ModesPage, { ModePage } from './pages/ModesPage';
@@ -14,6 +15,11 @@ const ARTIFACT_ROUTE = /^#\/artifact\/([^/?]+)$/;
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 
+/** Which entry of the main menu a page belongs to (hero and artifact pages belong to Heroes). */
+const section = (hash: string) =>
+  /^#\/modes/.test(hash) ? 'modes' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
+    : /^#\/(heroes|hero\/|artifact\/)/.test(hash) ? 'heroes' : 'home';
+
 function Page({ hash }: { hash: string }) {
   const hero = HERO_ROUTE.exec(hash)?.[1];
   if (hero) return <HeroPage code={safeDecode(hero)} />;
@@ -26,7 +32,8 @@ function Page({ hash }: { hash: string }) {
   if (hash === '#/guides') return <GuidesPage />;
   if (hash === '#/modes') return <ModesPage />;
   if (hash === '#/arena') return <ArenaPage />;
-  return <HeroList />;
+  if (hash === '#/heroes') return <HeroList />;
+  return <HomePage />;
 }
 
 export default function App() {
@@ -46,10 +53,11 @@ export default function App() {
       <header className="top">
         <a className="logo" href="#/">E7 Meta</a>
         <nav aria-label="Main">
-          <a href="#/" aria-current={!/^#\/(modes|arena|guides)/.test(hash) ? 'page' : undefined}>Heroes</a>
-          <a href="#/modes" aria-current={hash.startsWith('#/modes') ? 'page' : undefined}>Modes</a>
-          <a href="#/arena" aria-current={hash.startsWith('#/arena') ? 'page' : undefined}>RTA</a>
-          <a href="#/guides" aria-current={hash.startsWith('#/guides') ? 'page' : undefined}>Guides</a>
+          <a href="#/" aria-current={section(hash) === 'home' ? 'page' : undefined}>Home</a>
+          <a href="#/heroes" aria-current={section(hash) === 'heroes' ? 'page' : undefined}>Heroes</a>
+          <a href="#/modes" aria-current={section(hash) === 'modes' ? 'page' : undefined}>Modes</a>
+          <a href="#/arena" aria-current={section(hash) === 'arena' ? 'page' : undefined}>RTA</a>
+          <a href="#/guides" aria-current={section(hash) === 'guides' ? 'page' : undefined}>Guides</a>
         </nav>
         {latest && <span className="week">Data: week of {latest}</span>}
       </header>

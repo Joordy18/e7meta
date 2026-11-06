@@ -47,7 +47,7 @@ function Wearers({ heroes }: { heroes: ModeEntry[] }) {
 function Frame({ state, missing, children }: { state: State; missing: string | null; children: React.ReactNode }) {
   return (
     <div>
-      <a className="back" href="#/">← All heroes</a>
+      <a className="back" href="#/heroes">← All heroes</a>
       {state.status === 'loading' && <p className="note">Loading…</p>}
       {state.status === 'error' && <p className="note error">Failed to load: {state.message}</p>}
       {state.status === 'none' && <p className="note">No gear data for this period yet. Run <code>npm run collect</code></p>}
