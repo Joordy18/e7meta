@@ -1,23 +1,25 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon } from '../components/Art';
 import PageNav from '../components/PageNav';
+import { useI18n, type Key } from '../i18n';
 import { TIERS } from '../lib/arena';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta, normalize } from '../lib/data';
 import { rtaRows, type RtaRow } from '../lib/rta';
 import type { ArenaIndex, ArenaSeason, ArenaTier, RtaStats } from '../shared/types';
 
-const METRICS = [['pick', 'Pick'], ['firstPick', 'First pick'], ['preBan', 'Pre-ban']] as const;
+const METRICS = [['pick', 'arena.metricPick'], ['firstPick', 'arena.metricFirstPick'], ['preBan', 'arena.metricPreBan']] as const;
 type Metric = (typeof METRICS)[number][0];
-const METRIC_COLUMN: Record<Metric, string> = { pick: 'Pick rate', firstPick: 'First pick rate', preBan: 'Pre-ban rate' };
+const METRIC_COLUMN: Record<Metric, Key> = { pick: 'arena.colPick', firstPick: 'arena.colFirstPick', preBan: 'arena.colPreBan' };
 const pct = (n: number) => `${n}%`;
 
-const SAMPLE_SORTS = [['pick', 'By pick'], ['win', 'By win rate'], ['ban', 'By ban'], ['preban', 'By pre-ban']] as const;
+const SAMPLE_SORTS = [['pick', 'arena.sortPick'], ['win', 'arena.sortWin'], ['ban', 'arena.sortBan'], ['preban', 'arena.sortPreban']] as const;
 type SampleSort = (typeof SAMPLE_SORTS)[number][0];
 const SAMPLE_SHOWN = 30;
 
 type Load = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; index: ArenaIndex };
 
 export default function ArenaPage() {
+  const { t, rich } = useI18n();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [seasonId, setSeasonId] = useState('');
   const [season, setSeason] = useState<ArenaSeason | null>(null);
@@ -59,10 +61,10 @@ export default function ArenaPage() {
     return () => { live = false; };
   }, [seasonId]);
 
-  if (load.status === 'loading') return <p className="note">Loading…</p>;
-  if (load.status === 'error') return <p className="note error">Failed to load: {load.message}</p>;
-  if (load.status === 'none') return <p className="note">No World Arena data yet. Run <code>npm run arena</code></p>;
-  if (!season) return <p className="note">Loading…</p>;
+  if (load.status === 'loading') return <p className="note">{t('common.loading')}</p>;
+  if (load.status === 'error') return <p className="note error">{t('common.failed', { message: load.message })}</p>;
+  if (load.status === 'none') return <p className="note">{rich('arena.none', { cmd: <code>npm run arena</code> })}</p>;
+  if (!season) return <p className="note">{t('common.loading')}</p>;
 
   const draft = metric === 'preBan' ? null : season[metric][tier];
   const preBan = metric === 'preBan' ? season.preBan[tier] : null;
@@ -71,32 +73,29 @@ export default function ArenaPage() {
 
   return (
     <div className="with-rail">
-      <PageNav items={[{ id: 'draft-rates', label: 'Draft rates' }, { id: 'leagues', label: 'Top leagues' }, { id: 'meaning', label: 'What the numbers mean' }, ...(rta ? [{ id: 'top-players', label: 'All heroes, top players' }] : [])]} />
+      <PageNav items={[{ id: 'draft-rates', label: t('arena.draftRates') }, { id: 'leagues', label: t('arena.topLeagues') }, { id: 'meaning', label: t('arena.meaning') }, ...(rta ? [{ id: 'top-players', label: t('arena.sampleTitle') }] : [])]} />
       <div className="content">
-      <h1 className="page-title">World Arena: {season.season}</h1>
-      <p className="lede">
-        Draft statistics of the game's ranked real-time arena (RTA), from the season infographic the developers publish.
-        Rates are shares of all counted matches in the chosen league and above.
-      </p>
+      <h1 className="page-title">{t('arena.title', { season: season.season })}</h1>
+      <p className="lede">{t('arena.lede')}</p>
       <div className="toolbar">
-        <select aria-label="Season" value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
+        <select aria-label={t('arena.season')} value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
           {load.index.seasons.map((s) => <option key={s.id} value={s.id}>{s.season}</option>)}
         </select>
-        {TIERS.map(([t, label]) => (
-          <button key={t} type="button" className="tab" aria-pressed={t === tier} onClick={() => setTier(t)}>{label}</button>
+        {TIERS.map(([tr, label]) => (
+          <button key={tr} type="button" className="tab" aria-pressed={tr === tier} onClick={() => setTier(tr)}>{label}</button>
         ))}
         <span className="toolbar-gap" />
-        {METRICS.map(([m, label]) => (
-          <button key={m} type="button" className="tab" aria-pressed={m === metric} onClick={() => setMetric(m)}>{label}</button>
+        {METRICS.map(([m, labelKey]) => (
+          <button key={m} type="button" className="tab" aria-pressed={m === metric} onClick={() => setMetric(m)}>{t(labelKey)}</button>
         ))}
       </div>
       <div className="panels">
-        <section id="draft-rates" aria-label="Draft rates" className="panel wide-2">
-          <table className="targets draft" aria-label="Draft rates">
+        <section id="draft-rates" aria-label={t('arena.draftRates')} className="panel wide-2">
+          <table className="targets draft" aria-label={t('arena.draftRates')}>
             <thead>
               <tr>
-                <th>#</th><th>Hero</th><th>{METRIC_COLUMN[metric]}</th>
-                {metric !== 'preBan' && <><th>Ban</th><th>Win rate</th></>}
+                <th>#</th><th>{t('arena.colHero')}</th><th>{t(METRIC_COLUMN[metric])}</th>
+                {metric !== 'preBan' && <><th>{t('arena.colBan')}</th><th>{t('arena.colWin')}</th></>}
               </tr>
             </thead>
             <tbody>
@@ -122,10 +121,10 @@ export default function ArenaPage() {
             </tbody>
           </table>
         </section>
-        <section id="leagues" aria-label="Leagues" className="panel">
-          <h3>Top leagues</h3>
-          <table className="targets" aria-label="Leagues">
-            <thead><tr><th /><th>Avg. win rate</th><th>Players</th><th>Cutoff</th></tr></thead>
+        <section id="leagues" aria-label={t('arena.leagues')} className="panel">
+          <h3>{t('arena.topLeagues')}</h3>
+          <table className="targets" aria-label={t('arena.leagues')}>
+            <thead><tr><th /><th>{t('arena.avgWin')}</th><th>{t('arena.players')}</th><th>{t('arena.cutoff')}</th></tr></thead>
             <tbody>
               {season.leagues.map((l) => (
                 <tr key={l.league}>
@@ -138,18 +137,18 @@ export default function ArenaPage() {
             </tbody>
           </table>
           <p className="caption">
-            Source: <a href={season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {season.published}.
+            {rich('arena.source', { link: <a href={season.url} target="_blank" rel="noopener noreferrer">{t('home.officialInfographic')}</a>, date: season.published })}
           </p>
         </section>
-        <section id="meaning" aria-label="What the numbers mean" className="panel">
-          <h3>What the numbers mean</h3>
+        <section id="meaning" aria-label={t('arena.meaning')} className="panel">
+          <h3>{t('arena.meaning')}</h3>
           <ul className="notes">
-            <li><strong>Pre-ban</strong>: share of matches where the hero was pre-banned.</li>
-            <li><strong>First pick</strong>: the hero was the very first pick of the player who picks first, one hero per match.</li>
-            <li><strong>Pick</strong>: share of matches where either player drafted the hero, first picks included.</li>
-            <li><strong>Ban</strong>: how often the hero was banned after the picks. <strong>Win rate</strong>: wins when picked.</li>
+            <li><strong>{t('arena.metricPreBan')}</strong>: {t('arena.defPreBan')}</li>
+            <li><strong>{t('arena.metricFirstPick')}</strong>: {t('arena.defFirstPick')}</li>
+            <li><strong>{t('arena.metricPick')}</strong>: {t('arena.defPick')}</li>
+            <li><strong>{t('arena.colBan')}</strong>: {t('arena.defBan')} <strong>{t('arena.colWin')}</strong>: {t('arena.defWin')}</li>
           </ul>
-          <p className="caption">Each table lists the 20 heroes the game ranks highest.</p>
+          <p className="caption">{t('arena.top20')}</p>
         </section>
       </div>
       {rta && <SampleSection rta={rta} names={names} sort={sampleSort} setSort={setSampleSort} showAll={showAll} setShowAll={setShowAll} />}
@@ -161,24 +160,25 @@ export default function ArenaPage() {
 function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
   rta: RtaStats; names: Map<string, string>; sort: SampleSort; setSort: (s: SampleSort) => void; showAll: boolean; setShowAll: (b: boolean) => void;
 }) {
+  const { t, locale } = useI18n();
   const key = (r: RtaRow) => (sort === 'win' ? r.win ?? -1 : r[sort]);
   const rows = rtaRows(rta).sort((a, b) => key(b) - key(a) || b.pick - a.pick);
   const shown = showAll ? rows : rows.slice(0, SAMPLE_SHOWN);
   return (
-    <section id="top-players" aria-label="Top players sample" className="source">
+    <section id="top-players" aria-label={t('arena.sampleRegion')} className="source">
       <header>
-        <h2>All heroes, top players</h2>
+        <h2>{t('arena.sampleTitle')}</h2>
         <p className="period-chip">{rta.season}</p>
       </header>
       <div className="toolbar">
-        {SAMPLE_SORTS.map(([k, label]) => (
-          <button key={k} type="button" className="tab" aria-pressed={k === sort} onClick={() => setSort(k)}>{label}</button>
+        {SAMPLE_SORTS.map(([k, labelKey]) => (
+          <button key={k} type="button" className="tab" aria-pressed={k === sort} onClick={() => setSort(k)}>{t(labelKey)}</button>
         ))}
       </div>
       <div className="panels">
-        <section aria-label="Top players table" className="panel wide-2">
-          <table className="targets draft" aria-label="Top players, all heroes">
-            <thead><tr><th>#</th><th>Hero</th><th>Pick</th><th>Win rate</th><th>Ban</th><th>Pre-ban</th><th>First pick</th></tr></thead>
+        <section aria-label={t('arena.sampleTable')} className="panel wide-2">
+          <table className="targets draft" aria-label={t('arena.sampleAria')}>
+            <thead><tr><th>#</th><th>{t('arena.colHero')}</th><th>{t('hero.pick')}</th><th>{t('arena.colWin')}</th><th>{t('arena.colBan')}</th><th>{t('hero.preBan')}</th><th>{t('hero.firstPick')}</th></tr></thead>
             <tbody>
               {shown.map((r, i) => {
                 const name = names.get(r.code) ?? r.code;
@@ -200,12 +200,10 @@ function SampleSection({ rta, names, sort, setSort, showAll, setShowAll }: {
             </tbody>
           </table>
           {rows.length > SAMPLE_SHOWN && (
-            <button type="button" className="tab" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show fewer' : `Show all ${rows.length} heroes`}</button>
+            <button type="button" className="tab" onClick={() => setShowAll(!showAll)}>{showAll ? t('arena.showFewer') : t('arena.showAll', { n: rows.length })}</button>
           )}
           <p className="caption">
-            Counted by this site from {rta.battles.toLocaleString('en-US')} recent ranked battles of the top {rta.players} players of the global leaderboard in {rta.season}, updated {rta.updated}.
-            It is a sample of the best players, not of everyone, so it will differ from the infographic. Heroes with fewer than 20 games are left out.
-            Pick, ban, pre-ban and first pick are shares of all battles; the win rate is over the games the hero was played.
+            {t('arena.sampleCaption', { battles: rta.battles.toLocaleString(locale), players: rta.players, season: rta.season, date: rta.updated })}
           </p>
         </section>
       </div>

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { filterHeroes, loadHeroes, loadIndex, sortHeroes, type SortKey } from '../lib/data';
 import { ElementIcon, HeroFace, JobIcon } from '../components/Art';
-import { elementLabel, jobLabel } from '../lib/labels';
+import { useI18n, useLabels } from '../i18n';
 import { formatValue } from '../components/Bars';
 import type { HeroSummary } from '../shared/types';
 
 type State = { status: 'loading' } | { status: 'empty' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[] };
 
 export default function HeroList() {
+  const { t, rich } = useI18n();
+  const labels = useLabels();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [text, setText] = useState('');
   const [job, setJob] = useState('');
@@ -33,34 +35,34 @@ export default function HeroList() {
     [state, text, job, element, grade, sort],
   );
 
-  if (state.status === 'loading') return <p className="note">Loading…</p>;
-  if (state.status === 'error') return <p className="note error">Failed to load: {state.message}</p>;
-  if (state.status === 'empty') return <p className="note">No data yet. Run <code>npm run collect</code></p>;
+  if (state.status === 'loading') return <p className="note">{t('common.loading')}</p>;
+  if (state.status === 'error') return <p className="note error">{t('common.failed', { message: state.message })}</p>;
+  if (state.status === 'empty') return <p className="note">{rich('common.noDataYet', { cmd: <code>npm run collect</code> })}</p>;
 
   const jobs = [...new Set(state.heroes.map((h) => h.job))];
   const elements = [...new Set(state.heroes.map((h) => h.element))];
   return (
     <div>
       <div className="toolbar">
-        <input type="search" aria-label="Search heroes" placeholder="Search heroes" value={text} onChange={(e) => setText(e.target.value)} />
-        <select aria-label="Class" value={job} onChange={(e) => setJob(e.target.value)}>
-          <option value="">All classes</option>
-          {jobs.map((j) => <option key={j} value={j}>{jobLabel(j)}</option>)}
+        <input type="search" aria-label={t('heroList.search')} placeholder={t('heroList.search')} value={text} onChange={(e) => setText(e.target.value)} />
+        <select aria-label={t('heroList.class')} value={job} onChange={(e) => setJob(e.target.value)}>
+          <option value="">{t('heroList.allClasses')}</option>
+          {jobs.map((j) => <option key={j} value={j}>{labels.job(j)}</option>)}
         </select>
-        <select aria-label="Element" value={element} onChange={(e) => setElement(e.target.value)}>
-          <option value="">All elements</option>
-          {elements.map((x) => <option key={x} value={x}>{elementLabel(x)}</option>)}
+        <select aria-label={t('heroList.element')} value={element} onChange={(e) => setElement(e.target.value)}>
+          <option value="">{t('heroList.allElements')}</option>
+          {elements.map((x) => <option key={x} value={x}>{labels.element(x)}</option>)}
         </select>
-        <select aria-label="Stars" value={grade} onChange={(e) => setGrade(e.target.value)}>
-          <option value="">All stars</option>
+        <select aria-label={t('heroList.stars')} value={grade} onChange={(e) => setGrade(e.target.value)}>
+          <option value="">{t('heroList.allStars')}</option>
           {[5, 4, 3].map((g) => <option key={g} value={g}>{g} ★</option>)}
         </select>
-        <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-          <option value="name">Name</option>
-          <option value="topSet">Top set share</option>
-          <option value="topArtifact">Top artifact share</option>
+        <select aria-label={t('heroList.sortBy')} value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+          <option value="name">{t('heroList.sortName')}</option>
+          <option value="topSet">{t('heroList.sortTopSet')}</option>
+          <option value="topArtifact">{t('heroList.sortTopArtifact')}</option>
         </select>
-        <span className="count">{shown.length} heroes</span>
+        <span className="count">{t('heroList.count', { n: shown.length })}</span>
       </div>
       <ul className="grid">
         {shown.map((h) => (

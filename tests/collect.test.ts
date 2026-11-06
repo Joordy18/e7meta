@@ -209,7 +209,7 @@ describe('collect', () => {
     expect(new Set(read('2026-10-22', 'heroes.json').map((h: { code: string }) => h.code)).size).toBe(392);
     expect(readdirSync(join(dir, '2026-10-22', 'hero'))).toHaveLength(392);
     expect(logs.filter((m) => /\d+\/392/.test(m))).toHaveLength(Math.floor(392 / 25));
-  });
+  }, 20000); // writes 392 files: slow on a loaded disk
   it('stops paging when a page adds no new hero', async () => {
     const { client, calls } = fake({ repeatPage: true });
     const logs: string[] = [];

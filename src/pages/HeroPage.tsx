@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HeroIcon, Icon } from '../components/Art';
 import Loadout from '../components/Loadout';
+import { useI18n, type Key } from '../i18n';
 import PageNav from '../components/PageNav';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
@@ -11,14 +12,14 @@ import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes
 import { PERCENT_STATS, STATS, lowerBound, num, statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, Period, SkillsFile, StatKey } from '../shared/types';
+import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, SkillsFile, StatKey } from '../shared/types';
 
-const range = (p: Period) => `${p.start} to ${p.end}`;
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
-type State = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; hero: HeroSnapshot };
+type State = { status: 'loading' } | { status: 'error'; code: 'noData' | 'notFound' | 'failed'; detail?: string } | { status: 'ok'; hero: HeroSnapshot };
 
 function Histogram({ stat, label, counts }: { stat: StatKey; label: string; counts: number[] }) {
+  const { t } = useI18n();
   const max = Math.max(...counts, 1);
   const [lo, hi] = STAT_RANGES[stat];
   return (
@@ -26,7 +27,7 @@ function Histogram({ stat, label, counts }: { stat: StatKey; label: string; coun
       <strong>{label}</strong>
       <div className="histo-bars">
         {counts.map((c, i) => (
-          <div key={i} role="meter" aria-label={`${label}, bucket ${i + 1}`} aria-valuenow={c} aria-valuemin={0} aria-valuemax={max}
+          <div key={i} role="meter" aria-label={t('hero.bucket', { label, n: i + 1 })} aria-valuenow={c} aria-valuemin={0} aria-valuemax={max}
             title={String(c)} className={c === max ? 'peak' : undefined} style={{ height: `${(c / max) * 100}%` }} />
         ))}
       </div>
@@ -36,26 +37,28 @@ function Histogram({ stat, label, counts }: { stat: StatKey; label: string; coun
 }
 
 function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
+  const { t } = useI18n();
   return (
-    <table className="targets" aria-label="Stat targets">
+    <table className="targets" aria-label={t('hero.statTargets')}>
       <thead>
-        <tr><th>Stat</th><th>Typical</th><th>Median</th><th>Top 25% from</th><th>Top 10% from</th></tr>
+        <tr><th>{t('hero.thStat')}</th><th>{t('hero.typical')}</th><th>{t('hero.median')}</th><th>{t('hero.top25')}</th><th>{t('hero.top10')}</th></tr>
       </thead>
       <tbody>
-        {STATS.map(([k, label]) => {
-          const t = statTarget(k, stats[k]);
+        {STATS.map(([k]) => {
+          const target = statTarget(k, stats[k]);
+          const bound = (edge: number) => { const v = lowerBound(k, edge); return v === 'Any' ? t('stat.any') : v; };
           const u = PERCENT_STATS.has(k) ? '%' : '';
           return (
             <tr key={k}>
-              <th scope="row">{label}</th>
-              {t ? (
+              <th scope="row">{t(`stat.${k}` as Key)}</th>
+              {target ? (
                 <>
-                  <td>{num(t.typical[0])}–{num(t.typical[1])}{u}</td>
-                  <td>{num(t.median[0])}–{num(t.median[1])}{u}</td>
-                  <td>{lowerBound(k, t.top25)}</td>
-                  <td>{lowerBound(k, t.top10)}</td>
+                  <td>{num(target.typical[0])}–{num(target.typical[1])}{u}</td>
+                  <td>{num(target.median[0])}–{num(target.median[1])}{u}</td>
+                  <td>{bound(target.top25)}</td>
+                  <td>{bound(target.top10)}</td>
                 </>
-              ) : <td colSpan={4}>No data</td>}
+              ) : <td colSpan={4}>{t('common.noData')}</td>}
             </tr>
           );
         })}
@@ -66,13 +69,14 @@ function TargetTable({ stats }: { stats: Record<StatKey, number[]> }) {
 
 /** The exclusive equipment: what it gives, and what each upgrade option does, with how many players pick it. */
 function ExclusivePanel({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipment }) {
+  const { t } = useI18n();
   const uses = hero.exclusive ?? [];
   if (uses.length === 0 && !ee) return null;
   if (!ee) {
     return (
-      <Panel title="Upgrade options players choose">
+      <Panel title={t('hero.upgradeOptionsChosen')}>
         <Bars items={uses.map((e) => ({
-          label: `${hero.skills?.[e.skill - 1] ?? `Skill ${e.skill}`}, option ${e.option}`, value: e.share, icons: [skillIcon(hero.hero.code, e.skill)],
+          label: t('loadout.skillOption', { skill: hero.skills?.[e.skill - 1] ?? t('loadout.skillN', { n: e.skill }), n: e.option }), value: e.share, icons: [skillIcon(hero.hero.code, e.skill)],
         }))} />
       </Panel>
     );
@@ -81,8 +85,8 @@ function ExclusivePanel({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipm
     .map((o, i) => ({ ...o, n: i + 1, use: uses.find((u) => u.option === i + 1) }))
     .sort((a, b) => (b.use?.share ?? -1) - (a.use?.share ?? -1) || a.n - b.n);
   return (
-    <Panel title={ee.name || 'Upgrade options'}>
-      {ee.stat && <p className="ee-stat"><span className="chip">{ee.stat.name} {ee.stat.min} to {ee.stat.max}</span></p>}
+    <Panel title={ee.name || t('hero.upgradeOptions')}>
+      {ee.stat && <p className="ee-stat"><span className="chip">{t('hero.eeRange', { name: ee.stat.name, min: ee.stat.min, max: ee.stat.max })}</span></p>}
       <ol className="ee-options">
         {options.map((o, i) => {
           const skillN = o.use?.skill ?? (hero.skills?.indexOf(o.skill) ?? -1) + 1;
@@ -93,7 +97,7 @@ function ExclusivePanel({ hero, ee }: { hero: HeroSnapshot; ee?: ExclusiveEquipm
                 <strong>{o.skill}</strong>
                 <p>{o.text}</p>
               </div>
-              {o.use && <span className="ee-share">{i === 0 && <small>Most used</small>}<em>{o.use.share}%</em></span>}
+              {o.use && <span className="ee-share">{i === 0 && <small>{t('hero.mostUsed')}</small>}<em>{o.use.share}%</em></span>}
             </li>
           );
         })}
@@ -112,6 +116,7 @@ function Panel({ title, children, wide }: { title: string; children: React.React
 }
 
 export default function HeroPage({ code }: { code: string }) {
+  const { t, rich, locale } = useI18n();
   const [period, setPeriod] = useState('');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
@@ -130,10 +135,10 @@ export default function HeroPage({ code }: { code: string }) {
     loadIndex()
       .then((i) => {
         if (!live) return;
-        if (!i || i.periods.length === 0) setState({ status: 'error', message: 'No data yet. Run npm run collect' });
+        if (!i || i.periods.length === 0) setState({ status: 'error', code: 'noData' });
         else setPeriod(i.periods[0]); // the latest week only: the site is about the current meta
       })
-      .catch((e: unknown) => live && setState({ status: 'error', message: `Failed to load: ${String(e)}` }));
+      .catch((e: unknown) => live && setState({ status: 'error', code: 'failed', detail: String(e) }));
     return () => { live = false; };
   }, []);
 
@@ -145,7 +150,8 @@ export default function HeroPage({ code }: { code: string }) {
       .then((hero) => live && setState({ status: 'ok', hero }))
       .catch((e: unknown) => live && setState({
         status: 'error',
-        message: e instanceof NotFoundError ? 'No data for this hero in this period' : `Failed to load: ${String(e)}`,
+        code: e instanceof NotFoundError ? 'notFound' : 'failed',
+        detail: String(e),
       }));
     return () => { live = false; };
   }, [period, code]);
@@ -203,9 +209,9 @@ export default function HeroPage({ code }: { code: string }) {
 
   const hasExclusive = !!h && !!((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]);
   const navItems = !h ? [] : ([
-    { id: 'loadout', label: 'Build and skills' }, arena && { id: 'arena', label: 'World Arena (RTA)' }, rtaSample && { id: 'rta-sample', label: 'RTA, top players' },
-    (usage.length > 0 || teamList.length > 0 || mates.length > 0) && { id: 'other-modes', label: 'Other game modes' }, hasExclusive && { id: 'exclusive', label: 'Exclusive equipment' },
-    { id: 'gear', label: 'Gear ranking' }, h.detail && { id: 'hunts', label: 'Hunt statistics' },
+    { id: 'loadout', label: t('hero.navBuild') }, arena && { id: 'arena', label: t('home.arena') }, rtaSample && { id: 'rta-sample', label: t('hero.rtaSample') },
+    (usage.length > 0 || teamList.length > 0 || mates.length > 0) && { id: 'other-modes', label: t('hero.otherModes') }, hasExclusive && { id: 'exclusive', label: t('loadout.exclusive') },
+    { id: 'gear', label: t('hero.navGear') }, h.detail && { id: 'hunts', label: t('hero.navHunts') },
   ].filter(Boolean) as { id: string; label: string }[]);
 
   return (
@@ -213,27 +219,32 @@ export default function HeroPage({ code }: { code: string }) {
       <PageNav items={navItems} />
       <div className="content">
       <div className="hero-bar">
-        <a className="back" href="#/heroes">← All heroes</a>
+        <a className="back" href="#/heroes">{t('common.allHeroes')}</a>
       </div>
-      {state.status === 'loading' && <p className="note">Loading…</p>}
-      {state.status === 'error' && <p className="note error">{state.message}</p>}
+      {state.status === 'loading' && <p className="note">{t('common.loading')}</p>}
+      {state.status === 'error' && (
+        <p className="note error">
+          {state.code === 'noData' ? rich('common.noDataYet', { cmd: <code>npm run collect</code> })
+            : state.code === 'notFound' ? t('hero.noHeroData') : t('common.failed', { message: state.detail ?? '' })}
+        </p>
+      )}
       {h && (
         <>
           <div id="loadout"><Loadout hero={h} skills={skills?.heroes[h.hero.code]} ee={skills?.exclusive?.[h.hero.code]} /></div>
           {arena && (
-            <section id="arena" aria-label="World Arena (RTA)" className="source">
+            <section id="arena" aria-label={t('home.arena')} className="source">
               <header>
-                <h2>World Arena (RTA)</h2>
+                <h2>{t('home.arena')}</h2>
                 <p className="period-chip">{arena.season.season}</p>
               </header>
               <div className="panels">
-                <section aria-label="RTA stats" className="panel rta">
-                                    <table className="targets" aria-label="RTA stats">
-                    <thead><tr><th>League</th><th>Pick</th><th>Win rate</th><th>First pick</th><th>Pre-ban</th></tr></thead>
+                <section aria-label={t('hero.rtaStats')} className="panel rta">
+                                    <table className="targets" aria-label={t('hero.rtaStats')}>
+                    <thead><tr><th>{t('hero.league')}</th><th>{t('hero.pick')}</th><th>{t('hero.winRate')}</th><th>{t('hero.firstPick')}</th><th>{t('hero.preBan')}</th></tr></thead>
                     <tbody>
                       {arena.rows.map((r) => (
                         <tr key={r.tier}>
-                          <th scope="row">{TIERS.find(([t]) => t === r.tier)![1]}</th>
+                          <th scope="row">{TIERS.find(([tier]) => tier === r.tier)![1]}</th>
                           <td>{r.pick ? `${r.pick.rate}% (#${r.pick.rank})` : '—'}</td>
                           <td>{r.pick?.win !== undefined ? `${r.pick.win}%` : '—'}</td>
                           <td>{r.firstPick ? `${r.firstPick.rate}% (#${r.firstPick.rank})` : '—'}</td>
@@ -243,24 +254,22 @@ export default function HeroPage({ code }: { code: string }) {
                     </tbody>
                   </table>
                   <p className="caption">
-                    Rates are shares of matches in that league and above; "#" is the place in the published top 20.
-                    Source: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">official infographic</a>, published {arena.season.published}.
-                    The game does not publish matchups or team compositions for RTA.
+                    {rich('hero.arenaCaption', { link: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">{t('home.officialInfographic')}</a>, date: arena.season.published })}
                   </p>
                 </section>
               </div>
             </section>
           )}
           {rtaSample && (
-            <section id="rta-sample" aria-label="RTA, top players" className="source">
+            <section id="rta-sample" aria-label={t('hero.rtaSample')} className="source">
               <header>
-                <h2>RTA, top players</h2>
+                <h2>{t('hero.rtaSample')}</h2>
                 <p className="period-chip">{rtaSample.season}</p>
               </header>
               <div className="panels">
-                <section aria-label="RTA sample" className="panel rta">
-                  <table className="targets" aria-label="RTA, top players">
-                    <thead><tr><th>Pick</th><th>Win rate</th><th>Ban</th><th>Pre-ban</th><th>First pick</th></tr></thead>
+                <section aria-label={t('hero.rtaSampleRegion')} className="panel rta">
+                  <table className="targets" aria-label={t('hero.rtaSample')}>
+                    <thead><tr><th>{t('hero.pick')}</th><th>{t('hero.winRate')}</th><th>{t('hero.ban')}</th><th>{t('hero.preBan')}</th><th>{t('hero.firstPick')}</th></tr></thead>
                     <tbody>
                       <tr>
                         <td>{rtaSample.row.pick}%</td>
@@ -272,46 +281,45 @@ export default function HeroPage({ code }: { code: string }) {
                     </tbody>
                   </table>
                   <p className="caption">
-                    Counted by this site from {rtaSample.battles.toLocaleString('en-US')} recent ranked battles of the top {rtaSample.players} players ({rtaSample.row.played} games with this hero).
-                    <a href="#/arena"> All heroes</a>.
+                    {rich('hero.rtaCaption', { battles: rtaSample.battles.toLocaleString(locale), players: rtaSample.players, games: rtaSample.row.played, link: <a href="#/arena">{t('hero.rtaAllHeroes')}</a> })}
                   </p>
                 </section>
               </div>
             </section>
           )}
           {(usage.length > 0 || teamList.length > 0 || mates.length > 0) && (
-            <section id="other-modes" aria-label="Other game modes" className="source">
+            <section id="other-modes" aria-label={t('hero.otherModes')} className="source">
               <header>
-                <h2>Other game modes</h2>
-                <p className="period-chip">hero success rate, best first</p>
+                <h2>{t('hero.otherModes')}</h2>
+                <p className="period-chip">{t('hero.rateNote')}</p>
               </header>
               <div className="panels">
                 {usage.length > 0 && (
-                  <Panel title="Where it is used">
+                  <Panel title={t('hero.whereUsed')}>
                     <Bars items={top(usage, 8).map((u) => ({ label: `#${u.rank} ${u.title}`, value: u.share, href: `#/modes/${u.id}` }))} />
                   </Panel>
                 )}
                 {mates.length > 0 && (
-                  <Panel title="Often played with">
-                    <p className="caption">Heroes found most often in the best hunt, abyss and expedition teams that include {h.hero.name}.</p>
+                  <Panel title={t('hero.playedWith')}>
+                    <p className="caption">{t('hero.playedWithCaption', { hero: h.hero.name })}</p>
                     <ol className="ranking mates">
                       {mates.map((m) => (
                         <li key={m.code} className="rank-row">
                           <HeroIcon code={m.code} name={names.get(m.code) ?? m.code} decorative />
                           <a href={`#/hero/${m.code}`}>{names.get(m.code) ?? m.code}</a>
                           <span className="rank-bar" aria-hidden><span style={{ width: `${(m.teams / m.total) * 100}%` }} /></span>
-                          <strong>{m.teams} of {m.total} teams</strong>
+                          <strong>{t('hero.teamsOf', { n: m.teams, total: m.total })}</strong>
                         </li>
                       ))}
                     </ol>
                   </Panel>
                 )}
                 {teamList.length > 0 && (
-                  <Panel title={`Best PvE teams with ${h.hero.name}`}>
+                  <Panel title={t('hero.bestTeams', { hero: h.hero.name })}>
                     <ol className="teams">
-                      {teamList.map((t) => (
-                        <TeamRow key={`${t.listId}-${t.team.heroes.join()}`} team={t.team} names={names}
-                          caption={<a href={`#/modes/${t.listId}`}>{t.title}</a>} />
+                      {teamList.map((tl) => (
+                        <TeamRow key={`${tl.listId}-${tl.team.heroes.join()}`} team={tl.team} names={names}
+                          caption={<a href={`#/modes/${tl.listId}`}>{tl.title}</a>} />
                       ))}
                     </ol>
                   </Panel>
@@ -320,51 +328,48 @@ export default function HeroPage({ code }: { code: string }) {
             </section>
           )}
           {((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]) && (
-            <section id="exclusive" aria-label="Exclusive equipment" className="source">
+            <section id="exclusive" aria-label={t('loadout.exclusive')} className="source">
               <header>
-                <h2>Exclusive equipment</h2>
-                <p className="period-chip">most used upgrades</p>
+                <h2>{t('loadout.exclusive')}</h2>
+                <p className="period-chip">{t('hero.mostUsedUpgrades')}</p>
               </header>
               <div className="panels">
                 <ExclusivePanel hero={h} ee={skills?.exclusive?.[h.hero.code]} />
               </div>
             </section>
           )}
-          <section id="gear" aria-label="Source: gear ranking" className="source">
+          <section id="gear" aria-label={t('hero.gearSource')} className="source">
             <header>
-              <h2>Source: gear ranking</h2>
-              <p className="period-chip">{range(h.period)}</p>
+              <h2>{t('hero.gearSource')}</h2>
+              <p className="period-chip">{t('modes.dates', { start: h.period.start, end: h.period.end })}</p>
             </header>
             <div className="panels">
-              <Panel title="Sets">
+              <Panel title={t('loadout.sets')}>
                 <Bars items={top(h.sets, 10).map((s) => ({ label: s.name, value: s.share, icons: [setIcon(s.code)] }))} />
               </Panel>
-              <Panel title="Artifacts">
+              <Panel title={t('loadout.artifacts')}>
                 <Bars items={top(h.artifacts, 10).map((a) => ({ label: a.name, value: a.share, title: a.effect, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
               </Panel>
             </div>
           </section>
           {h.detail && (
-            <section id="hunts" aria-label="Source: hunts" className="source">
+            <section id="hunts" aria-label={t('hero.huntsSource')} className="source">
               <header>
-                <h2>Source: hunts</h2>
-                <p className="period-chip">{range(h.detail.period)}</p>
+                <h2>{t('hero.huntsSource')}</h2>
+                <p className="period-chip">{t('modes.dates', { start: h.detail.period.start, end: h.detail.period.end })}</p>
               </header>
               <div className="panels">
-                <Panel title="Set combinations">
+                <Panel title={t('hero.combos')}>
                   <Bars items={top(h.detail.combos, 3).map((c) => ({ label: c.sets.join(' + '), value: c.share, icons: (c.codes ?? []).map(setIcon) /* periods collected before codes existed have none */ }))} />
                 </Panel>
-                <Panel title="Artifacts (hunts)">
+                <Panel title={t('hero.artifactsHunts')}>
                   <Bars items={top(h.detail.artifacts, 10).map((a) => ({ label: a.name, value: a.share, icons: [artifactIcon(a.code)], href: `#/artifact/${a.code}` }))} />
                 </Panel>
-                <Panel title="Stats" wide>
+                <Panel title={t('hero.stats')} wide>
                   <TargetTable stats={h.detail.stats} />
-                  <p className="caption">
-                    Typical is where most players are. Top 25% / 10% from is where the best-equipped players start: aim for
-                    those to beat most of them. Ranges assume 10 equal buckets between min and max (estimate).
-                  </p>
+                  <p className="caption">{t('hero.statsCaption')}</p>
                   <div className="histos">
-                    {STATS.map(([k, label]) => <Histogram key={k} stat={k} label={label} counts={h.detail!.stats[k]} />)}
+                    {STATS.map(([k]) => <Histogram key={k} stat={k} label={t(`stat.${k}` as Key)} counts={h.detail!.stats[k]} />)}
                   </div>
                 </Panel>
               </div>

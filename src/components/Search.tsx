@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadGear, loadHeroes, loadIndex, loadModes } from '../lib/data';
 import { artifactIcon } from '../lib/images';
+import { useI18n, type Key } from '../i18n';
 import { buildSearchItems, searchItems, type SearchItem } from '../lib/search';
 import { HeroIcon, Icon } from './Art';
 
-const KIND_LABEL: Record<SearchItem['kind'], string> = { hero: 'Hero', artifact: 'Artifact', mode: 'Mode', guide: 'Guide', page: 'Page' };
 const LIMIT = 10;
 
 /** Quick jump to a hero, artifact, mode, guide or page: Ctrl+K (Cmd+K), or the button in the header. */
 export default function Search() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -52,27 +53,27 @@ export default function Search() {
 
   return (
     <>
-      <button type="button" className="search-btn" aria-label="Search (Ctrl+K)" onClick={() => setOpen(true)}>
-        Search <kbd>Ctrl K</kbd>
+      <button type="button" className="search-btn" aria-label={t('search.button')} onClick={() => setOpen(true)}>
+        {t('search.buttonText')} <kbd>Ctrl K</kbd>
       </button>
       {open && (
         <div className="search-backdrop" data-testid="search-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="search-box" role="dialog" aria-modal="true" aria-label="Search">
+          <div className="search-box" role="dialog" aria-modal="true" aria-label={t('search.dialog')}>
             <input
-              ref={input} role="combobox" aria-expanded aria-controls="search-results" aria-label="Search heroes, artifacts, modes and guides"
-              placeholder="Search a hero, artifact, mode or guide" value={query} autoComplete="off"
+              ref={input} role="combobox" aria-expanded aria-controls="search-results" aria-label={t('search.input')}
+              placeholder={t('search.placeholder')} value={query} autoComplete="off"
               onChange={(e) => { setQuery(e.target.value); setActive(0); }} onKeyDown={onKeyDown}
             />
-            {query.trim() === '' && <p className="note">Type a name. Arrow keys to move, Enter to open, Esc to close.</p>}
-            {query.trim() !== '' && results.length === 0 && <p className="note">No match.</p>}
+            {query.trim() === '' && <p className="note">{t('search.hint')}</p>}
+            {query.trim() !== '' && results.length === 0 && <p className="note">{t('search.none')}</p>}
             {results.length > 0 && (
-              <ul id="search-results" role="listbox" aria-label="Results">
+              <ul id="search-results" role="listbox" aria-label={t('search.results')}>
                 {results.map((r, i) => (
                   <li key={`${r.kind}-${r.href}`} role="option" aria-selected={i === active} className={i === active ? 'active' : undefined} onMouseMove={() => setActive(i)}>
                     {r.kind === 'hero' && r.code && <HeroIcon code={r.code} name={r.label} decorative />}
                     {r.kind === 'artifact' && r.code && <Icon src={artifactIcon(r.code)} className="hicon art" />}
                     <a href={r.href} onClick={() => setOpen(false)}>{r.label}</a>
-                    <small className="kind">{KIND_LABEL[r.kind]}</small>
+                    <small className="kind">{t(`search.kind.${r.kind}` as Key)}</small>
                   </li>
                 ))}
               </ul>

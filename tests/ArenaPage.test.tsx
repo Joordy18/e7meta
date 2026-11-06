@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import ArenaPage from '../src/pages/ArenaPage';
+import { I18nProvider } from '../src/i18n';
+import { fr } from '../src/i18n/fr';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadRta } from '../src/lib/data';
 import type { ArenaIndex, ArenaSeason, ArenaTier, DraftRow, PreBanRow, RtaStats } from '../src/shared/types';
 
@@ -8,7 +10,7 @@ vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
   loadIndex: vi.fn(), loadHeroes: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadRta: vi.fn(),
 }));
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); });
 
 const tiers: ArenaTier[] = ['champion', 'warlord', 'emperor', 'legend'];
 const by = <T,>(f: (t: ArenaTier) => T[]) => Object.fromEntries(tiers.map((t) => [t, f(t)])) as Record<ArenaTier, T[]>;
@@ -127,6 +129,18 @@ describe('ArenaPage', () => {
     vi.mocked(loadArenaIndex).mockRejectedValue(new Error('boom'));
     render(<ArenaPage />);
     expect(await screen.findByText(/Failed to load: .*boom/)).toBeTruthy();
+  });
+});
+
+describe('ArenaPage in French', () => {
+  it('translates the title, the controls and the columns', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    render(<I18nProvider><ArenaPage /></I18nProvider>);
+    expect(await screen.findByRole('heading', { level: 1, name: fr['arena.title'].replace('{season}', 'Summer 2026') })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: fr['arena.season'] })).toBeTruthy();
+    expect(screen.getByRole('button', { name: fr['arena.metricFirstPick'] })).toBeTruthy();
+    const heads = within(screen.getByRole('table', { name: fr['arena.draftRates'] })).getAllByRole('columnheader').map((c) => c.textContent);
+    expect(heads).toEqual(['#', fr['arena.colHero'], fr['arena.colPick'], fr['arena.colBan'], fr['arena.colWin']]);
   });
 });
 

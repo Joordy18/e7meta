@@ -6,7 +6,7 @@ import { describeArtifact } from '../lib/gear';
 import { artifactIcon } from '../lib/images';
 import type { Gear, ModeEntry } from '../shared/types';
 import { JobIcon } from '../components/Art';
-import { jobLabel } from '../lib/labels';
+import { useI18n, useLabels } from '../i18n';
 
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; gear: Gear };
 
@@ -25,11 +25,12 @@ function useGear(): State {
 }
 
 function Wearers({ heroes }: { heroes: ModeEntry[] }) {
+  const { t } = useI18n();
   if (heroes.length === 0) return null;
   return (
-    <section aria-label="Worn most by" className="panel">
-      <h3>Worn most by</h3>
-      <p className="caption">Heroes wearing it most, as ranked by the game.</p>
+    <section aria-label={t('gear.wornMost')} className="panel">
+      <h3>{t('gear.wornMost')}</h3>
+      <p className="caption">{t('gear.wornCaption')}</p>
       <ol className="ranking">
         {heroes.map((h, i) => (
           <li key={h.code} className="rank-row">
@@ -46,51 +47,54 @@ function Wearers({ heroes }: { heroes: ModeEntry[] }) {
 }
 
 function Frame({ state, missing, children }: { state: State; missing: string | null; children: React.ReactNode }) {
+  const { t, rich } = useI18n();
   return (
     <div>
-      <a className="back" href="#/heroes">← All heroes</a>
-      {state.status === 'loading' && <p className="note">Loading…</p>}
-      {state.status === 'error' && <p className="note error">Failed to load: {state.message}</p>}
-      {state.status === 'none' && <p className="note">No gear data for this period yet. Run <code>npm run collect</code></p>}
+      <a className="back" href="#/heroes">{t('common.allHeroes')}</a>
+      {state.status === 'loading' && <p className="note">{t('common.loading')}</p>}
+      {state.status === 'error' && <p className="note error">{t('common.failed', { message: state.message })}</p>}
+      {state.status === 'none' && <p className="note">{rich('gear.none', { cmd: <code>npm run collect</code> })}</p>}
       {state.status === 'ok' && (missing ? <p className="note">{missing}</p> : children)}
     </div>
   );
 }
 
 export function ArtifactPage({ code }: { code: string }) {
+  const { t } = useI18n();
+  const labels = useLabels();
   const state = useGear();
   const a = state.status === 'ok' ? state.gear.artifacts[code] : undefined;
   const varies = !!a && a.values.length > 0 && a.description.includes('@');
   return (
-    <Frame state={state} missing={state.status === 'ok' && !a ? 'Unknown artifact' : null}>
+    <Frame state={state} missing={state.status === 'ok' && !a ? t('gear.unknown') : null}>
       {a && (
         <>
           <div className="hero-head">
             <Icon src={artifactIcon(a.code)} className="gear-icon" />
             <div>
               <h1>{a.name}</h1>
-              <p className="tags">{a.grade}★ <JobIcon job={a.job} /> {jobLabel(a.job)} exclusive</p>
+              <p className="tags">{a.grade}★ <JobIcon job={a.job} /> {t('gear.exclusive', { job: labels.job(a.job) })}</p>
             </div>
           </div>
           <div className="panels">
-            <section aria-label="Stats" className="panel">
-              <h3>Stats</h3>
-              <table className="targets" aria-label="Artifact stats">
-                <thead><tr><th /><th>Level 1</th><th>Max level</th></tr></thead>
+            <section aria-label={t('gear.stats')} className="panel">
+              <h3>{t('gear.stats')}</h3>
+              <table className="targets" aria-label={t('gear.artifactStats')}>
+                <thead><tr><th /><th>{t('gear.level1')}</th><th>{t('gear.maxLevel')}</th></tr></thead>
                 <tbody>
-                  <tr><th scope="row">Attack</th><td>{a.attack}</td><td>{a.maxAttack}</td></tr>
-                  <tr><th scope="row">Health</th><td>{a.health}</td><td>{a.maxHealth}</td></tr>
+                  <tr><th scope="row">{t('stat.attack')}</th><td>{a.attack}</td><td>{a.maxAttack}</td></tr>
+                  <tr><th scope="row">{t('stat.health')}</th><td>{a.health}</td><td>{a.maxHealth}</td></tr>
                 </tbody>
               </table>
             </section>
-            <section aria-label="Effect" className="panel">
-              <h3>Effect</h3>
+            <section aria-label={t('gear.effect')} className="panel">
+              <h3>{t('gear.effect')}</h3>
               {varies ? (
                 <>
-                  <p>Level 1: {describeArtifact(a.description, a.values, 'level1')}</p>
-                  <p>Max level: {describeArtifact(a.description, a.values, 'max')}</p>
+                  <p>{t('gear.level1Text', { text: describeArtifact(a.description, a.values, 'level1', t('gear.valueUnpublished')) })}</p>
+                  <p>{t('gear.maxText', { text: describeArtifact(a.description, a.values, 'max', t('gear.valueUnpublished')) })}</p>
                 </>
-              ) : <p>{describeArtifact(a.description, a.values, 'max')}</p>}
+              ) : <p>{describeArtifact(a.description, a.values, 'max', t('gear.valueUnpublished'))}</p>}
             </section>
             <Wearers heroes={a.heroes} />
           </div>

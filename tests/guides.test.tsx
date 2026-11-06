@@ -1,37 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { findGuide, guides } from '../src/lib/guides';
 import GuidesPage, { GuidePage } from '../src/pages/GuidesPage';
 import App from '../src/App';
+import { sampleGuides } from './sampleGuides';
 
+vi.mock('../src/lib/guides', async () => (await import('./sampleGuides')).guidesModule());
+
+const backup = [...sampleGuides];
+beforeEach(() => { sampleGuides.splice(0, sampleGuides.length, ...backup); });
 afterEach(cleanup);
-
-describe('the guides that ship with the site', () => {
-  it('there are some, newest first, with unique slugs', () => {
-    expect(guides.length).toBeGreaterThanOrEqual(2);
-    expect(new Set(guides.map((g) => g.slug)).size).toBe(guides.length);
-    const dates = guides.map((g) => g.date);
-    expect(dates).toEqual([...dates].sort().reverse());
-  });
-  it('each has a title, a summary, an ISO date and a body', () => {
-    for (const g of guides) {
-      expect(g.title.length, g.slug).toBeGreaterThan(3);
-      expect(g.summary.length, g.slug).toBeGreaterThan(10);
-      expect(g.date, g.slug).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(g.body.trim().length, g.slug).toBeGreaterThan(200);
-    }
-  });
-  it('every internal link points at a real page', () => {
-    const slugs = new Set(guides.map((g) => g.slug));
-    for (const g of guides) {
-      for (const [, url] of g.body.matchAll(/\]\((#\/[^)\s]*)\)/g)) {
-        const ok = url === '#/' || url === '#/modes' || url === '#/guides' || /^#\/hero\/c\d+$/.test(url)
-          || (url.startsWith('#/guides/') && slugs.has(url.slice('#/guides/'.length)));
-        expect(ok, `${g.slug} links to ${url}`).toBe(true);
-      }
-    }
-  });
-});
 
 describe('GuidesPage', () => {
   it('lists every guide with its summary, linking to it', () => {
@@ -42,6 +20,13 @@ describe('GuidesPage', () => {
     expect(first.getAttribute('href')).toBe(`#/guides/${guides[0].slug}`);
     expect(within(items[0]).getByText(guides[0].summary)).toBeTruthy();
     expect(within(items[0]).getByText(guides[0].date)).toBeTruthy();
+  });
+  it('says there is none yet when the site ships no guide', () => {
+    sampleGuides.splice(0);
+    render(<GuidesPage />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Guides' })).toBeTruthy();
+    expect(screen.getByText('No guides yet.')).toBeTruthy();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 });
 

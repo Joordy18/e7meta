@@ -8,6 +8,8 @@ import ModesPage, { ModePage } from './pages/ModesPage';
 import ArenaPage from './pages/ArenaPage';
 import { ArtifactPage } from './pages/GearPage';
 import Search from './components/Search';
+import LanguageMenu from './components/LanguageMenu';
+import { I18nProvider, useI18n } from './i18n';
 
 const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 const GUIDE_ROUTE = /^#\/guides\/([^/?]+)$/;
@@ -38,6 +40,11 @@ function Page({ hash }: { hash: string }) {
 }
 
 export default function App() {
+  return <I18nProvider><Shell /></I18nProvider>;
+}
+
+function Shell() {
+  const { t } = useI18n();
   const [hash, setHash] = useState(location.hash);
   const [latest, setLatest] = useState<string | null>(null);
 
@@ -53,15 +60,16 @@ export default function App() {
     <>
       <header className="top">
         <a className="logo" href="#/">E7 Meta</a>
-        <nav aria-label="Main">
-          <a href="#/" aria-current={section(hash) === 'home' ? 'page' : undefined}>Home</a>
-          <a href="#/heroes" aria-current={section(hash) === 'heroes' ? 'page' : undefined}>Heroes</a>
-          <a href="#/modes" aria-current={section(hash) === 'modes' ? 'page' : undefined}>Modes</a>
-          <a href="#/arena" aria-current={section(hash) === 'arena' ? 'page' : undefined}>RTA</a>
-          <a href="#/guides" aria-current={section(hash) === 'guides' ? 'page' : undefined}>Guides</a>
+        <nav aria-label={t('nav.main')}>
+          <a href="#/" aria-current={section(hash) === 'home' ? 'page' : undefined}>{t('nav.home')}</a>
+          <a href="#/heroes" aria-current={section(hash) === 'heroes' ? 'page' : undefined}>{t('nav.heroes')}</a>
+          <a href="#/modes" aria-current={section(hash) === 'modes' ? 'page' : undefined}>{t('nav.modes')}</a>
+          <a href="#/arena" aria-current={section(hash) === 'arena' ? 'page' : undefined}>{t('nav.rta')}</a>
+          <a href="#/guides" aria-current={section(hash) === 'guides' ? 'page' : undefined}>{t('nav.guides')}</a>
         </nav>
         <Search />
-        {latest && <span className="week">Data: week of {latest}</span>}
+        {latest && <span className="week">{t('app.dataWeek', { date: latest })}</span>}
+        <LanguageMenu />
       </header>
       <main><Page hash={hash} /></main>
     </>

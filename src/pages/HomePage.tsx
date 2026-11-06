@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ElementIcon, HeroIcon, Icon, JobIcon } from '../components/Art';
 import PageNav from '../components/PageNav';
+import { useI18n, type Key } from '../i18n';
 import { artifactIcon } from '../lib/images';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { diffWords } from '../lib/diff';
@@ -20,12 +21,13 @@ type Data = {
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; data: Data };
 
 const soft = <T,>(p: Promise<T>) => p.catch(() => null); // every block but the index is a bonus: a failure just hides it
-const BOARDS: [FeedBoard, string][] = [['patch', 'Patches'], ['notice', 'Notices'], ['dev', 'Developer notes'], ['event', 'Events']];
+const BOARDS: [FeedBoard, Key][] = [['patch', 'board.patch'], ['notice', 'board.notice'], ['dev', 'board.dev'], ['event', 'board.event']];
 const QUIET = 3; // points: below this, nothing moved much
 
 function Delta({ value }: { value?: number }) {
+  const { t } = useI18n();
   if (value === undefined || Math.abs(value) < 0.05) return <span />;
-  return <small className={value > 0 ? 'delta up' : 'delta down'} title="Change in points since the previous week">{value > 0 ? '+' : ''}{value}</small>;
+  return <small className={value > 0 ? 'delta up' : 'delta down'} title={t('home.deltaTitle')}>{value > 0 ? '+' : ''}{value}</small>;
 }
 
 function PveList({ title, leaders }: { title: string; leaders: Leader[] }) {
@@ -51,6 +53,7 @@ const tagClass = (t: string) => (/increased/i.test(t) ? 'tag up' : /decreased/i.
 
 /** What changes in each skill: the effect labels, then the text before and after with the changed words marked. */
 function SkillChanges({ details }: { details: SkillChange[] }) {
+  const { t } = useI18n();
   return (
     <div className="exact-list">
       {details.map((d) => {
@@ -65,17 +68,17 @@ function SkillChanges({ details }: { details: SkillChange[] }) {
                 {pairs
                   ? d.tags.before.map((b, k) => <span key={k} className="tag">{`${b} → ${d.tags!.after[k]}`}</span>)
                   : (<>
-                      {d.tags.before.map((t) => <span key={`b-${t}`} className="tag">{`was: ${t}`}</span>)}
-                      {d.tags.after.map((t) => <span key={`a-${t}`} className={tagClass(t)}>{t}</span>)}
+                      {d.tags.before.map((tag) => <span key={`b-${tag}`} className="tag">{t('home.was', { tag })}</span>)}
+                      {d.tags.after.map((tag) => <span key={`a-${tag}`} className={tagClass(tag)}>{tag}</span>)}
                     </>)}
               </p>
             )}
             {same ? (
-              <p className="after">{d.after}<span className="unchanged"> The description is unchanged: the values behind it change.</span></p>
+              <p className="after">{d.after}<span className="unchanged"> {t('home.unchanged')}</span></p>
             ) : (
               <div className="cols">
-                <p className="before"><small>Before</small>{parts.filter((x) => x.kind !== 'add').map((x, k) => (x.kind === 'del' ? <mark key={k} className="del">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
-                <p className="after"><small>After</small>{parts.filter((x) => x.kind !== 'del').map((x, k) => (x.kind === 'add' ? <mark key={k} className="add">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
+                <p className="before"><small>{t('home.before')}</small>{parts.filter((x) => x.kind !== 'add').map((x, k) => (x.kind === 'del' ? <mark key={k} className="del">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
+                <p className="after"><small>{t('home.after')}</small>{parts.filter((x) => x.kind !== 'del').map((x, k) => (x.kind === 'add' ? <mark key={k} className="add">{x.text}</mark> : <span key={k}> {x.text} </span>))}</p>
               </div>
             )}
           </div>
@@ -87,16 +90,17 @@ function SkillChanges({ details }: { details: SkillChange[] }) {
 
 /** The latest balance preview: who the developers change, which skills, and why, in their words. */
 function BalanceSection({ balance }: { balance: Balance }) {
+  const { t, rich } = useI18n();
   const live = balance.date <= new Date().toISOString().slice(0, 10); // the patch day has come
   return (
-    <section id="balance-changes" aria-label="Balance changes" className="source">
+    <section id="balance-changes" aria-label={t('home.balance')} className="source">
       <header>
-        <h2>Balance changes</h2>
+        <h2>{t('home.balance')}</h2>
         <p className="period-chip">{balance.date}</p>
-        <p className="period-chip">{live ? 'live' : 'upcoming'}</p>
+        <p className="period-chip">{live ? t('home.live') : t('home.upcoming')}</p>
       </header>
       <div className="panels">
-        <section aria-label="Changes" className="panel wide-2">
+        <section aria-label={t('home.balanceList')} className="panel wide-2">
           <ul className="changes">
             {balance.changes.map((c) => (
               <li key={`${c.kind}-${c.name}`}>
@@ -114,7 +118,7 @@ function BalanceSection({ balance }: { balance: Balance }) {
                   {c.summary && <p className="summary">{c.summary}</p>}
                   {c.details && c.details.length > 0 && (
                     <details className="exact-changes">
-                      <summary>Exact changes</summary>
+                      <summary>{t('home.exactChanges')}</summary>
                       <SkillChanges details={c.details} />
                     </details>
                   )}
@@ -123,8 +127,7 @@ function BalanceSection({ balance }: { balance: Balance }) {
             ))}
           </ul>
           <p className="caption">
-            In the developers' own words, from the balance preview ({balance.title}). Changes apply on the patch day; the values may still change.{' '}
-            <a href={balance.url} target="_blank" rel="noopener noreferrer">Read the full preview</a>.
+            {rich('home.fullPreview', { title: balance.title, link: <a href={balance.url} target="_blank" rel="noopener noreferrer">{t('home.readPreview')}</a> })}
           </p>
         </section>
       </div>
@@ -133,6 +136,7 @@ function BalanceSection({ balance }: { balance: Balance }) {
 }
 
 export default function HomePage() {
+  const { t, rich } = useI18n();
   const [state, setState] = useState<State>({ status: 'loading' });
 
   useEffect(() => {
@@ -157,9 +161,9 @@ export default function HomePage() {
     return () => { live = false; };
   }, []);
 
-  if (state.status === 'loading') return <p className="note">Loading…</p>;
-  if (state.status === 'error') return <p className="note error">Failed to load: {state.message}</p>;
-  if (state.status === 'none') return <p className="note">No data yet. Run <code>npm run collect</code></p>;
+  if (state.status === 'loading') return <p className="note">{t('common.loading')}</p>;
+  if (state.status === 'error') return <p className="note error">{t('common.failed', { message: state.message })}</p>;
+  if (state.status === 'none') return <p className="note">{rich('common.noDataYet', { cmd: <code>npm run collect</code> })}</p>;
 
   const { latest, modes, prevModes, trends, feed, arena, codes } = state.data;
   // a previous week with the very same mode data would make every change 0: only compare weeks that differ
@@ -167,32 +171,33 @@ export default function HomePage() {
   const quiet = !trends || trends.builds.every((b) => Math.abs(b.after - b.before) < QUIET);
   const heroCode = (name: string) => codes.get(normalize(name));
   const sections = ([
-    feed && ['whats-new', "What's new"], feed?.balance && ['balance-changes', 'Balance changes'], modes && ['pve', 'Most used in PvE'],
-    arena && ['arena', 'World Arena (RTA)'], trends && ['build-shifts', 'Build shifts'], ['guides', 'Guides'],
+    feed && ['whats-new', t('home.whatsNew')], feed?.balance && ['balance-changes', t('home.balance')], modes && ['pve', t('home.pve')],
+    arena && ['arena', t('home.arena')], trends && ['build-shifts', t('home.shifts')], guides.length > 0 && ['guides', t('nav.guides')],
   ] as (readonly [string, string] | null | undefined | false)[]).filter((x): x is readonly [string, string] => !!x);
 
   return (
     <div className="with-rail">
       <PageNav items={sections.map(([id, label]) => ({ id, label }))} />
       <div className="content">
-      <h1 className="page-title">Meta of the week</h1>
-      <p className="lede">What players use right now, from the game's own rankings. Gear ranking week of {latest}.</p>
+      <h1 className="page-title">{t('home.title')}</h1>
+      <p className="lede">{t('home.lede', { date: latest })}</p>
 
 
       {feed && (
-        <section id="whats-new" aria-label="What's new" className="source">
-          <header><h2>What's new</h2><p className="period-chip">updated {feed.updated}</p></header>
+        <section id="whats-new" aria-label={t('home.whatsNew')} className="source">
+          <header><h2>{t('home.whatsNew')}</h2><p className="period-chip">{t('home.updated', { date: feed.updated })}</p></header>
           <div className="panels">
             {feed.releases.length > 0 && (
-              <section aria-label="New in the game" className="panel wide-2">
-                <h3>New in the game</h3>
+              <section aria-label={t('home.newInGame')} className="panel wide-2">
+                <h3>{t('home.newInGame')}</h3>
                 <div className="panels">
-                  {([['hero', 'New heroes'], ['artifact', 'New artifacts']] as const).map(([kind, title]) => {
+                  {([['hero', 'home.newHeroes'], ['artifact', 'home.newArtifacts']] as const).map(([kind, titleKey]) => {
+                    const title = t(titleKey);
                     const items = feed.releases.filter((r) => r.kind === kind).slice(0, 4);
                     return (
                       <section key={kind} aria-label={title}>
                         <h4>{title}</h4>
-                        {items.length === 0 ? <p className="note">Nothing new yet.</p> : (
+                        {items.length === 0 ? <p className="note">{t('home.nothingNew')}</p> : (
                           <ul className="news">
                             {items.map((r) => (
                               <li key={r.code ?? r.name} className="release">
@@ -207,8 +212,8 @@ export default function HomePage() {
                                     {r.job && <JobIcon job={r.job} />}
                                   </small>
                                 </span>
-                                <small className="when" title={r.announced ? 'Date of the official update post that announced it' : 'First week of data that lists it'}>
-                                  {r.announced ? `announced ${r.announced.date}` : `week of ${r.since}`}
+                                <small className="when" title={r.announced ? t('home.announcedTitle') : t('home.sinceTitle')}>
+                                  {r.announced ? t('home.announced', { date: r.announced.date }) : t('home.weekOf', { date: r.since ?? '' })}
                                 </small>
                               </li>
                             ))}
@@ -220,7 +225,8 @@ export default function HomePage() {
                 </div>
               </section>
             )}
-            {BOARDS.map(([board, title]) => {
+            {BOARDS.map(([board, titleKey]) => {
+              const title = t(titleKey);
               const posts = feed.posts.filter((p) => p.board === board).slice(0, 4);
               return posts.length === 0 ? null : (
                 <section key={board} aria-label={title} className="panel">
@@ -237,37 +243,37 @@ export default function HomePage() {
               );
             })}
           </div>
-          <p className="caption">Official posts from the game's community boards, and heroes or artifacts that appeared in the game's data.</p>
+          <p className="caption">{t('home.newsCaption')}</p>
         </section>
       )}
 
       {feed?.balance && <BalanceSection balance={feed.balance} />}
 
       {modes && (
-        <section id="pve" aria-label="Most used in PvE" className="source">
-          <header><h2>Most used in PvE</h2><a className="see-all" href="#/modes">All modes</a></header>
+        <section id="pve" aria-label={t('home.pve')} className="source">
+          <header><h2>{t('home.pve')}</h2><a className="see-all" href="#/modes">{t('home.allModes')}</a></header>
           <div className="panels">
-            <PveList title="Hunts" leaders={pveLeaders(modes, 'hunts', 5, prev)} />
-            <PveList title="Abyss" leaders={pveLeaders(modes, 'abyss', 5, prev)} />
-            <PveList title="Expeditions" leaders={pveLeaders(modes, 'expedition', 5, prev)} />
+            <PveList title={t('modes.hunts')} leaders={pveLeaders(modes, 'hunts', 5, prev)} />
+            <PveList title={t('modes.abyss')} leaders={pveLeaders(modes, 'abyss', 5, prev)} />
+            <PveList title={t('modes.expeditions')} leaders={pveLeaders(modes, 'expedition', 5, prev)} />
           </div>
           <p className="caption">
-            Average share of each hero over the rankings of the mode (hunt bosses and difficulties, abyss floors, expedition bosses and levels).
-            {!prev && ' The change since last week appears once another week of mode data is collected.'}
+            {t('home.pveCaption')}
+            {!prev && ` ${t('home.pveNoDelta')}`}
           </p>
         </section>
       )}
 
       {arena && (
-        <section id="arena" aria-label="World Arena (RTA)" className="source">
+        <section id="arena" aria-label={t('home.arena')} className="source">
           <header>
-            <h2>World Arena (RTA)</h2>
+            <h2>{t('home.arena')}</h2>
             <p className="period-chip">{arena.season.season}</p>
-            <a className="see-all" href="#/arena">Full RTA stats</a>
+            <a className="see-all" href="#/arena">{t('home.fullRta')}</a>
           </header>
           <div className="panels">
-            <section aria-label="Most picked" className="panel">
-              <h3>Most picked, Champion and above</h3>
+            <section aria-label={t('home.mostPicked')} className="panel">
+              <h3>{t('home.mostPickedTitle')}</h3>
               <ol className="leaders">
                 {arenaLeaders(arena.season, arena.prev, 'champion', 5).map((r) => {
                   const code = heroCode(r.hero);
@@ -276,14 +282,14 @@ export default function HomePage() {
                       {code ? <HeroIcon code={code} name={r.hero} decorative /> : <span />}
                       {code ? <a href={`#/hero/${code}`}>{r.hero}</a> : <span>{r.hero}</span>}
                       <strong>{r.rate}%</strong>
-                      <span className="sub">{r.win}% win{r.isNew ? <small className="delta new"> new</small> : <Delta value={r.delta} />}</span>
+                      <span className="sub">{t('home.win', { n: r.win })}{r.isNew ? <small className="delta new"> {t('home.new')}</small> : <Delta value={r.delta} />}</span>
                     </li>
                   );
                 })}
               </ol>
             </section>
-            <section aria-label="Most pre-banned" className="panel">
-              <h3>Most pre-banned, Legend and above</h3>
+            <section aria-label={t('home.mostPreBanned')} className="panel">
+              <h3>{t('home.mostPreBannedTitle')}</h3>
               <ol className="leaders">
                 {preBanLeaders(arena.season, 'legend', 5).map((r) => {
                   const code = heroCode(r.hero);
@@ -300,21 +306,20 @@ export default function HomePage() {
             </section>
           </div>
           <p className="caption">
-            Season infographic, top 20 only. Pick and pre-ban rates are shares of matches; the change is in points against the previous season.{' '}
-            Source: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">official infographic</a>.
+            {rich('home.arenaCaption', { link: <a href={arena.season.url} target="_blank" rel="noopener noreferrer">{t('home.officialInfographic')}</a> })}
           </p>
         </section>
       )}
 
       {trends && (
-        <section id="build-shifts" aria-label="Build shifts" className="source">
+        <section id="build-shifts" aria-label={t('home.shifts')} className="source">
           <header>
-            <h2>Build shifts</h2>
-            <p className="period-chip">{trends.from} to {trends.to}</p>
+            <h2>{t('home.shifts')}</h2>
+            <p className="period-chip">{t('home.shiftsRange', { from: trends.from, to: trends.to })}</p>
           </header>
           <div className="panels">
-            <section aria-label="Shifts" className="panel wide-2">
-              {quiet && <p className="note">A quiet week: no set or artifact moved by {QUIET} points or more.</p>}
+            <section aria-label={t('home.shiftsList')} className="panel wide-2">
+              {quiet && <p className="note">{t('home.quiet', { n: QUIET })}</p>}
               {trends.builds.length > 0 && (
                 <ul className="shifts">
                   {trends.builds.slice(0, 10).map((b) => (
@@ -327,14 +332,15 @@ export default function HomePage() {
                   ))}
                 </ul>
               )}
-              <p className="caption">Share of the players of each hero wearing the set or artifact, gear ranking, latest week against the one before. Items under 5% in both weeks are left out.</p>
+              <p className="caption">{t('home.shiftsCaption')}</p>
             </section>
           </div>
         </section>
       )}
 
-      <section id="guides" aria-label="Guides" className="source">
-        <header><h2>Guides</h2><a className="see-all" href="#/guides">All guides</a></header>
+      {guides.length > 0 && (
+      <section id="guides" aria-label={t('nav.guides')} className="source">
+        <header><h2>{t('nav.guides')}</h2><a className="see-all" href="#/guides">{t('home.allGuides')}</a></header>
         <ul className="guide-list">
           {guides.slice(0, 2).map((g) => (
             <li key={g.slug} className="panel">
@@ -344,6 +350,7 @@ export default function HomePage() {
           ))}
         </ul>
       </section>
+      )}
       </div>
     </div>
   );

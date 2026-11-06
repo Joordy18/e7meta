@@ -1,15 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import HomePage from '../src/pages/HomePage';
+import { I18nProvider } from '../src/i18n';
+import { fr } from '../src/i18n/fr';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed } from '../src/lib/data';
 import { guides } from '../src/lib/guides';
+import { sampleGuides } from './sampleGuides';
 import type { ArenaSeason, ArenaTier, DraftRow, Feed, ModeList, Modes, PreBanRow, Trends } from '../src/shared/types';
 
+vi.mock('../src/lib/guides', async () => (await import('./sampleGuides')).guidesModule());
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
   loadIndex: vi.fn(), loadModes: vi.fn(), loadHeroes: vi.fn(), loadTrends: vi.fn(), loadFeed: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(),
 }));
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+const guidesBackup = [...sampleGuides];
+afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); sampleGuides.splice(0, sampleGuides.length, ...guidesBackup); });
 
 const list = (id: string, mode: ModeList['mode'], heroes: [string, number][]): ModeList => ({
   id, mode, group: 'g', variant: 'v', title: id, heroes: heroes.map(([code, share]) => ({ code, name: code.toUpperCase(), share })),
@@ -340,6 +345,29 @@ describe('HomePage: balance changes', () => {
   });
 });
 
+describe('HomePage: in French', () => {
+  it('shows the page in the language chosen in the menu, with the data untouched', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    setup({ feed: { ...feed, balance: balance('2099-11-19') }, trends: trends([[50, 30]]) });
+    render(<I18nProvider><HomePage /></I18nProvider>);
+    expect(await screen.findByRole('heading', { level: 1, name: fr['home.title'] })).toBeTruthy();
+    const news = screen.getByRole('region', { name: fr['home.newInGame'] });
+    expect(within(news).getByRole('region', { name: fr['home.newHeroes'] })).toBeTruthy();
+    expect(within(news).getByRole('region', { name: fr['home.newArtifacts'] })).toBeTruthy();
+    expect(within(news).getAllByText(fr['home.announced'].replace('{date}', '2026-10-28')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('region', { name: fr['board.patch'] })).toBeTruthy();
+    const bal = screen.getByRole('region', { name: fr['home.balance'] });
+    expect(within(bal).getByText(fr['home.upcoming'])).toBeTruthy();
+    expect(within(bal).getAllByText(fr['home.exactChanges'])).toHaveLength(1);
+    expect(within(bal).getByRole('link', { name: fr['home.readPreview'] })).toBeTruthy();
+    expect(screen.getByRole('region', { name: fr['home.pve'] })).toBeTruthy();
+    expect(within(screen.getByRole('navigation', { name: fr['pageNav.label'] })).getByRole('button', { name: fr['home.shifts'] })).toBeTruthy();
+    // the data is what it was: names of heroes, shares, posts
+    expect(within(bal).getByRole('link', { name: 'Death Dealer Ray' }).getAttribute('href')).toBe('#/hero/c2090');
+    expect(within(news).getByRole('link', { name: 'Bunny Girl Mafia Yufine' })).toBeTruthy();
+  });
+});
+
 describe('HomePage: moving around', () => {
   let scrolled: string[];
   beforeEach(() => {
@@ -382,6 +410,15 @@ describe('HomePage: the rest', () => {
     render(<HomePage />);
     const sec = await screen.findByRole('region', { name: 'Guides' });
     expect(within(sec).getByRole('link', { name: guides[0].title }).getAttribute('href')).toBe(`#/guides/${guides[0].slug}`);
+  });
+
+  it('leaves the guides out, and their button, while the site has none', async () => {
+    sampleGuides.splice(0);
+    setup();
+    render(<HomePage />);
+    await screen.findByRole('region', { name: 'Most used in PvE' });
+    expect(screen.queryByRole('region', { name: 'Guides' })).toBeNull();
+    expect(within(screen.getByRole('navigation', { name: 'On this page' })).queryByRole('button', { name: 'Guides' })).toBeNull();
   });
 
   it('says how to collect when there is no data at all', async () => {

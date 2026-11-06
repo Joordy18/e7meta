@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildSearchItems, searchItems, type SearchItem } from '../src/lib/search';
 import type { Gear, HeroSummary, ModeList, Modes } from '../src/shared/types';
+
+vi.mock('../src/lib/guides', async () => (await import('./sampleGuides')).guidesModule());
 
 const item = (kind: SearchItem['kind'], label: string, href = '#/x'): SearchItem => ({ kind, label, href });
 

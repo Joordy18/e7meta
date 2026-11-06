@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HeroIcon } from '../components/Art';
+import { useI18n, type Key } from '../i18n';
 import { formatValue } from '../components/Bars';
 import { loadHeroes, loadIndex, loadModes, loadTeams } from '../lib/data';
 import { findGuide } from '../lib/guides';
@@ -8,8 +9,8 @@ import { bestTeams, groupModes, guideSlug } from '../lib/modes';
 import type { ModeList, Modes, Team, Teams } from '../shared/types';
 
 const PAGE = 25;
-const SECTIONS: [ModeList['mode'], string][] = [['hunts', 'Hunts'], ['abyss', 'Abyss'], ['expedition', 'Expeditions']];
-const VARIANT_LABEL: Record<ModeList['mode'], string> = { hunts: 'Difficulty', abyss: 'Floor', expedition: 'Level' };
+const SECTIONS: [ModeList['mode'], Key][] = [['hunts', 'modes.hunts'], ['abyss', 'modes.abyss'], ['expedition', 'modes.expeditions']];
+const VARIANT_LABEL: Record<ModeList['mode'], Key> = { hunts: 'modes.difficulty', abyss: 'modes.floor', expedition: 'modes.level' };
 
 type Loaded = { modes: Modes; teams: Teams | null; names: Map<string, string> };
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | ({ status: 'ok' } & Loaded);
@@ -33,20 +34,22 @@ function useModes(): State {
 }
 
 function Status({ state }: { state: State }) {
-  if (state.status === 'loading') return <p className="note">Loading…</p>;
-  if (state.status === 'error') return <p className="note error">Failed to load: {state.message}</p>;
-  if (state.status === 'none') return <p className="note">No mode data for this period yet. Run <code>npm run collect</code></p>;
+  const { t, rich } = useI18n();
+  if (state.status === 'loading') return <p className="note">{t('common.loading')}</p>;
+  if (state.status === 'error') return <p className="note error">{t('common.failed', { message: state.message })}</p>;
+  if (state.status === 'none') return <p className="note">{rich('modes.none', { cmd: <code>npm run collect</code> })}</p>;
   return null;
 }
 
 function Rift({ rift }: { rift: NonNullable<Modes['rift']> }) {
+  const { t } = useI18n();
   const ended = rift.end < new Date().toISOString().slice(0, 10);
   return (
-    <section aria-label="Rift" className="panel rift">
+    <section aria-label={t('modes.rift')} className="panel rift">
       <h3>{rift.title}</h3>
       <p>{rift.description}</p>
       <p className="caption">
-        {rift.start} to {rift.end}. {ended ? 'Season ended.' : 'Season in progress.'}
+        {t('modes.riftDates', { start: rift.start, end: rift.end })} {ended ? t('modes.seasonEnded') : t('modes.seasonOn')}
       </p>
     </section>
   );
@@ -61,14 +64,16 @@ function TopHeroes({ list }: { list: ModeList }) {
 }
 
 export default function ModesPage() {
+  const { t } = useI18n();
   const state = useModes();
   if (state.status !== 'ok') return <Status state={state} />;
   const groups = groupModes(state.modes);
   return (
     <div>
-      <h1 className="page-title">Game modes</h1>
-      <p className="lede">Pick a boss, a floor or a level to see its best teams and the heroes used most, from the game's own success-rate rankings.</p>
-      {SECTIONS.map(([mode, label]) => {
+      <h1 className="page-title">{t('modes.title')}</h1>
+      <p className="lede">{t('modes.lede')}</p>
+      {SECTIONS.map(([mode, labelKey]) => {
+        const label = t(labelKey);
         const items = groups.filter((g) => g.mode === mode);
         if (items.length === 0) return null;
         return (
@@ -123,6 +128,7 @@ export function TeamRow({ team, names, caption }: { team: Team; names: Map<strin
 }
 
 export function ModePage({ id }: { id: string }) {
+  const { t } = useI18n();
   const state = useModes();
   const [limit, setLimit] = useState(PAGE);
   useEffect(() => setLimit(PAGE), [id]);
@@ -132,8 +138,8 @@ export function ModePage({ id }: { id: string }) {
   if (!list) {
     return (
       <div>
-        <a className="back" href="#/modes">← All modes</a>
-        <p className="note">Unknown game mode</p>
+        <a className="back" href="#/modes">{t('modes.back')}</a>
+        <p className="note">{t('modes.unknown')}</p>
       </div>
     );
   }
@@ -142,28 +148,28 @@ export function ModePage({ id }: { id: string }) {
   const guide = findGuide(guideSlug(list));
   return (
     <div>
-      <a className="back" href="#/modes">← All modes</a>
+      <a className="back" href="#/modes">{t('modes.back')}</a>
       <h1 className="page-title mode-title">{list.group}</h1>
       <div className="toolbar">
-        <nav aria-label={VARIANT_LABEL[list.mode]} className="chips">
+        <nav aria-label={t(VARIANT_LABEL[list.mode])} className="chips">
           {siblings.map((l) => (
             <a key={l.id} href={`#/modes/${l.id}`} aria-current={l.id === list.id ? 'page' : undefined}>{l.variant}</a>
           ))}
         </nav>
-        {list.period && <span className="period-chip">{list.period.start} to {list.period.end}</span>}
+        {list.period && <span className="period-chip">{t('modes.dates', { start: list.period.start, end: list.period.end })}</span>}
         {guide
-          ? <a className="guide-link" href={`#/guides/${guide.slug}`}>Strategy guide: {guide.title}</a>
-          : <span className="count">No strategy guide yet</span>}
+          ? <a className="guide-link" href={`#/guides/${guide.slug}`}>{t('modes.guideLink', { title: guide.title })}</a>
+          : <span className="count">{t('modes.noGuide')}</span>}
       </div>
       <div className="panels">
         {teams.length > 0 && (
-          <section aria-label="Best teams" className="panel">
-            <h3>Best teams</h3>
+          <section aria-label={t('modes.bestTeams')} className="panel">
+            <h3>{t('modes.bestTeams')}</h3>
             <ol className="teams">{teams.map((t) => <TeamRow key={t.heroes.join()} team={t} names={state.names} />)}</ol>
           </section>
         )}
-        <section aria-label="Top heroes" className="panel">
-          <h3>Top heroes</h3>
+        <section aria-label={t('modes.topHeroes')} className="panel">
+          <h3>{t('modes.topHeroes')}</h3>
           <ol className="ranking">
             {list.heroes.slice(0, limit).map((h, i) => (
               <li key={h.code} className="rank-row">
@@ -176,7 +182,7 @@ export function ModePage({ id }: { id: string }) {
             ))}
           </ol>
           {limit < list.heroes.length && (
-            <button type="button" className="more" onClick={() => setLimit(limit + PAGE)}>Show more</button>
+            <button type="button" className="more" onClick={() => setLimit(limit + PAGE)}>{t('common.showMore')}</button>
           )}
         </section>
       </div>

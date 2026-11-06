@@ -33,14 +33,14 @@ code { background: var(--raise); padding: 1px 6px; border-radius: 6px; }
   box-shadow: 0 1px 0 rgba(76, 201, 240, 0.08), 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .top::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--blue), var(--gold), transparent); opacity: 0.35; pointer-events: none; }
-.logo { display: inline-flex; align-items: center; font-size: 20px; font-weight: 800; letter-spacing: 0.04em; text-decoration: none; }
+.logo { white-space: nowrap; display: inline-flex; align-items: center; font-size: 20px; font-weight: 800; letter-spacing: 0.04em; text-decoration: none; }
 .logo::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 11px; background: linear-gradient(135deg, var(--blue), var(--gold)); transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 12px rgba(76, 201, 240, 0.45); }
 nav { display: flex; gap: 4px; margin-right: auto; margin-left: 28px; }
 nav a { position: relative; padding: 8px 14px; border-radius: 10px; color: var(--mute); text-decoration: none; font-weight: 650; letter-spacing: 0.01em; transition: color .15s, background .15s; }
 nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
 nav a[aria-current='page'] { color: var(--text); background: var(--raise); }
 nav a[aria-current='page']::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 2px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--blue), var(--gold)); }
-.search-btn { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--panel); color: var(--mute); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
+.search-btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--panel); color: var(--mute); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
 .search-btn:hover { color: var(--text); }
 .search-btn kbd, .search-box kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--raise); font: inherit; font-size: 11px; }
 .search-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; background: rgba(5, 8, 14, 0.7); }
@@ -54,6 +54,8 @@ nav a[aria-current='page']::after { content: ''; position: absolute; left: 14px;
 .search-box li.active { outline: 1px solid var(--gold); }
 .search-box li a { color: var(--text); text-decoration: none; font-weight: 600; overflow-wrap: anywhere; }
 .search-box .kind { color: var(--mute); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+.lang-menu { padding: 5px 8px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer; }
+.lang-menu:hover { border-color: var(--blue); }
 .week { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--raise); color: var(--mute); font-size: 12.5px; white-space: nowrap; }
 /* a jump from the home page leaves room for the sticky bar on top */
 .source { scroll-margin-top: 64px; }

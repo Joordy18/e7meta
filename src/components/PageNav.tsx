@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 
 export type PageNavItem = { id: string; label: string };
 
@@ -7,6 +8,7 @@ export type PageNavItem = { id: string; label: string };
  * A rail on the left on a wide screen, a row of buttons on a narrow one (see .page-nav in styles.css). Hidden when there is one section or none.
  */
 export default function PageNav({ items }: { items: PageNavItem[] }) {
+  const { t } = useI18n();
   const [active, setActive] = useState<string>();
   const key = items.map((i) => i.id).join('|');
 
@@ -25,7 +27,7 @@ export default function PageNav({ items }: { items: PageNavItem[] }) {
 
   if (items.length < 2) return null;
   return (
-    <nav className="page-nav" aria-label="On this page">
+    <nav className="page-nav" aria-label={t('pageNav.label')}>
       {items.map((i) => (
         <button
           key={i.id} type="button" aria-current={active === i.id ? 'location' : undefined}

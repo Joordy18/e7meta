@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import HeroPage from '../src/pages/HeroPage';
+import { I18nProvider } from '../src/i18n';
+import { fr } from '../src/i18n/fr';
 import App from '../src/App';
 import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadRta, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
@@ -20,7 +22,7 @@ beforeEach(() => {
   vi.mocked(loadSkills).mockResolvedValue(null);
   vi.mocked(loadRta).mockResolvedValue(null);
 });
-afterEach(() => { cleanup(); vi.resetAllMocks(); location.hash = ''; });
+afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); location.hash = ''; });
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const period = { start: '2026-10-22', end: '2026-10-28' };
@@ -33,6 +35,28 @@ const snapshot: HeroSnapshot = {
   detail: mapDetail(fx('hero-detail'), detailPeriod, mapSetNames(fx('hero-equip-ranking'))),
 };
 const region = (name: string) => screen.getByRole('region', { name });
+
+describe('HeroPage in French', () => {
+  it('translates the headings, the build, the skills and the tables, not the hero data', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    vi.mocked(loadHero).mockResolvedValue(snapshot);
+    render(<I18nProvider><HeroPage code="c1176" /></I18nProvider>);
+    expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: fr['common.allHeroes'] })).toBeTruthy();
+    expect(screen.getByRole('region', { name: fr['loadout.build'] })).toBeTruthy();
+    expect(screen.getByRole('region', { name: fr['hero.gearSource'] })).toBeTruthy();
+    expect(screen.getByRole('table', { name: fr['hero.statTargets'] })).toBeTruthy();
+    expect(screen.getByRole('img', { name: fr['element.fire'] })).toBeTruthy();
+    expect(screen.getByRole('img', { name: fr['job.assassin'] })).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: fr['pageNav.label'] })).toBeTruthy();
+  });
+  it('says in French when the hero has no data', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    vi.mocked(loadHero).mockRejectedValue(new NotFoundError('2026-10-29/hero/c1176.json'));
+    render(<I18nProvider><HeroPage code="c1176" /></I18nProvider>);
+    expect(await screen.findByText(fr['hero.noHeroData'])).toBeTruthy();
+  });
+});
 
 describe('HeroPage', () => {
   it('shows both sources with their own period and formatted shares', async () => {

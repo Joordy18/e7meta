@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n';
 import { Icon } from './Art';
 
 export type BarItem = { label: string; value: number; title?: string; icons?: string[]; href?: string };
@@ -5,7 +6,8 @@ export type BarItem = { label: string; value: number; title?: string; icons?: st
 export const formatValue = (v: number, unit = '%') => `${v}${unit}`;
 
 export default function Bars({ items, unit }: { items: BarItem[]; unit?: string }) {
-  if (items.length === 0) return <p className="empty">No data</p>;
+  const { t } = useI18n();
+  if (items.length === 0) return <p className="empty">{t('common.noData')}</p>;
   return (
     <div className="bars">
       {items.map((it, i) => (

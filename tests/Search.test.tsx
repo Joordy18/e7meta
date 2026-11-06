@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import Search from '../src/components/Search';
 import { loadGear, loadHeroes, loadIndex, loadModes } from '../src/lib/data';
 
+vi.mock('../src/lib/guides', async () => (await import('./sampleGuides')).guidesModule());
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
   loadIndex: vi.fn(), loadHeroes: vi.fn(), loadGear: vi.fn(), loadModes: vi.fn(),
