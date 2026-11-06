@@ -7,6 +7,8 @@ import GuidesPage, { GuidePage } from './pages/GuidesPage';
 import ModesPage, { ModePage } from './pages/ModesPage';
 import ArenaPage from './pages/ArenaPage';
 import TiersPage from './pages/TiersPage';
+import ToolsPage from './pages/ToolsPage';
+import DraftPage from './pages/DraftPage';
 import { ArtifactPage } from './pages/GearPage';
 import Search from './components/Search';
 import LanguageMenu from './components/LanguageMenu';
@@ -21,7 +23,7 @@ const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch 
 
 /** Which entry of the main menu a page belongs to (hero and artifact pages belong to Heroes). */
 const section = (hash: string) =>
-  /^#\/modes/.test(hash) ? 'modes' : /^#\/tiers/.test(hash) ? 'tiers' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
+  /^#\/modes/.test(hash) ? 'modes' : /^#\/tiers/.test(hash) ? 'tiers' : /^#\/tools/.test(hash) ? 'tools' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
     : /^#\/(heroes|hero\/|artifact\/)/.test(hash) ? 'heroes' : 'home';
 
 function Page({ hash }: { hash: string }) {
@@ -37,6 +39,8 @@ function Page({ hash }: { hash: string }) {
   if (hash === '#/modes') return <ModesPage />;
   if (hash === '#/arena') return <ArenaPage />;
   if (hash === '#/tiers') return <TiersPage />;
+  if (hash === '#/tools') return <ToolsPage />;
+  if (hash === '#/tools/draft') return <DraftPage />;
   if (hash === '#/heroes') return <HeroList />;
   return <HomePage />;
 }
@@ -68,6 +72,7 @@ function Shell() {
           <a href="#/modes" aria-current={section(hash) === 'modes' ? 'page' : undefined}>{t('nav.modes')}</a>
           <a href="#/tiers" aria-current={section(hash) === 'tiers' ? 'page' : undefined}>{t('nav.tiers')}</a>
           <a href="#/arena" aria-current={section(hash) === 'arena' ? 'page' : undefined}>{t('nav.rta')}</a>
+          <a href="#/tools" aria-current={section(hash) === 'tools' ? 'page' : undefined}>{t('nav.tools')}</a>
           <a href="#/guides" aria-current={section(hash) === 'guides' ? 'page' : undefined}>{t('nav.guides')}</a>
         </nav>
         <Search />

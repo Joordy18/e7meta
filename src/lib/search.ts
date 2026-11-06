@@ -8,7 +8,7 @@ export type SearchItem = { kind: 'hero' | 'artifact' | 'mode' | 'guide' | 'page'
 
 const KIND_ORDER: SearchItem['kind'][] = ['hero', 'artifact', 'mode', 'guide', 'page'];
 export type PageLink = [label: string, href: string];
-const PAGES: PageLink[] = [['Home', '#/'], ['Heroes', '#/heroes'], ['Modes', '#/modes'], ['Tier list', '#/tiers'], ['RTA', '#/arena'], ['Guides', '#/guides']];
+const PAGES: PageLink[] = [['Home', '#/'], ['Heroes', '#/heroes'], ['Modes', '#/modes'], ['Tier list', '#/tiers'], ['RTA', '#/arena'], ['Tools', '#/tools'], ['Draft simulator', '#/tools/draft'], ['Guides', '#/guides']];
 
 /** Everything that can be jumped to: the pages and guides always, heroes, artifacts and modes when their data is loaded. */
 export function buildSearchItems(data: { heroes?: HeroSummary[]; gear?: Gear | null; modes?: Modes | null }, name?: Pick<NameLookup, 'hero' | 'artifact'>, pages: PageLink[] = PAGES): SearchItem[] {

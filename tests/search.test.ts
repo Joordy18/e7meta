@@ -48,7 +48,7 @@ describe('buildSearchItems', () => {
     expect(all.find((i) => i.kind === 'hero')).toMatchObject({ label: 'Alpha', href: '#/hero/c1', code: 'c1' });
     expect(all.find((i) => i.kind === 'artifact')).toMatchObject({ label: 'Blade', href: '#/artifact/efk1', code: 'efk1' });
     expect(all.filter((i) => i.kind === 'mode').map((i) => [i.label, i.href])).toEqual([['Golem Hunt', '#/modes/hunt-1-13'], ['Abyss', '#/modes/abyss-120']]);
-    expect(all.filter((i) => i.kind === 'page').map((i) => i.label)).toEqual(['Home', 'Heroes', 'Modes', 'Tier list', 'RTA', 'Guides']);
+    expect(all.filter((i) => i.kind === 'page').map((i) => i.label)).toEqual(['Home', 'Heroes', 'Modes', 'Tier list', 'RTA', 'Tools', 'Draft simulator', 'Guides']);
     expect(all.filter((i) => i.kind === 'guide').length).toBeGreaterThan(0);
     expect(all.filter((i) => i.kind === 'guide')[0].href).toMatch(/^#\/guides\//);
   });

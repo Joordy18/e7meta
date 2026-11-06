@@ -163,7 +163,7 @@ describe('LanguageMenu', () => {
     expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' })).toBeTruthy();
     fireEvent.change(menu, { target: { value: 'fr' } });
     const nav = within(screen.getByRole('navigation', { name: fr['nav.main'] }));
-    expect(nav.getAllByRole('link').map((a) => a.textContent)).toEqual([fr['nav.home'], fr['nav.heroes'], fr['nav.modes'], fr['nav.tiers'], fr['nav.rta'], fr['nav.guides']]);
+    expect(nav.getAllByRole('link').map((a) => a.textContent)).toEqual([fr['nav.home'], fr['nav.heroes'], fr['nav.modes'], fr['nav.tiers'], fr['nav.rta'], fr['nav.tools'], fr['nav.guides']]);
     expect(screen.getByRole('combobox', { name: fr['lang.label'] })).toHaveProperty('value', 'fr');
   });
   it('switches the site to each other language', () => {
@@ -172,7 +172,7 @@ describe('LanguageMenu', () => {
     for (const [code, dict] of [['de', de], ['ja', ja], ['ko', ko], ['zh', zh]] as const) {
       fireEvent.change(screen.getByRole('combobox', { name: /./ }), { target: { value: code } });
       const nav = within(screen.getByRole('navigation', { name: dict['nav.main'] }));
-      expect(nav.getAllByRole('link').map((a) => a.textContent), code).toEqual([dict['nav.home'], dict['nav.heroes'], dict['nav.modes'], dict['nav.tiers'], dict['nav.rta'], dict['nav.guides']]);
+      expect(nav.getAllByRole('link').map((a) => a.textContent), code).toEqual([dict['nav.home'], dict['nav.heroes'], dict['nav.modes'], dict['nav.tiers'], dict['nav.rta'], dict['nav.tools'], dict['nav.guides']]);
       expect(document.documentElement.lang).toBe(code);
     }
   });
