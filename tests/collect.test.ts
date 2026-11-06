@@ -301,8 +301,8 @@ describe('collect', () => {
     expect(snap.sets[0].share).toBe(23.86);
     expect(snap.detail.combos[0].share).toBe(39.2);
     expect(snap.detail.combos[0].codes).toEqual(['set_immune', 'set_riposte']);
-    expect([...langs]).toEqual(['en']); // the product is in English: every localised endpoint is asked in English
-  });
+    expect([...langs]).toEqual(['en']); // the data is collected in English (other languages only add names, see names.ts): every localised endpoint is asked in English
+  }, 20000); // writes 392 files: slow on a loaded disk
 
   describe('other game modes', () => {
     it('writes modes.json: hunts, abyss and expedition lists plus the Rift season', async () => {

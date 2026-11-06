@@ -63,6 +63,15 @@ describe('collectNames', () => {
     expect(sets[0].params.hero_code).toBe(heroList.value.guide_list[0].hero_code);
   });
 
+  it('does every language of the site by default, asking the API for traditional Chinese as zh-TW', async () => {
+    const { client, calls } = fake();
+    expect(await collectNames({ outDir: dir, client })).toBe('written');
+    for (const lang of ['fr', 'de', 'ja', 'ko', 'zh']) expect(existsSync(join(dir, 'names', `${lang}.json`)), lang).toBe(true);
+    expect(read('zh').lang).toBe('zh');
+    expect(calls.some((c) => c.params.lang_code === 'zh-TW')).toBe(true);
+    expect(calls.some((c) => c.params.lang_code === 'zh')).toBe(false);
+  });
+
   it('does one language after the other, each in its own file', async () => {
     const { client, calls } = fake();
     expect(await collectNames({ outDir: dir, client, langs: ['fr', 'de'] })).toBe('written');

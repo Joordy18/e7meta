@@ -2,16 +2,23 @@ import { Fragment, createContext, useContext, useEffect, useMemo, useState, type
 import { loadNames } from '../lib/data';
 import type { NamesFile } from '../shared/types';
 import { en } from './en';
+import { de } from './de';
 import { fr } from './fr';
+import { ja } from './ja';
+import { ko } from './ko';
+import { zh } from './zh';
 
-export type Lang = 'en' | 'fr';
+export type Lang = 'en' | 'fr' | 'de' | 'ja' | 'ko' | 'zh';
 export type Key = keyof typeof en;
 type Values = Record<string, string | number>;
 
 /** The languages the site offers, each named in itself. A language is added here, in the dictionaries below and in LOCALE. */
-export const LANGS: { code: Lang; label: string }[] = [{ code: 'en', label: 'English' }, { code: 'fr', label: 'Français' }];
-const DICT: Record<Lang, Record<Key, string>> = { en, fr };
-const LOCALE: Record<Lang, string> = { en: 'en-US', fr: 'fr-FR' };
+export const LANGS: { code: Lang; label: string }[] = [
+  { code: 'en', label: 'English' }, { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' },
+  { code: 'ja', label: '日本語' }, { code: 'ko', label: '한국어' }, { code: 'zh', label: '繁體中文' }, // zh: traditional Chinese, what the game's guide serves
+];
+const DICT: Record<Lang, Record<Key, string>> = { en, fr, de, ja, ko, zh };
+const LOCALE: Record<Lang, string> = { en: 'en-US', fr: 'fr-FR', de: 'de-DE', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-TW' };
 const STORAGE = 'e7.lang';
 
 /** "Show all {n} heroes" with { n: 12 }; a {name} without a value stays visible. */

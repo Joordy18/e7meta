@@ -9,7 +9,7 @@ type Client = ReturnType<typeof createClient>;
 
 // our language code -> the guide API's lang_code (checked: fr, de, ja, ko and zh-TW come back translated; es, pt and th mostly in English)
 const API_LANG: Record<string, string> = { fr: 'fr', de: 'de', ja: 'ja', ko: 'ko', zh: 'zh-TW', pt: 'pt' };
-const LANGS = ['fr']; // the languages the site shows names in: one file each, about 15 requests per language
+const LANGS = ['fr', 'de', 'ja', 'ko', 'zh']; // the languages the site shows names in: one file each, about 15 requests per language
 const W = 'wearing-status/';
 const base = { world_code: 'world_global' };
 const MAX_PAGES = 20;
