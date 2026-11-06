@@ -2,6 +2,8 @@ import type { RtaRow } from './rta';
 
 export type Side = 'you' | 'bot';
 export const PRE_BANS = 2; // heroes each side removes from the draft before it starts
+/** The third hero a team picks is protected: the game does not let the other side ban it (no such ban in 48,000 recorded teams). */
+export const PROTECTED_SLOT = 2;
 const TOP_PICK = 6; // the bot picks among the six most picked heroes that are left
 const TOP_PREBAN = 6; // and pre-bans among the six most pre-banned ones
 
@@ -52,17 +54,23 @@ export function botPick(pool: RtaRow[], unavailable: ReadonlySet<string>, rng: (
 
 const winOf = (pool: RtaRow[], code: string) => pool.find((r) => r.code === code)?.win ?? null;
 
-/** The bot bans the hero of your team that wins most. */
+/** The heroes of a team (in pick order) that the other side may ban: all but the protected third pick. */
+export const bannable = (team: string[]): string[] => team.filter((_, i) => i !== PROTECTED_SLOT);
+
+/** The bot bans the hero of your team that wins most, leaving out the protected one. */
 export function botBan(pool: RtaRow[], yourTeam: string[]): string {
-  return [...yourTeam].sort((a, b) => (winOf(pool, b) ?? -1) - (winOf(pool, a) ?? -1) || a.localeCompare(b))[0];
+  return bannable(yourTeam).sort((a, b) => (winOf(pool, b) ?? -1) - (winOf(pool, a) ?? -1) || a.localeCompare(b))[0];
 }
 
-export type Draft = { you: string[]; bot: string[]; youBan: string; botBan: string; youPreBans: string[] };
+export type Draft = { you: string[]; bot: string[]; youBan: string; botBan: string; youPreBans: string[]; botPreBans?: string[] }; // teams in pick order
 export type SideScore = { avgWin: number | null; typicalPick: number; style: Rarity };
 export type DraftScore = {
   score: number; you: SideScore; bot: SideScore;
-  banRank: number | null; // among the five heroes you could ban, by win rate: 1 = the best target
-  preBanRanks: { code: string; rank: number }[]; // among all heroes, by pre-ban rate: 1 = the most pre-banned
+  banRank: number | null; // your ban among the heroes you could ban, by win rate: 1 = the best target; null when the hero is protected or not in the team
+  botBanRank: number | null; // the same for the ban of the other side
+  bannable: number; // how many heroes a side could ban (all but the protected one)
+  preBanRanks: { code: string; rank: number }[]; // your pre-bans among all heroes, by pre-ban rate: 1 = the most pre-banned
+  botPreBanRanks: { code: string; rank: number }[]; // the pre-bans of the other side, when given
 };
 
 const mean = (xs: number[]) => (xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -85,12 +93,15 @@ export function scoreDraft(pool: RtaRow[], d: Draft): DraftScore {
   const you = sideScore(pool, d.you, d.botBan);
   const bot = sideScore(pool, d.bot, d.youBan);
   const advantage = you.avgWin !== null && bot.avgWin !== null ? you.avgWin - bot.avgWin : 0;
-  const byWin = [...d.bot].sort((a, b) => (winOf(pool, b) ?? -1) - (winOf(pool, a) ?? -1) || a.localeCompare(b));
-  const at = byWin.indexOf(d.youBan);
+  const rankOf = (team: string[], banned: string) => {
+    const at = bannable(team).sort((a, b) => (winOf(pool, b) ?? -1) - (winOf(pool, a) ?? -1) || a.localeCompare(b)).indexOf(banned);
+    return at < 0 ? null : at + 1;
+  };
   const byPreban = [...pool].sort((a, b) => b.preban - a.preban || a.code.localeCompare(b.code)).map((r) => r.code);
+  const preRanks = (codes: string[]) => codes.map((code) => ({ code, rank: byPreban.indexOf(code) + 1 })).filter((x) => x.rank > 0);
   return {
     score: Math.max(0, Math.min(100, Math.round(50 + advantage * 10))), you, bot,
-    banRank: at < 0 ? null : at + 1,
-    preBanRanks: d.youPreBans.map((code) => ({ code, rank: byPreban.indexOf(code) + 1 })).filter((x) => x.rank > 0),
+    banRank: rankOf(d.bot, d.youBan), botBanRank: rankOf(d.you, d.botBan), bannable: bannable(d.bot).length,
+    preBanRanks: preRanks(d.youPreBans), botPreBanRanks: preRanks(d.botPreBans ?? []),
   };
 }

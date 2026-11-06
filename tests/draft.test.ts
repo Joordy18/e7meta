@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRE_BANS, botBan, botPick, botPreBans, mulberry32, pickSides, rarityOf, scoreDraft } from '../src/lib/draft';
+import { PRE_BANS, PROTECTED_SLOT, botBan, botPick, botPreBans, mulberry32, pickSides, rarityOf, scoreDraft } from '../src/lib/draft';
 import type { RtaRow } from '../src/lib/rta';
 
 const row = (code: string, pick: number, win: number | null, ban = 0, preban = 0): RtaRow => ({ code, pick, win, ban, preban, first: 0, played: 100 });
@@ -50,9 +50,15 @@ describe('the bot', () => {
   });
 
   it('bans the hero of your team with the best win rate', () => {
-    const p = [row('x', 10, 49), row('y', 10, 56), row('z', 10, 52)];
-    expect(botBan(p, ['x', 'y', 'z'])).toBe('y');
-    expect(botBan(p, ['x', 'z'])).toBe('z');
+    const p = [row('p', 10, 49), row('q', 10, 56), row('r', 10, 52), row('s', 10, 51), row('t', 10, 50)];
+    expect(botBan(p, ['p', 'q', 'r', 's', 't'])).toBe('q');
+    expect(botBan(p, ['p', 'r', 'q', 's', 't'])).toBe('r'); // the third pick (q here) is protected: the next best is banned
+  });
+
+  it('never bans the protected third pick, whatever its win rate', () => {
+    const p = [row('p', 10, 40), row('q', 10, 41), row('r', 10, 70), row('s', 10, 42), row('t', 10, 43)];
+    expect(PROTECTED_SLOT).toBe(2);
+    expect(botBan(p, ['p', 'q', 'r', 's', 't'])).toBe('t');
   });
 
   it('can still choose when few heroes are left', () => {
@@ -87,9 +93,26 @@ describe('scoreDraft', () => {
     expect(r.bot.style).toBe(rarityOf(r.bot.typicalPick));
   });
 
-  it('ranks your ban among the five heroes you could have banned, by win rate (1 = the best target)', () => {
-    expect(r.banRank).toBe(1); // g 56 is the best win rate of f g h i j
-    expect(scoreDraft(p, { ...draft, youBan: 'j' }).banRank).toBe(3);
+  it('ranks your ban among the four heroes you could have banned, by win rate (1 = the best target)', () => {
+    // the bot team is f g h i j and its third pick, h, is protected: f 49, g 56, i 48, j 50 can be banned
+    expect(r.banRank).toBe(1); // g has the best win rate
+    expect(scoreDraft(p, { ...draft, youBan: 'j' }).banRank).toBe(2);
+    expect(scoreDraft(p, { ...draft, youBan: 'i' }).banRank).toBe(4);
+    expect(r.bannable).toBe(4);
+  });
+
+  it('has no rank for a ban on the protected hero (the game does not allow it), nor on a hero that is not in the team', () => {
+    expect(scoreDraft(p, { ...draft, youBan: 'h' }).banRank).toBeNull();
+    expect(scoreDraft(p, { ...draft, youBan: 'zz' }).banRank).toBeNull();
+  });
+
+  it('ranks the ban of the other side too, and its pre-bans when given', () => {
+    // your team is a b c d e, the protected one is c; the bot banned c in the draft above, so give it a legal ban
+    const out = scoreDraft(p, { ...draft, botBan: 'a', botPreBans: ['y', 'x'] });
+    expect(out.botBanRank).toBe(1); // a 54 is the best win rate of a b d e
+    expect(scoreDraft(p, { ...draft, botBan: 'e' }).botBanRank).toBe(4);
+    expect(out.botPreBanRanks).toEqual([{ code: 'y', rank: 2 }, { code: 'x', rank: 1 }]);
+    expect(r.botPreBanRanks).toEqual([]); // not given: none
   });
 
   it('ranks each pre-ban among all heroes by pre-ban rate', () => {
