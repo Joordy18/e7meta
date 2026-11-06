@@ -110,7 +110,6 @@ function Panel({ title, children, wide }: { title: string; children: React.React
 }
 
 export default function HeroPage({ code }: { code: string }) {
-  const [periods, setPeriods] = useState<string[]>([]);
   const [period, setPeriod] = useState('');
   const [state, setState] = useState<State>({ status: 'loading' });
   const [usage, setUsage] = useState<ModeUsage[]>([]);
@@ -129,7 +128,7 @@ export default function HeroPage({ code }: { code: string }) {
       .then((i) => {
         if (!live) return;
         if (!i || i.periods.length === 0) setState({ status: 'error', message: 'No data yet. Run npm run collect' });
-        else { setPeriods(i.periods); setPeriod(i.periods[0]); }
+        else setPeriod(i.periods[0]); // the latest week only: the site is about the current meta
       })
       .catch((e: unknown) => live && setState({ status: 'error', message: `Failed to load: ${String(e)}` }));
     return () => { live = false; };
@@ -189,13 +188,6 @@ export default function HeroPage({ code }: { code: string }) {
     <div>
       <div className="hero-bar">
         <a className="back" href="#/heroes">← All heroes</a>
-        {periods.length > 0 && (
-          <label className="period">Period{' '}
-            <select value={period} onChange={(e) => setPeriod(e.target.value)}>
-              {periods.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </label>
-        )}
       </div>
       {state.status === 'loading' && <p className="note">Loading…</p>}
       {state.status === 'error' && <p className="note error">{state.message}</p>}

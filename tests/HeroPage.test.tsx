@@ -95,13 +95,13 @@ describe('HeroPage', () => {
     expect(screen.queryAllByRole('group')).toHaveLength(0);
   });
 
-  it('reloads the hero when the period changes', async () => {
+  it('loads the latest week only and has no period menu', async () => {
     vi.mocked(loadHero).mockResolvedValue(snapshot);
     render(<HeroPage code="c1176" />);
-    const select = await screen.findByLabelText('Period');
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['2026-10-29', '2026-10-22']);
-    fireEvent.change(select, { target: { value: '2026-10-22' } });
-    await waitFor(() => expect(loadHero).toHaveBeenLastCalledWith('2026-10-22', 'c1176'));
+    await screen.findByRole('heading', { name: 'Setsuka' });
+    expect(loadHero).toHaveBeenCalledTimes(1);
+    expect(loadHero).toHaveBeenCalledWith('2026-10-29', 'c1176');
+    expect(screen.queryByLabelText('Period')).toBeNull();
   });
 
   it('shows an explicit error when loading fails', async () => {
@@ -110,13 +110,11 @@ describe('HeroPage', () => {
     expect(await screen.findByText(/Failed to load: .*boom/)).toBeTruthy();
   });
 
-  it('says there is no data for this hero on this period, selector stays usable', async () => {
-    vi.mocked(loadHero).mockRejectedValueOnce(new NotFoundError('2026-10-29/hero/c1176.json')).mockResolvedValueOnce(snapshot);
+  it('says there is no data for this hero when its file is missing', async () => {
+    vi.mocked(loadHero).mockRejectedValue(new NotFoundError('2026-10-29/hero/c1176.json'));
     render(<HeroPage code="c1176" />);
     expect(await screen.findByText('No data for this hero in this period')).toBeTruthy();
     expect(screen.queryByText(/Erreur de chargement/)).toBeNull();
-    fireEvent.change(screen.getByLabelText('Period'), { target: { value: '2026-10-22' } });
-    expect(await screen.findByRole('heading', { name: 'Setsuka' })).toBeTruthy();
   });
 
   it('shows "No data" in blocks whose list is empty', async () => {
@@ -418,12 +416,13 @@ describe('HeroPage', () => {
     expect(await screen.findByText(/npm run collect/)).toBeTruthy();
   });
 
-  it('ignores a stale response after a quick period change', async () => {
+  it('ignores a stale response after a quick change of hero', async () => {
     let resolveOld!: (h: HeroSnapshot) => void;
     const old = new Promise<HeroSnapshot>((r) => { resolveOld = r; });
     vi.mocked(loadHero).mockReturnValueOnce(old).mockResolvedValueOnce({ ...snapshot, hero: { ...snapshot.hero, name: 'Nouveau' } });
-    render(<HeroPage code="c1176" />);
-    fireEvent.change(await screen.findByLabelText('Period'), { target: { value: '2026-10-22' } });
+    const { rerender } = render(<HeroPage code="c1176" />);
+    await waitFor(() => expect(loadHero).toHaveBeenCalledTimes(1));
+    rerender(<HeroPage code="c9999" />);
     expect(await screen.findByRole('heading', { name: 'Nouveau' })).toBeTruthy();
     await act(async () => { resolveOld(snapshot); });
     expect(screen.queryByRole('heading', { name: 'Setsuka' })).toBeNull();

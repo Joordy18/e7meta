@@ -1,10 +1,10 @@
-import { HeroFace, Icon } from './Art';
+import { ElementIcon, HeroFace, Icon, JobIcon } from './Art';
 import { formatValue } from './Bars';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
 import { epic7dbUrl } from '../lib/links';
 import Markdown from '../lib/markdown';
 import { STATS, lowerBound, statTarget } from '../lib/statTargets';
-import { elementLabel, jobLabel } from '../pages/HeroList';
+
 import type { ExclusiveEquipment, HeroSnapshot, SkillInfo, StatKey } from '../shared/types';
 
 const AIM: StatKey[] = ['speed', 'critChance', 'critDamage', 'health'];
@@ -16,7 +16,7 @@ function Identity({ hero }: { hero: HeroSnapshot['hero'] }) {
       <HeroFace code={hero.code} name={hero.name} className="face portrait" />
       <h1>{hero.name}</h1>
       <p className="tags">
-        {hero.grade}★ <span className="el" data-el={hero.element} aria-hidden /> {elementLabel(hero.element)}, {jobLabel(hero.job)}
+        {hero.grade}★ <ElementIcon element={hero.element} /> <JobIcon job={hero.job} />
       </p>
     </section>
   );

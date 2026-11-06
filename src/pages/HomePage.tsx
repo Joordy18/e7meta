@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { HeroIcon, Icon } from '../components/Art';
+import { ElementIcon, HeroIcon, Icon, JobIcon } from '../components/Art';
 import { artifactIcon } from '../lib/images';
-import { elementLabel, jobLabel } from './HeroList';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { guides } from '../lib/guides';
 import { arenaLeaders, preBanLeaders, pveLeaders, type Leader } from '../lib/home';
@@ -110,8 +109,8 @@ export default function HomePage() {
                                     : <a href={r.announced?.url} target="_blank" rel="noopener noreferrer">{r.name}</a>}
                                   <small className="meta">
                                     {r.grade ? `${r.grade}★ ` : ''}
-                                    {r.element && <><span className="el" data-el={r.element} aria-hidden /> {elementLabel(r.element)}{r.job ? ', ' : ''}</>}
-                                    {r.job && (kind === 'hero' ? jobLabel(r.job) : `${jobLabel(r.job)} exclusive`)}
+                                    {r.element && <ElementIcon element={r.element} />}{' '}
+                                    {r.job && <JobIcon job={r.job} />}
                                   </small>
                                 </span>
                                 <small className="when" title={r.announced ? 'Date of the official update post that announced it' : 'First week of data that lists it'}>

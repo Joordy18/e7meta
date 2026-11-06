@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { heroIcon, heroPortrait } from '../lib/images';
+import { elementLabel, hasElementIcon, hasJobIcon, jobLabel } from '../lib/labels';
 
 /** Small official icon (set, artifact). Hidden when the image cannot load, the text next to it still says what it is. */
 export function Icon({ src, className = 'icon' }: { src: string; className?: string }) {
@@ -30,4 +31,16 @@ export function HeroIcon({ code, name, className = 'hicon', decorative = false }
         : <img src={heroIcon(code)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />}
     </span>
   );
+}
+
+/** Official element icon (from the game's guide sheet, see .attr in styles.css); the plain name when there is no icon for it. */
+export function ElementIcon({ element }: { element: string }) {
+  const label = elementLabel(element);
+  return hasElementIcon(element) ? <span className="attr" data-attr={`el-${element}`} role="img" aria-label={label} title={label} /> : <span>{label}</span>;
+}
+
+/** Official class icon (same sheet). */
+export function JobIcon({ job }: { job: string }) {
+  const label = jobLabel(job);
+  return hasJobIcon(job) ? <span className="attr" data-attr={`job-${job}`} role="img" aria-label={label} title={label} /> : <span>{label}</span>;
 }

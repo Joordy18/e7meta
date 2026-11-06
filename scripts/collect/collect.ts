@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
@@ -13,6 +13,7 @@ type Client = ReturnType<typeof createClient>;
 const LANG = 'en'; // the product is in English; names in the data come in this language
 const WEARING = 'wearing-status/';
 const MAX_FAILURE_RATE = 0.05;
+const KEEP_PERIODS = 8; // weeks kept on disk (and in the site): enough for the trends, and the site stays small
 const MAX_PAGES = 20; // 392 heroes = 8 pages of 50; guards against an API that ignores current_page
 
 const exists = (p: string) => readFile(p).then(() => true, () => false);
@@ -187,11 +188,15 @@ export async function collect(opts: {
   for (const snap of done) await writeJson(join(snapDir, 'hero', `${snap.hero.code}.json`), snap);
   await writeJson(join(snapDir, 'heroes.json'), done.map((s) => s.hero));
   const known = prev.valid ? prev.periods : await periodsOnDisk(outDir);
-  const periods = [...new Set([period.start, ...known])].sort().reverse();
+  const all = [...new Set([period.start, ...known])].sort().reverse();
+  const periods = all.slice(0, KEEP_PERIODS);
   await writeJson(indexPath, { periods } satisfies Index);
   await refreshModes(client, snapDir, huntPeriod, log, true);
   await refreshGear(client, snapDir, period.start, log, true);
   await refreshTrends({ outDir, log });
+  const stale = all.slice(KEEP_PERIODS).filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p)); // the name comes from a file: only a plain date may reach rm
+  for (const p of stale) await rm(join(outDir, p), { recursive: true, force: true });
+  if (stale.length > 0) log(`removed ${stale.length} old period${stale.length > 1 ? 's' : ''} (the ${KEEP_PERIODS} newest weeks are kept)`);
   return 'written';
 }
 

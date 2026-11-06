@@ -44,7 +44,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
 /* hero list */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
-.toolbar input, .toolbar select, .period select {
+.toolbar input, .toolbar select {
   background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
   padding: 8px 10px; font: inherit;
 }
@@ -71,18 +71,27 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .face.big { width: 104px; flex: none; border-radius: 16px; border: 2px solid var(--line); }
 
 .tags { color: var(--mute); font-size: 13px; }
-.el { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 2px 0 4px; background: var(--mute); }
-.el[data-el='fire'] { background: #ff6b4a; }
-.el[data-el='ice'] { background: #4cc9f0; }
-.el[data-el='wind'] { background: #6fcf6a; }
-.el[data-el='light'] { background: #ffd54a; }
-.el[data-el='dark'] { background: #b07cff; }
+/* official element and class icons: one sheet (460 x 260) of the game's guide, hotlinked; --x/--y/--w/--h = the icon's box in the sheet */
+.attr { --s: .55; --w: 41; --h: 41; --x: 0; --y: 0; display: inline-block; vertical-align: middle; width: calc(var(--w) * var(--s) * 1px); height: calc(var(--h) * var(--s) * 1px);
+  background: url(https://static-pubcomm.onstove.com/live/epic7/brand/images/guide/icon_spr.png) no-repeat; background-size: calc(460px * var(--s)) calc(260px * var(--s));
+  background-position: calc(var(--x) * var(--s) * -1px) calc(var(--y) * var(--s) * -1px); }
+.attr[data-attr='el-dark'] { --y: 0; }
+.attr[data-attr='el-fire'] { --y: 54; }
+.attr[data-attr='el-ice'] { --y: 106; }
+.attr[data-attr='el-wind'] { --y: 159; }
+.attr[data-attr='el-light'] { --y: 212; }
+.attr[data-attr^='job-'] { --w: 44; --h: 42; --y: 0; }
+.attr[data-attr='job-mage'] { --x: 52; }
+.attr[data-attr='job-knight'] { --x: 99; }
+.attr[data-attr='job-assassin'] { --x: 145; }
+.attr[data-attr='job-ranger'] { --x: 192; }
+.attr[data-attr='job-manauser'] { --x: 236; }
+.attr[data-attr='job-warrior'] { --x: 283; }
 
 /* hero page */
 .hero-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .back { color: var(--mute); text-decoration: none; }
 .back:hover { color: var(--text); }
-.period { color: var(--mute); font-size: 13px; }
 .hero-head { display: flex; align-items: center; gap: 18px; margin: 18px 0 8px; }
 .hero-head h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
 .hero-head .tags { margin: 6px 0 0; font-size: 15px; }

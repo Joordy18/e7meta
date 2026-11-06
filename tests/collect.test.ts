@@ -143,6 +143,28 @@ describe('collect', () => {
     expect(read('index.json')).toEqual({ periods: ['2026-10-29', '2026-10-22'] });
   });
 
+  it('keeps the 8 newest weeks: a new one removes the oldest folder from the disk and the index, and touches nothing else', async () => {
+    const old = ['2026-10-15', '2026-10-08', '2026-10-01', '2026-09-24', '2026-09-17', '2026-09-10', '2026-09-03', '2026-08-27'];
+    for (const p of old) { mkdirSync(join(dir, p)); writeFileSync(join(dir, p, 'heroes.json'), '[]'); }
+    mkdirSync(join(dir, 'arena')); writeFileSync(join(dir, 'arena', 'index.json'), '{}');
+    mkdirSync(join(dir, 'notes'));
+    writeFileSync(join(dir, 'index.json'), JSON.stringify({ periods: old }));
+    const logs: string[] = [];
+    expect(await collect({ outDir: dir, client: fake().client, log: (m) => logs.push(m) })).toBe('written');
+    expect(read('index.json').periods).toEqual(['2026-10-22', ...old.slice(0, 7)]);
+    expect(existsSync(join(dir, '2026-08-27'))).toBe(false);
+    expect(existsSync(join(dir, '2026-09-03'))).toBe(true);
+    expect(existsSync(join(dir, 'arena', 'index.json'))).toBe(true);
+    expect(existsSync(join(dir, 'notes'))).toBe(true);
+    expect(logs.some((m) => /removed 1 old period/.test(m))).toBe(true);
+  });
+
+  it('removes nothing while there are 8 weeks or fewer', async () => {
+    await collect({ outDir: dir, client: fake().client });
+    await collect({ outDir: dir, client: fake({ wearingStart: '2026-10-29' }).client });
+    expect(existsSync(join(dir, '2026-10-22', 'heroes.json'))).toBe(true);
+  });
+
   it('fails without publishing when more than 5% of heroes fail', async () => {
     const failHeroes = fake().heroes.map((h: { hero_code: string }) => h.hero_code);
     expect(await collect({ outDir: dir, client: fake({ failHeroes }).client })).toBe('failed');

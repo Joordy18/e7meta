@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { filterHeroes, loadHeroes, loadIndex, sortHeroes, type SortKey } from '../lib/data';
-import { HeroFace } from '../components/Art';
+import { ElementIcon, HeroFace, JobIcon } from '../components/Art';
+import { elementLabel, jobLabel } from '../lib/labels';
 import { formatValue } from '../components/Bars';
 import type { HeroSummary } from '../shared/types';
-
-const JOBS: Record<string, string> = {
-  warrior: 'Warrior', knight: 'Knight', assassin: 'Thief', mage: 'Mage', ranger: 'Ranger', manauser: 'Soul Weaver',
-};
-const ELEMENTS: Record<string, string> = { fire: 'Fire', ice: 'Ice', wind: 'Earth', light: 'Light', dark: 'Dark' };
-export const jobLabel = (c: string) => JOBS[c] ?? c;
-export const elementLabel = (c: string) => ELEMENTS[c] ?? c;
 
 type State = { status: 'loading' } | { status: 'empty' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[] };
 
@@ -74,7 +68,7 @@ export default function HeroList() {
             <HeroFace code={h.code} name={h.name} />
             <a href={`#/hero/${h.code}`}>{h.name}</a>
             <small className="tags">
-              {h.grade}★ <span className="el" data-el={h.element} aria-hidden /> {elementLabel(h.element)}, {jobLabel(h.job)}
+              {h.grade}★ <ElementIcon element={h.element} /> <JobIcon job={h.job} />
             </small>
             {sort !== 'name' && h[sort] !== undefined && <strong className="metric">{formatValue(h[sort]!)}</strong>}
           </li>

@@ -5,7 +5,8 @@ import { loadGear, loadIndex } from '../lib/data';
 import { describeArtifact } from '../lib/gear';
 import { artifactIcon } from '../lib/images';
 import type { Gear, ModeEntry } from '../shared/types';
-import { jobLabel } from './HeroList';
+import { JobIcon } from '../components/Art';
+import { jobLabel } from '../lib/labels';
 
 type State = { status: 'loading' } | { status: 'none' } | { status: 'error'; message: string } | { status: 'ok'; gear: Gear };
 
@@ -68,7 +69,7 @@ export function ArtifactPage({ code }: { code: string }) {
             <Icon src={artifactIcon(a.code)} className="gear-icon" />
             <div>
               <h1>{a.name}</h1>
-              <p className="tags">{a.grade}★ {jobLabel(a.job)} exclusive</p>
+              <p className="tags">{a.grade}★ <JobIcon job={a.job} /> {jobLabel(a.job)} exclusive</p>
             </div>
           </div>
           <div className="panels">

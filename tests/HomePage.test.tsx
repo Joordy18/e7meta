@@ -176,15 +176,16 @@ describe('HomePage: what is new', () => {
     const hero = within(within(news).getByRole('region', { name: 'New heroes' })).getAllByRole('listitem')[0];
     expect(hero.querySelector('img')?.getAttribute('src')).toContain('c7016_s.png');
     expect(hero.textContent).toContain('5★');
-    expect(hero.textContent).toContain('Ice');
-    expect(hero.textContent).toContain('Knight');
-    expect(hero.querySelector('.el')?.getAttribute('data-el')).toBe('ice');
-    expect(within(news).getByText(/Light/).closest('li')?.textContent).toContain('Thief'); // the game's "assassin" is called Thief in English
+    expect(within(hero).getByRole('img', { name: 'Ice' })).toBeTruthy(); // official icons, named for screen readers
+    expect(within(hero).getByRole('img', { name: 'Knight' })).toBeTruthy();
+    const moro = within(within(news).getByRole('region', { name: 'New heroes' })).getAllByRole('listitem')[1];
+    expect(within(moro).getByRole('img', { name: 'Light' })).toBeTruthy();
+    expect(within(moro).getByRole('img', { name: 'Thief' })).toBeTruthy(); // the game's "assassin" is called Thief in English
     const artifacts = within(within(news).getByRole('region', { name: 'New artifacts' })).getAllByRole('listitem');
     expect(artifacts[0].querySelector('img')?.getAttribute('src')).toContain('efk99_ico.png');
-    expect(artifacts[0].textContent).toContain('Knight');
+    expect(within(artifacts[0]).getByRole('img', { name: 'Knight' })).toBeTruthy();
     expect(artifacts[1].querySelector('img')).toBeNull(); // announced only: no code yet, so no icon, but the class is known
-    expect(artifacts[1].textContent).toContain('Knight');
+    expect(within(artifacts[1]).getByRole('img', { name: 'Knight' })).toBeTruthy();
   });
 
   it('shows an item the update posts announced before the game data lists it, linking to the official post', async () => {
