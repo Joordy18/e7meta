@@ -10,7 +10,8 @@
     "collect": "tsx scripts/collect/collect.ts",
     "overlay": "vite build && electron electron/main.cjs",
     "overlay:smoke": "vite build && electron electron/main.cjs --smoke",
-    "arena": "tsx scripts/collect/arena.ts"
+    "arena": "tsx scripts/collect/arena.ts",
+    "skills": "tsx scripts/collect/skills.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

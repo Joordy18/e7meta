@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient, unwrap } from './api';
+import { text } from './html';
 import type { ArenaIndex, ArenaSeason, ArenaTier, DraftRow, PreBanRow } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
@@ -15,12 +16,6 @@ const SUPPORTED_SINCE = '2025-10-01';
 
 const TIERS: [string, ArenaTier][] = [['Champion', 'champion'], ['Warlord', 'warlord'], ['Emperor', 'emperor'], ['Legend', 'legend']];
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-const decode = (s: string) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
-  if (e[0] === '#') return String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
-  return ENTITIES[e.toLowerCase()] ?? m;
-});
-const text = (html: string) => decode(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 const num = (s: string) => Number.parseFloat(s.replace('%', '').replace(/,/g, ''));
 
 const rowsOf = (table: string) =>

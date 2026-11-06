@@ -66,3 +66,15 @@ export type ArenaSeason = {
   cutoffs: { league: string; points: number }[];
 };
 export type ArenaIndex = { seasons: { id: string; season: string; published: string; title: string; url: string }[] }; // newest first
+
+// Skill descriptions, from epic7db.com (a fan site; the game's own guide only names the skills). One file for all heroes.
+export type SkillInfo = {
+  name: string;
+  cooldown?: string; // "Passive" or "3 Turns"; absent for a basic attack
+  soulGain?: number;
+  effects: { name: string; text: string }[]; // buffs, debuffs and other effects the skill applies
+  description: string; // Markdown: key words in **bold**
+  soulburn?: string;
+  upgrades: { level: number; text: string }[]; // skill enhancements
+};
+export type SkillsFile = { fetchedAt: string; source: string; heroes: Record<string, SkillInfo[]> }; // hero code -> skills 1 to 3
