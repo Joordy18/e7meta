@@ -40,7 +40,7 @@ powershell -File scripts/schedule-collect.ps1 -Time 12:00    # create the schedu
 powershell -File scripts/schedule-collect.ps1 -Remove        # delete it
 ```
 
-It runs `scripts/collect-daily.cmd` (output in `collect.log`, ignored by git). New snapshots land in `public/data/`; committing them is up to you.
+It runs `scripts/collect-daily.cmd` (output in `collect.log`, ignored by git). New snapshots land in `public/data/`; the last lines of the script commit them (only `public/data`, only when something changed) and push to `main`, which redeploys the site on GitHub Pages (`.github/workflows/deploy.yml`, https://joordy18.github.io/e7meta/). Remove those lines to publish by hand.
 
 ## Data
 
