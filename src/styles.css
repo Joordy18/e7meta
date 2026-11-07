@@ -465,3 +465,14 @@ img.hicon.art { object-fit: contain; }
 .limited-posts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 .limited-posts a { font-weight: 600; }
 #limited .rift { margin: 0 0 16px; }
+.pairs-all { margin-top: 12px; }
+.pairs-all summary { cursor: pointer; font-weight: 600; }
+.pairs-all .panels { margin-top: 10px; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+.pairs-table { max-height: 26rem; overflow: auto; }
+.pairs-table .targets th, .pairs-table .targets td { padding: 5px 8px; }
+.pairs-table .targets tbody th { white-space: normal; font-weight: 400; }
+.pairs-table .who { display: flex; align-items: center; gap: 8px; }
+.pairs-table .who .hicon { flex: none; width: 28px; }
+.pairs-table thead th { position: sticky; top: 0; background: var(--panel); }
+.pairs-table table.targets:not(.draft) td:nth-child(4) { color: inherit; font-weight: 400; }
+.pairs-table table.targets:not(.draft) td.neg:nth-child(4) { color: var(--danger); }

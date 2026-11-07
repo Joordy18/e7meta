@@ -186,7 +186,7 @@ describe('ArenaPage: top players sample', () => {
     expect(within(t).queryByText('c11')).toBeNull(); // 5 games: too few
     const sec = screen.getByRole('region', { name: 'Top players sample' });
     expect(sec.textContent).toContain('1,000 recent ranked battles');
-    expect(sec.textContent).toContain('100 top players');
+    expect(sec.textContent).toContain('100 players');
     expect(sec.textContent).toContain('Fall 2026');
     expect(sec.textContent).toContain('2026-10-20 to 2026-11-03'); // the days the accumulated battles were played
   });

@@ -91,7 +91,7 @@ function sideScore(pool: RtaRow[], picks: string[], banned: string): SideScore {
 }
 
 // The edges of listed pairs are added up and damped by one constant. Fitted on the battles: pairs listed from the older half, the weight measured on the newer half
-// (12,079 battles): regression ratio 0.20, and the side the score favours won 56.8% of the time at 0.2 against 54.2% without the pairs (0.5 gives 56.2%).
+// (37,621 battles, after the sample was widened with opponents): regression ratio 0.18, and the side the score favours won 58.1% of the time at 0.2 against 54.9% without the pairs (0.5 gives 57.4%).
 // shortcut: one weight for every kind of pair, refit it when the sample has grown.
 const PAIR_WEIGHT = 0.2;
 const NOTES = 4;

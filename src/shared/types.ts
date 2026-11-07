@@ -138,7 +138,10 @@ export type RtaBuilds = { code: string; updated: string; heroes: Record<string, 
 // what the two heroes predict alone. Only pairs seen often enough and clearly off that expectation are listed.
 export type RtaPairEntry = { code: string; n: number; win: number; edge: number };
 export type RtaHeroPairs = { with: RtaPairEntry[]; over: RtaPairEntry[]; under: RtaPairEntry[] };
-export type RtaPairs = { code: string; updated: string; battles: number; minGames: number; heroes: Record<string, RtaHeroPairs> };
+export type RtaTableRow = [code: string, games: number, win: number, edge: number, clear: 0 | 1]; // clear: the gap to the expectation is past chance
+export type RtaHeroTable = { with: RtaTableRow[]; versus: RtaTableRow[] };
+export type RtaTable = { code: string; updated: string; battles: number; minGames: number; heroes: Record<string, RtaHeroTable> };
+export type RtaPairs ={ code: string; updated: string; battles: number; minGames: number; heroes: Record<string, RtaHeroPairs> };
 
 // since / until: the day of the oldest and of the newest battle counted (the battles of the season are accumulated run after run)
 export type RtaStats = { season: string; code: string; updated: string; players: number; battles: number; since?: string; until?: string; heroes: Record<string, RtaHeroCount> };

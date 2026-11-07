@@ -111,6 +111,46 @@ describe('collectRta', () => {
     expect(logs.some((m) => /too many players failed/.test(m))).toBe(true);
   });
 
+  it('also reads the most met opponents of the ranked players, once, and a failing opponent costs nothing', async () => {
+    // player 100 met opponents 900 (twice) and 901, and player 101 (a ranked one); the battles each opponent played are new ones
+    const mk = (seq: string, foe: number) => ({ ...battles[0], battle_seq: seq, battleCompletedate: `2026-11-0${seq} 10:00:00.0`, matchPlayerNicknameno: foe, enemy_world_code: foe === 101 ? 'world_kor' : 'world_asia' });
+    const calls: string[] = [];
+    const client = {
+      async get(path: string, params: Record<string, string>) {
+        if (path.endsWith('getSeasonList')) return env({ result_body: [{ season_code: 'pvp_rta_ss21', name: 'Fall 2026', is_now_season: 1 }] });
+        if (path.endsWith('getWorldUserRankingDetail')) return Number(params.current_page) === 1 ? ranking(2) : env({ result_body: [] });
+        calls.push(params.nick_no);
+        if (params.nick_no === '901') throw new Error('down');
+        const list = { 100: [mk('1', 900), mk('2', 900), mk('3', 901), mk('4', 101)], 101: [], 900: [mk('5', 100)] }[params.nick_no as '100'] ?? [];
+        return env({ result_body: { total_count: list.length, battle_list: list } });
+      },
+    } as unknown as ReturnType<typeof createClient>;
+    expect(await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client, opponents: 5 })).toBe('written');
+    expect(calls).toEqual(['100', '101', '900', '901']); // 101 is ranked: not read a second time
+    expect(read()).toMatchObject({ players: 3, battles: 5 }); // two ranked + opponent 900; 901 failed
+  });
+
+  it('reads an opponent past a page that holds a battle already kept (against the top), and stops at a page with nothing new', async () => {
+    const mk = (seq: string, foe: number) => ({ ...battles[0], battle_seq: seq, battleCompletedate: `2026-11-${seq.padStart(2, '0')} 10:00:00.0`, matchPlayerNicknameno: foe, enemy_world_code: 'world_asia' });
+    const pages: Record<string, unknown[][]> = {
+      100: [[mk('1', 900)]], // the top player's one battle, against 900
+      900: [[mk('1', 100), mk('2', 100)], [mk('3', 100), mk('4', 100)], [mk('1', 100)]], // page 1 holds the known battle 1 and a new one; page 3 has nothing new
+    };
+    const calls: string[] = [];
+    const client = {
+      async get(path: string, params: Record<string, string>) {
+        if (path.endsWith('getSeasonList')) return env({ result_body: [{ season_code: 'pvp_rta_ss21', name: 'Fall 2026', is_now_season: 1 }] });
+        if (path.endsWith('getWorldUserRankingDetail')) return Number(params.current_page) === 1 ? ranking(1) : env({ result_body: [] });
+        calls.push(`${params.nick_no}:${params.current_page}`);
+        const list = pages[params.nick_no]?.[Number(params.current_page) - 1] ?? [];
+        return env({ result_body: { total_count: params.nick_no === '100' ? 1 : 100, battle_list: list } });
+      },
+    } as unknown as ReturnType<typeof createClient>;
+    await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client });
+    expect(calls).toEqual(['100:1', '900:1', '900:2', '900:3']);
+    expect(read().battles).toBe(4); // battle 1 (seen from both sides, counted once), 2, 3, 4
+  });
+
   it('stops asking for pages when a player has no more battles', async () => {
     const { client, calls } = fake({ players: 1 });
     await collectRta({ outDir: dir, storeDir: join(dir, 'store'), client });

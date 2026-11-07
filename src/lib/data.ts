@@ -1,4 +1,4 @@
-import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Feed, NamesFile, LimitedFile, RtaBuilds, RtaPairs, RtaStats, Trends } from '../shared/types';
+import type { ArenaIndex, ArenaSeason, Gear, HeroSnapshot, HeroSummary, Index, ModeList, Modes, SkillsFile, Teams, Feed, NamesFile, LimitedFile, RtaBuilds, RtaPairs, RtaStats, RtaTable, Trends } from '../shared/types';
 
 export const normalize = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -144,6 +144,14 @@ export async function loadRtaBuilds(): Promise<RtaBuilds | null> {
 /** The partners and matchups of each hero in the RTA battles counted (rta/pairs.json); null when not collected yet. */
 export async function loadRtaPairs(): Promise<RtaPairs | null> {
   try { return await getJson<RtaPairs>('rta/pairs.json'); } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+
+/** Every partner and opponent seen often enough, for the full table of a hero page (rta/table.json); null when not collected yet. */
+export async function loadRtaTable(): Promise<RtaTable | null> {
+  try { return await getJson<RtaTable>('rta/table.json'); } catch (e) {
     if (e instanceof NotFoundError) return null;
     throw e;
   }

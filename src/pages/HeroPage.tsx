@@ -4,7 +4,7 @@ import Loadout from '../components/Loadout';
 import { useI18n, type Key } from '../i18n';
 import PageNav from '../components/PageNav';
 import Bars from '../components/Bars';
-import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadRtaBuilds, loadRtaPairs, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
+import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadRtaBuilds, loadRtaPairs, loadRtaTable, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
 import { heroRta, type RtaRow } from '../lib/rta';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
@@ -12,7 +12,7 @@ import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes
 import { PERCENT_STATS, STATS, lowerBound, num, statTarget } from '../lib/statTargets';
 import { TeamRow } from './ModesPage';
 import { STAT_RANGES } from '../shared/stats';
-import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, RtaBuilds, RtaHeroBuilds, RtaHeroPairs, RtaPairEntry, SkillsFile, StatKey } from '../shared/types';
+import type { ArenaSeason, ExclusiveEquipment, HeroSnapshot, RtaBuilds, RtaHeroBuilds, RtaHeroPairs, RtaHeroTable, RtaPairEntry, SkillsFile, StatKey } from '../shared/types';
 
 const top = <T,>(xs: T[], n: number) => xs.slice(0, n);
 
@@ -124,6 +124,7 @@ export default function HeroPage({ code }: { code: string }) {
   const [mates, setMates] = useState<Teammate[]>([]);
   const [arena, setArena] = useState<{ season: ArenaSeason; rows: HeroArenaRow[] } | null>(null);
   const [rtaSample, setRtaSample] = useState<{ season: string; battles: number; players: number; since?: string; until?: string; row: RtaRow } | null>(null);
+  const [table, setTable] = useState<{ hero: RtaHeroTable; battles: number; min: number } | null>(null);
   const [pairs, setPairs] = useState<{ hero: RtaHeroPairs; battles: number; min: number } | null>(null);
   const [rtaBuilds, setRtaBuilds] = useState<{ hero: RtaHeroBuilds; setNames: RtaBuilds['setNames']; artifactNames: RtaBuilds['artifactNames'] } | null>(null);
   const [names, setNames] = useState<Map<string, string>>(new Map());
@@ -220,6 +221,15 @@ export default function HeroPage({ code }: { code: string }) {
       .catch(() => {});
     return () => { live = false; };
   }, [h?.hero.code]);
+  useEffect(() => {
+    setTable(null);
+    if (!h) return;
+    let live = true;
+    Promise.resolve(loadRtaTable())
+      .then((p) => { const hero = p?.heroes[h.hero.code]; if (live && p && hero && (hero.with.length > 0 || hero.versus.length > 0)) setTable({ hero, battles: p.battles, min: p.minGames }); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [h?.hero.code]);
   // what the hero wears in RTA comes from the accumulated battles: no file, or no list for this hero, just hides the panels
   useEffect(() => {
     setRtaBuilds(null);
@@ -234,7 +244,7 @@ export default function HeroPage({ code }: { code: string }) {
   const hasExclusive = !!h && !!((h.exclusive && h.exclusive.length > 0) || skills?.exclusive?.[h.hero.code]);
   const navItems = !h ? [] : ([
     { id: 'loadout', label: t('hero.navBuild') }, arena && { id: 'arena', label: t('home.arena') }, rtaSample && { id: 'rta-sample', label: t('hero.rtaSample') },
-    pairs && { id: 'rta-pairs', label: t('hero.pairs') },
+    (pairs || table) && { id: 'rta-pairs', label: t('hero.pairs') },
     (usage.length > 0 || teamList.length > 0 || mates.length > 0) && { id: 'other-modes', label: t('hero.otherModes') }, hasExclusive && { id: 'exclusive', label: t('loadout.exclusive') },
     { id: 'gear', label: t('hero.navGear') }, h.detail && { id: 'hunts', label: t('hero.navHunts') },
   ].filter(Boolean) as { id: string; label: string }[]);
@@ -330,13 +340,13 @@ export default function HeroPage({ code }: { code: string }) {
               </div>
             </section>
           )}
-          {pairs && (
+          {(pairs || table) && (
             <section id="rta-pairs" aria-label={t('hero.pairs')} className="source">
               <header>
                 <h2>{t('hero.pairs')}</h2>
                 {rtaSample && <p className="period-chip">{rtaSample.season}</p>}
               </header>
-              <div className="panels">
+              {pairs && <div className="panels">
                 {([['hero.pairsWith', pairs.hero.with], ['hero.pairsOver', pairs.hero.over], ['hero.pairsUnder', pairs.hero.under]] as const).map(([title, list]) => list.length > 0 && (
                   <Panel key={title} title={t(title)}>
                     <ol className="ranking mates pairs">
@@ -350,8 +360,35 @@ export default function HeroPage({ code }: { code: string }) {
                     </ol>
                   </Panel>
                 ))}
-              </div>
-              <p className="caption">{t('hero.pairsCaption', { battles: pairs.battles.toLocaleString(locale), min: pairs.min })}</p>
+              </div>}
+              {pairs && <p className="caption">{t('hero.pairsCaption', { battles: pairs.battles.toLocaleString(locale), min: pairs.min })}</p>}
+              {table && (
+                <details className="pairs-all">
+                  <summary>{t('hero.pairsAll')}</summary>
+                  <div className="panels">
+                    {([['hero.pairsAllVs', table.hero.versus], ['hero.pairsAllWith', table.hero.with]] as const).map(([title, rows]) => rows.length > 0 && (
+                      <Panel key={title} title={t(title)}>
+                        <div className="pairs-table">
+                          <table className="targets" aria-label={t(title)}>
+                            <thead><tr><th>{t('hero.pairsHero')}</th><th>{t('hero.pairsN')}</th><th>{t('hero.winRate')}</th><th title={t('hero.pairsEdge')}>{t('hero.pairsDiff')}</th></tr></thead>
+                            <tbody>
+                              {rows.map(([code, n, win, edge, clear]) => (
+                                <tr key={code}>
+                                  <th scope="row"><span className="who"><HeroIcon code={code} name={shownNames.get(code) ?? code} decorative /><a href={`#/hero/${code}`}>{shownNames.get(code) ?? code}</a></span></th>
+                                  <td>{n}</td>
+                                  <td>{win}%</td>
+                                  <td className={edge < 0 ? 'neg' : undefined}>{edge > 0 ? '+' : ''}{edge}{clear ? ' ★' : ''}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </Panel>
+                    ))}
+                  </div>
+                  <p className="caption">{t('hero.pairsAllNote', { battles: table.battles.toLocaleString(locale), min: table.min })}</p>
+                </details>
+              )}
             </section>
           )}
           {(usage.length > 0 || teamList.length > 0 || mates.length > 0) && (

@@ -16,6 +16,7 @@ type Client = ReturnType<typeof createClient>;
 const BASE = 'https://e7api.onstove.com';
 const PLAYERS = 600; // the most players read: each leaderboard below lists 100 at most
 const LEADERBOARDS = ['all', 'world_global', 'world_kor', 'world_asia', 'world_eu', 'world_jpn']; // every server has its own top 100 (checked: a page 11 is always empty)
+const OPPONENTS = 600; // most opponents of those players read too (the most met first): wider league and hero variety
 const BATTLES = 100; // most recent battles per player (the API keeps 100)
 const PAGE = 10; // rows per page, fixed by the API
 const MIN_PLAYERS_OK = 0.8; // below this share of players loaded, the run is not trusted
@@ -24,6 +25,7 @@ const STORE = 'data-private/rta'; // the raw battles, outside public/ and git
 type RawDeck = { hero_list?: { hero_code: string; first_pick?: number; ban?: number }[]; preban_list?: string[] };
 type RawBattle = {
   battle_seq?: string | number; iswin?: number; season_code?: string; battleCompletedate?: string; enemy_grade_code?: string;
+  matchPlayerNicknameno?: number | string; enemy_world_code?: string;
   my_deck?: RawDeck; enemy_deck?: RawDeck; teamBettleInfo?: unknown; teamBettleInfoenemy?: unknown;
 };
 
@@ -100,9 +102,9 @@ export function listPlayers(raw: unknown): { nick: number; world: string; tier?:
  * 'failed' when no battle was found or too many players could not be loaded; then nothing is written.
  */
 export async function collectRta(opts: {
-  outDir: string; storeDir?: string; client: Client; players?: number; battles?: number; log?: (m: string) => void; now?: () => string;
+  outDir: string; storeDir?: string; client: Client; players?: number; opponents?: number; deep?: boolean; battles?: number; log?: (m: string) => void; now?: () => string;
 }): Promise<'written' | 'failed'> {
-  const { outDir, storeDir = STORE, client, players = PLAYERS, battles: perPlayer = BATTLES, log = () => {}, now = () => new Date().toISOString().slice(0, 10) } = opts;
+  const { outDir, storeDir = STORE, client, players = PLAYERS, opponents = OPPONENTS, deep = false, battles: perPlayer = BATTLES, log = () => {}, now = () => new Date().toISOString().slice(0, 10) } = opts;
   const lang = { lang: 'en' };
   let season: { season_code: string; name: string };
   try {
@@ -130,29 +132,41 @@ export async function collectRta(opts: {
 
   const store = await loadStore(storeDir, season.season_code);
   const fresh = new Map<string, Battle>(); // new this run, by battleKey
+  const foes = new Map<string, { nick: number; world: string; tier?: string; seen: number }>(); // opponents of the ranked players, in memory only
+  const read = async (p: { nick: number; world: string; tier?: string }, top = false) => {
+    let got = 0;
+    for (let page = 1; got < perPlayer; page++) {
+      const body = unwrap<{ result_body: { total_count: number; battle_list: RawBattle[] } }>(
+        await client.get('/gameApi/getBattleList', { nick_no: String(p.nick), world_code: p.world, current_page: String(page), ...lang }),
+      ).result_body;
+      const list = body.battle_list ?? [];
+      const current = list.map((r) => parseBattle(r, p.tier)).filter((b): b is Battle => b !== null && b.season === season.season_code);
+      if (top) {
+        for (const r of list) {
+          if (r.season_code !== season.season_code || !r.matchPlayerNicknameno || !r.enemy_world_code) continue;
+          const key = `${r.enemy_world_code}:${r.matchPlayerNicknameno}`;
+          const f = foes.get(key) ?? { nick: Number(r.matchPlayerNicknameno), world: r.enemy_world_code, ...(r.enemy_grade_code ? { tier: r.enemy_grade_code } : {}), seen: 0 };
+          f.seen++;
+          foes.set(key, f);
+        }
+      }
+      let known = false; // a battle kept in an earlier run: everything older was kept then too (true of a ranked player's history, not of an opponent's: it holds battles against the top that we kept, among new ones)
+      const before = fresh.size;
+      for (const b of current) {
+        if (store.seqs.has(b.seq)) { known = true; continue; }
+        const key = battleKey(b);
+        const same = fresh.get(key);
+        if (same) { same.seqs = [...(same.seqs ?? [same.seq]), b.seq]; continue; } // the other player's record of a battle already counted
+        if (store.keys.has(key)) continue; // kept earlier, under the other player's id
+        fresh.set(key, b);
+      }
+      got += list.length;
+      if (list.length === 0 || current.length === 0 || (top ? known : !deep && fresh.size === before) || page * PAGE >= body.total_count) break; // an opponent is read until a page brings nothing new
+    }
+  };
   let failed = 0;
   for (const p of ranked) {
-    try {
-      let got = 0;
-      for (let page = 1; got < perPlayer; page++) {
-        const body = unwrap<{ result_body: { total_count: number; battle_list: RawBattle[] } }>(
-          await client.get('/gameApi/getBattleList', { nick_no: String(p.nick), world_code: p.world, current_page: String(page), ...lang }),
-        ).result_body;
-        const list = body.battle_list ?? [];
-        const current = list.map((r) => parseBattle(r, p.tier)).filter((b): b is Battle => b !== null && b.season === season.season_code);
-        let known = false; // a battle kept in an earlier run: everything older was kept then too
-        for (const b of current) {
-          if (store.seqs.has(b.seq)) { known = true; continue; }
-          const key = battleKey(b);
-          const same = fresh.get(key);
-          if (same) { same.seqs = [...(same.seqs ?? [same.seq]), b.seq]; continue; } // the other player's record of a battle already counted
-          if (store.keys.has(key)) continue; // kept earlier, under the other player's id
-          fresh.set(key, b);
-        }
-        got += list.length;
-        if (list.length === 0 || current.length === 0 || known || page * PAGE >= body.total_count) break;
-      }
-    } catch (e) {
+    try { await read(p, true); } catch (e) {
       failed++;
       log(`rta: a player failed: ${(e as Error).message}`);
     }
@@ -160,6 +174,13 @@ export async function collectRta(opts: {
   if (ranked.length === 0 || (ranked.length - failed) / ranked.length < MIN_PLAYERS_OK) {
     log(`rta: too many players failed (${failed} of ${ranked.length}), nothing written`);
     return 'failed';
+  }
+  // The players the ranked ones faced play more heroes than the top itself. The most met are read the same way; a failure there costs only that player.
+  const isRanked = new Set(ranked.map((r) => `${r.world}:${r.nick}`));
+  const extra = [...foes.entries()].filter(([k]) => !isRanked.has(k)).map(([, f]) => f).sort((a, b) => b.seen - a.seen).slice(0, opponents);
+  let extraOk = 0;
+  for (const p of extra) {
+    try { await read(p); extraOk++; } catch (e) { log(`rta: an opponent failed: ${(e as Error).message}`); }
   }
   await appendBattles(store, [...fresh.values()]);
   if (store.battles.length === 0) {
@@ -169,14 +190,14 @@ export async function collectRta(opts: {
 
   const days = store.battles.map((b) => b.date.slice(0, 10)).filter(Boolean).sort();
   const stats: RtaStats = {
-    season: season.name, code: season.season_code, updated: now(), players: ranked.length - failed, battles: store.battles.length,
+    season: season.name, code: season.season_code, updated: now(), players: ranked.length - failed + extraOk, battles: store.battles.length,
     ...(days.length > 0 ? { since: days[0], until: days[days.length - 1] } : {}), heroes: tally(store.battles),
   };
   await mkdir(join(outDir, 'rta'), { recursive: true });
   await writeFile(join(outDir, 'rta', 'stats.json'), JSON.stringify(stats));
   await writeBuilds({ outDir, season: season.season_code, battles: store.battles, now });
   await writePairs({ outDir, season: season.season_code, battles: store.battles, now });
-  log(`rta: ${fresh.size} new battles, ${store.battles.length} in total, from ${stats.players} players, ${Object.keys(stats.heroes).length} heroes`);
+  log(`rta: ${fresh.size} new battles, ${store.battles.length} in total, from ${stats.players} players (${extraOk} opponents), ${Object.keys(stats.heroes).length} heroes`);
   return 'written';
 }
 
@@ -184,10 +205,11 @@ export async function collectRta(opts: {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const at = process.argv.indexOf('--players');
   const players = at > 0 ? Number(process.argv[at + 1]) : undefined;
+  const deep = process.argv.includes('--deep'); // read every opponent's whole history (once, after widening the sample); a daily run stops at the first page with nothing new
   // the record API takes POST requests; the identity is ours, nothing is imitated; 700 ms between requests
   const post: typeof fetch = (url, init) => fetch(url, { ...init, method: 'POST', headers: { 'User-Agent': 'e7overlay-personal/0.1' } });
   const result = await collectRta({
-    outDir: 'public/data', client: createClient({ baseUrl: BASE, fetchFn: post, delayMs: 700 }), ...(players && players > 0 ? { players } : {}), log: console.log,
+    outDir: 'public/data', client: createClient({ baseUrl: BASE, fetchFn: post, delayMs: 700 }), ...(players && players > 0 ? { players } : {}), deep, log: console.log,
   });
   console.log(result);
   if (result === 'failed') process.exitCode = 1;

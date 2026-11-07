@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Battle } from './rtaStore';
-import type { RtaHeroPairs, RtaPairs, RtaPairEntry } from '../../src/shared/types';
+import type { RtaHeroPairs, RtaHeroTable, RtaPairs, RtaPairEntry, RtaTable } from '../../src/shared/types';
 
 const MIN_GAMES = 30; // a pair seen fewer times than this is never listed
 const MIN_Z = 1.64; // and it must beat what its two heroes predict by more than chance would (one side, 95%)
@@ -21,7 +21,7 @@ const bump = (m: Map<string, Count>, key: string, won: boolean) => {
  * with a partner, expected = winA + winB - 50; against an opponent, expected = winA - (winB - 50). Heroes banned after the draft do not play and are left out.
  * Listed when seen at least MIN_GAMES times and further from the expectation than MIN_Z standard errors; the best TOP of each list, by that distance.
  */
-export function buildPairs(battles: Battle[], minGames = MIN_GAMES): Record<string, RtaHeroPairs> {
+function countPairs(battles: Battle[]) {
   const solo = new Map<string, Count>();
   const together = new Map<string, Count>();
   const versus = new Map<string, Count>();
@@ -36,6 +36,38 @@ export function buildPairs(battles: Battle[], minGames = MIN_GAMES): Record<stri
       }
     });
   }
+  return { solo, together, versus };
+}
+
+/**
+ * Every partner and every opponent of each hero seen at least minGames times, for the full table of a hero page: [code, games, win %, edge over the expectation, 1 when the gap is
+ * past chance (same test as the short lists)]. Partners best first, opponents hardest (lowest win rate) first.
+ */
+export function buildTable(battles: Battle[], minGames = MIN_GAMES): Record<string, RtaHeroTable> {
+  const { solo, together, versus } = countPairs(battles);
+  const rate = (code: string) => { const c = solo.get(code)!; return c.w / c.n; };
+  const out: Record<string, RtaHeroTable> = {};
+  const fill = (counts: Map<string, Count>, kind: 'with' | 'versus', expected: (a: number, b: number) => number) => {
+    for (const [key, c] of counts) {
+      if (c.n < minGames) continue;
+      const [x, y] = key.split('|');
+      const exp = Math.min(0.95, Math.max(0.05, expected(rate(x), rate(y))));
+      const win = c.w / c.n;
+      const z = (win - exp) / Math.sqrt((exp * (1 - exp)) / c.n);
+      ((out[x] ??= { with: [], versus: [] })[kind]).push([y, c.n, Math.round(win * 1000) / 10, Math.round((win - exp) * 1000) / 10, Math.abs(z) >= MIN_Z ? 1 : 0]);
+    }
+  };
+  fill(together, 'with', (a, b) => a + b - 0.5);
+  fill(versus, 'versus', (a, b) => a - (b - 0.5));
+  const result: Record<string, RtaHeroTable> = {};
+  for (const [x, t] of Object.entries(out).sort((a, b) => a[0].localeCompare(b[0]))) {
+    result[x] = { with: t.with.sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0])), versus: t.versus.sort((a, b) => a[2] - b[2] || a[0].localeCompare(b[0])) };
+  }
+  return result;
+}
+
+export function buildPairs(battles: Battle[], minGames = MIN_GAMES): Record<string, RtaHeroPairs> {
+  const { solo, together, versus } = countPairs(battles);
   const rate = (code: string) => { const c = solo.get(code)!; return c.w / c.n; };
   const out: Record<string, { with: [RtaPairEntry, number][]; over: [RtaPairEntry, number][]; under: [RtaPairEntry, number][] }> = {};
   const judge = (counts: Map<string, Count>, expected: (a: number, b: number) => number, add: (x: string, e: RtaPairEntry, z: number) => void) => {
@@ -60,10 +92,13 @@ export function buildPairs(battles: Battle[], minGames = MIN_GAMES): Record<stri
   return result;
 }
 
-/** Writes rta/pairs.json: the partners and the matchups of each hero, with the day range of the battles counted. */
+/** Writes rta/pairs.json (the clear partners and matchups of each hero, which the draft score uses) and rta/table.json (every pair seen often enough, for the hero pages). */
 export async function writePairs(opts: { outDir: string; season: string; battles: Battle[]; now: () => string }): Promise<void> {
   const { outDir, season, battles, now } = opts;
-  const pairs: RtaPairs = { code: season, updated: now(), battles: battles.length, minGames: MIN_GAMES, heroes: buildPairs(battles) };
+  const head = { code: season, updated: now(), battles: battles.length, minGames: MIN_GAMES };
+  const pairs: RtaPairs = { ...head, heroes: buildPairs(battles) };
+  const table: RtaTable = { ...head, heroes: buildTable(battles) };
   await mkdir(join(outDir, 'rta'), { recursive: true });
   await writeFile(join(outDir, 'rta', 'pairs.json'), JSON.stringify(pairs));
+  await writeFile(join(outDir, 'rta', 'table.json'), JSON.stringify(table));
 }

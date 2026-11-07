@@ -5,13 +5,13 @@ import HeroPage from '../src/pages/HeroPage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
 import App from '../src/App';
-import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadRtaBuilds, loadRtaPairs, loadSkills, loadTeams } from '../src/lib/data';
+import { NotFoundError, loadArenaIndex, loadArenaSeason, loadHero, loadIndex, loadHeroes, loadModes, loadNames, loadRta, loadRtaBuilds, loadRtaPairs, loadRtaTable, loadSkills, loadTeams } from '../src/lib/data';
 import { mapDetail, mapSetNames, mapShares } from '../scripts/collect/map';
 import type { HeroSnapshot, RtaBuilds, RtaPairs, RtaStats, SkillsFile } from '../src/shared/types';
 
 vi.mock('../src/lib/data', async (orig) => ({
   ...(await orig<typeof import('../src/lib/data')>()),
-  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaBuilds: vi.fn(), loadRtaPairs: vi.fn(),
+  loadIndex: vi.fn(), loadHero: vi.fn(), loadHeroes: vi.fn(), loadModes: vi.fn(), loadTeams: vi.fn(), loadArenaIndex: vi.fn(), loadArenaSeason: vi.fn(), loadSkills: vi.fn(), loadRta: vi.fn(), loadNames: vi.fn(), loadRtaBuilds: vi.fn(), loadRtaPairs: vi.fn(), loadRtaTable: vi.fn(),
 }));
 beforeEach(() => {
   vi.mocked(loadIndex).mockResolvedValue({ periods: ['2026-10-29', '2026-10-22'] });
@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.mocked(loadRta).mockResolvedValue(null);
   vi.mocked(loadRtaBuilds).mockResolvedValue(null);
   vi.mocked(loadRtaPairs).mockResolvedValue(null);
+  vi.mocked(loadRtaTable).mockResolvedValue(null);
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.resetAllMocks(); location.hash = ''; });
 
@@ -185,7 +186,7 @@ describe('HeroPage', () => {
     render(<HeroPage code="c1176" />);
     const panel = await screen.findByRole('region', { name: 'Other game modes' });
     const rows = within(panel).getAllByRole('meter');
-    expect(rows.map((r) => r.textContent)).toEqual(['#1 Golem Hunt, Hell45%', '#2 Abyss, floor 12020.5%']);
+    expect(rows.map((r) => r.textContent!.trim())).toEqual(['#1 Golem Hunt, Hell45%', '#2 Abyss, floor 12020.5%']);
     expect(loadModes).toHaveBeenCalledWith('2026-10-29');
   });
 
@@ -286,7 +287,7 @@ describe('HeroPage', () => {
     expect(within(panel).getByText('Blooming Rose')).toBeTruthy();
     expect(within(panel).getByText('Effectiveness 8% to 16%')).toBeTruthy();
     const rows = within(panel).getAllByRole('listitem');
-    expect(rows.map((r) => r.textContent)).toEqual([
+    expect(rows.map((r) => r.textContent!.trim())).toEqual([
       expect.stringContaining('Decreases Defense of the enemy for 2 turns when using Scarlet Garden.'),
       expect.stringContaining('Decreases cooldown of Scarlet Garden by 1 turn.'),
       expect.stringContaining('Increases damage dealt by Ambush by 20%.'),
@@ -517,6 +518,32 @@ describe('HeroPage', () => {
         render(<HeroPage code="c1176" />);
         await screen.findByRole('heading', { name: 'Setsuka' });
         expect(screen.queryByRole('region', { name: 'Partners and matchups' })).toBeNull();
+      });
+    });
+
+    describe('full matchup table', () => {
+      const table = {
+        code: 'pvp_rta_ss21', updated: '2026-11-06', battles: 40000, minGames: 30,
+        heroes: { c1176: { versus: [['c1003', 185, 40.5, -9, 1], ['c1002', 60, 52, 1.5, 0]], with: [['c1001', 152, 56.6, 9, 1]] } },
+      };
+      it('lists every opponent and partner seen often enough with the games, the win rate and the gap, marking the clear ones, even when no short list exists', async () => {
+        vi.mocked(loadHero).mockResolvedValue(snapshot);
+        vi.mocked(loadHeroes).mockResolvedValue([{ code: 'c1001', name: 'Kawerik' }, { code: 'c1002', name: 'Iseria' }, { code: 'c1003', name: 'Estelle' }] as never);
+        vi.mocked(loadRtaTable).mockResolvedValue(table as never);
+        render(<HeroPage code="c1176" />);
+        const block = await screen.findByRole('region', { name: 'Partners and matchups' });
+        const vs = within(block).getByRole('table', { name: 'Against each hero (hardest first)' });
+        const rows = within(vs).getAllByRole('row').slice(1);
+        expect(rows.map((r) => r.textContent!.trim())).toEqual(['Estelle18540.5%-9 ★', 'Iseria6052%+1.5']); // the hardest first; the star only where the gap is past chance
+        expect(within(vs).getByRole('link', { name: 'Estelle' }).getAttribute('href')).toBe('#/hero/c1003');
+        expect(within(within(block).getByRole('table', { name: 'With each partner (best first)' })).getByText('Kawerik')).toBeTruthy();
+        expect(block.textContent).toContain('at least 30 of the 40,000');
+      });
+      it('is left out without the file', async () => {
+        vi.mocked(loadHero).mockResolvedValue(snapshot);
+        render(<HeroPage code="c1176" />);
+        await screen.findByRole('heading', { name: 'Setsuka' });
+        expect(screen.queryByRole('table', { name: 'Against each hero (hardest first)' })).toBeNull();
       });
     });
 
