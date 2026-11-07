@@ -113,7 +113,10 @@ export type BalanceChange = {
   kind: 'hero' | 'artifact'; name: string; grade?: number; skills?: string[]; summary?: string; details?: SkillChange[];
   code?: string; job?: string; element?: string; // from the game's data when the name is known
 };
-export type Balance = { id: string; title: string; url: string; posted: string; date: string; changes: BalanceChange[] }; // posted, date = YYYY-MM-DD
+// The texts of one change in another language, from the official post of the same preview in that language (same order as the changes).
+export type LocalChange = Pick<BalanceChange, 'skills' | 'summary' | 'details'>;
+export type LocalBalance = { title: string; url: string; changes: LocalChange[] };
+export type Balance = { id: string; title: string; url: string; posted: string; date: string; changes: BalanceChange[]; l10n?: Record<string, LocalBalance> }; // posted, date = YYYY-MM-DD; l10n by language code (ja, ko, zh)
 // Official posts about the limited-time modes (limited.json), newest first per mode id of shared/limited.ts
 export type LimitedFile = { updated: string; modes: Record<string, FeedPost[]> };
 export type Feed = { updated: string; posts: FeedPost[]; releases: Release[]; balance?: Balance }; // posts: newest first per board, releases: newest first

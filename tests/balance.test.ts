@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseBalance, refreshFeed } from '../scripts/collect/feed';
+import { parseBalance, parseBalanceLocal, refreshFeed } from '../scripts/collect/feed';
 import type { createClient } from '../scripts/collect/api';
 
 const post = JSON.parse(readFileSync('tests/fixtures/balance-post.json', 'utf8'));
@@ -144,5 +144,107 @@ describe('parseBalance: exact changes', () => {
 
   it('has the skills list and the details in the same order', () => {
     for (const c of b.changes) expect(c.details!.map((d) => d.skill.replace(/ \((Awakened|Skill Enhance)\)$/, '')).filter((s, i, a) => a.indexOf(s) === i)).toEqual(c.skills);
+  });
+});
+
+// The same preview in another language: the post has the same layout; the fixture's texts are given a language mark and the (Before) / (After) marks of Korean
+const localize = (h: string, lang: string, intro = '') =>
+  intro + h.replace(/>([^<>]*[^<>\s][^<>]*)</g, (_, t: string) => {
+    if (!t.replace(/&nbsp;/g, '').trim()) return `>${t}<`; // a blank paragraph stays blank
+    const s = t.replace('(Before)', '(전)').replace('(After)', '(후)');
+    return /^\d+(-\d+)*\.\s/.test(s.trim()) ? `>${s}<` : `>${lang} ${s}<`;
+  });
+
+describe('parseBalanceLocal', () => {
+  const en = parseBalance(html, '2026-11-06')!;
+
+  it('gives, for each change in the same order, the skills, the summary and the before / after texts of the post in the other language', () => {
+    const local = parseBalanceLocal(html, localize(html, 'KO'), '2026-11-06')!;
+    expect(local).toHaveLength(en.changes.length);
+    const ray = local[0];
+    expect(ray.skills).toEqual(['KO Cloud of Death', 'KO Constellation']); // the awakened version folds into its skill, as in English
+    expect(ray.details!.map((d) => d.skill)).toEqual(['KO Cloud of Death', 'KO Cloud of Death (Awakened)', 'KO Constellation']);
+    expect(ray.details![2]).toMatchObject({ before: 'KO Cancer', after: 'KO Scorpio' });
+    expect(ray.summary).toMatch(/^KO Death Dealer Ray is a Hero/);
+    expect(local[1].details!.find((d) => d.skill === 'KO Touch of Darkness')!.tags).toEqual({ before: [], after: ['KO Damage Dealt Decreased', 'KO Additional Damage Dealt Increased'] });
+    expect(local.map((c) => c.details?.length ?? 0)).toEqual(en.changes.map((c) => c.details?.length ?? 0));
+  });
+
+  it('lines the post up on its first numbered section, whatever the length of its introduction', () => {
+    const local = parseBalanceLocal(html, localize(html, 'JA', '<p>one more paragraph of introduction</p>'), '2026-11-06')!;
+    expect(local[0].details![0].skill).toBe('JA Cloud of Death');
+  });
+
+  it('is null when the post is not laid out like the English one', () => {
+    const shorter = html.replace(/<tr[\s>][\s\S]*?<\/tr>/g, (row) => (row.includes('Constellation (Before)') ? '' : row)); // a skill table less
+    expect(parseBalanceLocal(html, localize(shorter, 'KO'), '2026-11-06')).toBeNull();
+  });
+});
+
+describe('refreshFeed: the preview in the other languages', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'e7-bal-'));
+    mkdirSync(join(dir, '2026-10-29'), { recursive: true });
+    writeFileSync(join(dir, 'index.json'), JSON.stringify({ periods: ['2026-10-29'] }));
+    writeFileSync(join(dir, '2026-10-29', 'heroes.json'), JSON.stringify([]));
+    writeFileSync(join(dir, '2026-10-29', 'gear.json'), JSON.stringify({ key: 'k', artifacts: {} }));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const read = () => JSON.parse(readFileSync(join(dir, 'feed.json'), 'utf8'));
+  const env = (value: unknown) => ({ code: 0, message: 'ok', value });
+  const at = Date.parse('2026-11-06T01:00:00Z');
+
+  // the English board, and for each language its board with the title its preview has, plus an older preview and a post-patch notice that must not be taken
+  const BOARDS: Record<string, { id: string; title: string }[]> = {
+    '987': [{ id: '14618757', title: '11/19 (Thu) Balance Adjustment Preview' }],
+    '1816': [{ id: '700', title: 'バランス調整（11/19予定）' }, { id: '699', title: 'バランス調整（9/17予定）' }, { id: '698', title: '4/1(水) バランス調整事後のお知らせ' }],
+    '999': [{ id: '800', title: '11/19(목) 밸런스 조정 사전 안내' }, { id: '799', title: '09/17(목) 밸런스 조정 사전 안내' }],
+    '1004': [{ id: '900', title: '【11/19(週四)平衡調整事前說明】' }],
+  };
+  function fake(o: { broken?: string } = {}) {
+    const asked: string[] = [];
+    const client = {
+      async get(path: string, params: Record<string, string>) {
+        if (path === 'v3.0/article') {
+          asked.push(params.article_id);
+          if (params.article_id === o.broken) return env({ content: '<p>Hello</p>' }); // not laid out like the English one
+          const lang = { '700': 'JA', '800': 'KO', '900': 'ZH' }[params.article_id];
+          return lang ? env({ content: localize(html, lang) }) : post;
+        }
+        const board = /BOARD\/(\d+)\//.exec(path)![1];
+        return env({ list: (BOARDS[board] ?? [{ id: board, title: `news ${board}` }]).map((p) => ({ article_id: p.id, title: p.title, create_datetime: at })) });
+      },
+    };
+    return { client: client as unknown as ReturnType<typeof createClient>, asked };
+  }
+
+  it('stores the official texts of the Japanese, Korean and Taiwanese posts of the same patch day, with their own link', async () => {
+    const { client, asked } = fake();
+    await refreshFeed({ outDir: dir, client });
+    const l10n = read().balance.l10n;
+    expect(Object.keys(l10n)).toEqual(['ja', 'ko', 'zh']);
+    expect(l10n.ja).toMatchObject({ title: 'バランス調整（11/19予定）', url: 'https://page.onstove.com/epicseven/jp/view/700' });
+    expect(l10n.ko.url).toBe('https://page.onstove.com/epicseven/kr/view/800');
+    expect(l10n.zh.url).toBe('https://page.onstove.com/epicseven/tw/view/900');
+    expect(l10n.ko.changes).toHaveLength(7);
+    expect(l10n.ja.changes[0].skills[0]).toBe('JA Cloud of Death');
+    expect(asked).toEqual(['14618757', '700', '800', '900']); // the older previews and the notice after a patch are not read
+  });
+
+  it('leaves a language out when its post is not laid out like the English one, and keeps the others', async () => {
+    const logs: string[] = [];
+    await refreshFeed({ outDir: dir, client: fake({ broken: '800' }).client, log: (m) => logs.push(m) });
+    expect(Object.keys(read().balance.l10n)).toEqual(['ja', 'zh']);
+    expect(logs.some((m) => /ko balance preview 800/.test(m))).toBe(true);
+  });
+
+  it('keeps the texts found earlier for the same preview when a board cannot be read now', async () => {
+    await refreshFeed({ outDir: dir, client: fake().client });
+    const down = fake().client;
+    const get = down.get.bind(down);
+    (down as unknown as { get: typeof get }).get = async (path, params) => { if (/BOARD\/999\//.test(path)) throw new Error('down'); return get(path, params); };
+    await refreshFeed({ outDir: dir, client: down });
+    expect(Object.keys(read().balance.l10n)).toEqual(['ja', 'ko', 'zh']);
   });
 });

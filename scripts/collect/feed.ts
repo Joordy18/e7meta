@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient, unwrap } from './api';
 import { text } from './html';
-import type { Balance, BalanceChange, Feed, FeedBoard, FeedPost, Release } from '../../src/shared/types';
+import type { Balance, BalanceChange, Feed, FeedBoard, FeedPost, LocalBalance, LocalChange, Release, SkillChange } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
 
@@ -12,6 +12,13 @@ const BOARDS: [number, FeedBoard][] = [[985, 'notice'], [986, 'patch'], [987, 'd
 const PER_BOARD = 6;
 const KEEP_RELEASES = 20;
 const UPDATE_POSTS = 2; // how many of the newest "Update Content" posts are read for announcements
+// The same preview is posted by the game's Japanese, Korean and Taiwanese communities in their own language, in the same layout, on the same day:
+// the developer notes board of each, the region of its public link, and how the title of its preview reads. There is no official French or German.
+const LOCAL_PREVIEW: Record<string, { board: number; region: string; title: RegExp }> = {
+  ja: { board: 1816, region: 'jp', title: /バランス調整[（(]\d+\/\d+予定/ },
+  ko: { board: 999, region: 'kr', title: /밸런스 조정 사전 안내/ },
+  zh: { board: 1004, region: 'tw', title: /平衡調整事前說明/ },
+};
 const DEV_LIST = 15; // the balance previews are among the developer notes, a few weeks apart
 const PATCH_LIST = 20; // the patch board list is read deeper than it is shown: update posts are weekly, patch information daily
 
@@ -77,20 +84,47 @@ const SUMMARY_MAX = 300;
 function clip(s: string): string {
   if (s.length <= SUMMARY_MAX) return s;
   const cut = s.slice(0, SUMMARY_MAX);
-  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '));
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('。'));
   return end > 100 ? cut.slice(0, end + 1) : `${cut.slice(0, SUMMARY_MAX - 1).trimEnd()}…`;
 }
+
+type Tok = { tr: boolean; t: string; cells: string[][] };
+
+// Japanese and Chinese posts carry spaces inside words ("タ ー ン"): dropped between CJK characters and punctuation
+const CJK = '[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\u3000-\\u303f\\uff00-\\uffefー]';
+const squeeze = (s: string) => s.replace(new RegExp(`(?<=${CJK})\\s+(?=${CJK})`, 'gu'), '');
+
+/** The paragraphs and table rows of a post, in order, each with its text (and for a row, the lines of each cell). */
+function tokenize(html: string, tidy: (s: string) => string = (s) => s): Tok[] {
+  // a cell holds one or more paragraphs: its lines
+  const lines = (cell: string) => { const ps = [...cell.matchAll(/<p[\s>][\s\S]*?<\/p>/g)].map((p) => tidy(text(p[0]))).filter(Boolean); return ps.length > 0 ? ps : [tidy(text(cell))].filter(Boolean); };
+  return [...html.matchAll(/<(p|tr)[\s>][\s\S]*?<\/\1>/g)]
+    .map((m) => ({ tr: m[1] === 'tr', t: tidy(text(m[0])), cells: m[1] === 'tr' ? [...m[0].matchAll(/<t[dh][\s>][\s\S]*?<\/t[dh]>/g)].map((c) => lines(c[0])) : [] }))
+    .filter((x) => x.t);
+}
+
+const MARKER = /\s*[（(](?:調整前|調整後|전|후|修改前|修改後)[）)]$/; // "(Before)" / "(After)" of the Japanese, Korean and Chinese posts
+const TRAILING_GROUP = /\s*[（(【][^）)】]*[）)】]$/; // "(각성)", "（覺醒）", "【覚醒済】": the awakened version of a skill
 
 /**
  * Reads a "Balance Adjustment Preview" post: the patch day ("scheduled to take place on November 19"), the table of heroes and artifacts it
  * adjusts, and for each the skills it changes and the developers' explanation. Null when the post has no such table.
+ * With `local`, the official post of the same preview in another language (same layout, paragraph for paragraph): the texts of each change in that language,
+ * in the same order, or null when its layout is not the same.
  */
 export function parseBalance(html: string, posted: string): { date: string; changes: BalanceChange[] } | null {
-  // a cell holds one or more paragraphs: its lines
-  const lines = (cell: string) => { const ps = [...cell.matchAll(/<p[\s>][\s\S]*?<\/p>/g)].map((p) => text(p[0])).filter(Boolean); return ps.length > 0 ? ps : [text(cell)].filter(Boolean); };
-  const tokens = [...html.matchAll(/<(p|tr)[\s>][\s\S]*?<\/\1>/g)]
-    .map((m) => ({ tr: m[1] === 'tr', t: text(m[0]), cells: m[1] === 'tr' ? [...m[0].matchAll(/<t[dh][\s>][\s\S]*?<\/t[dh]>/g)].map((c) => lines(c[0])) : [] }))
-    .filter((x) => x.t);
+  const r = readBalance(html, posted);
+  return r && { date: r.date, changes: r.changes };
+}
+
+export function parseBalanceLocal(html: string, localHtml: string, posted: string): LocalChange[] | null {
+  const r = readBalance(html, posted, localHtml);
+  return r?.local ?? null;
+}
+
+function readBalance(html: string, posted: string, localHtml?: string): { date: string; changes: BalanceChange[]; local?: LocalChange[] } | null {
+  const tokens = tokenize(html);
+  const loc = localHtml === undefined ? undefined : tokenize(localHtml, squeeze);
   let date: string | undefined;
   let listing: 'hero' | 'artifact' | undefined;
   const rows: { kind: 'hero' | 'artifact'; grade?: number; full: string; change?: BalanceChange }[] = [];
@@ -109,45 +143,68 @@ export function parseBalance(html: string, posted: string): { date: string; chan
     else if (tr && listing === 'artifact') { const m = /^★\s*(\d)\s+(.+)$/.exec(t); if (m) rows.push({ kind: 'artifact', grade: Number(m[1]), full: m[2] }); }
   }
   if (!date || rows.length === 0) return null;
+  const start = i;
+  // the other language's post has its own introduction (a different number of paragraphs): it is lined up on the first numbered section, and must follow the same layout from there
+  const numbered = /^\d+-\d+\s*[.．]/; // "1-1." or, with the stray space of the Japanese post, "1-1 ．"
+  const offset = loc ? loc.findIndex((x) => !x.tr && numbered.test(x.t)) - start : 0;
+  const aligned = loc ? tokens.map((x, k) => (k < start ? x : loc[k + offset])) : undefined;
+  const sameLayout = !!aligned && offset > -start && aligned.every((x, k) => x && x.tr === tokens[k].tr && x.cells.length === tokens[k].cells.length);
 
-  // 2. the details: a heading with the hero's own name (the table adds its summon type, "Moonlight Death Dealer Ray"), then skill tables and paragraphs
+  // 2. the details: a heading with the hero's own name (the table adds its summon type, "Moonlight Death Dealer Ray"), then skill tables and paragraphs.
+  // The structure is read from the English post; `src` says where the texts come from (the English post, or the same position in the other language).
   const names = (full: string) => full.split(' ').map((_, k, w) => w.slice(k).join(' ').toLowerCase());
-  const text_: Record<number, string[]> = {};
-  let current: (typeof rows)[number] | undefined;
-  let fresh = false; // the next row of a skill table holds its before / after texts
-  for (; i < tokens.length; i++) {
-    const { tr, t } = tokens[i];
-    if (!tr && /^That concludes/.test(t)) break;
-    if (!tr && /^\d+(-\d+)*\.\s/.test(t)) { current = undefined; continue; }
-    const heading = !tr ? rows.find((r) => !r.change && names(r.full).includes(t.toLowerCase())) : undefined;
-    if (heading) {
-      heading.change = { kind: heading.kind, name: t, ...(heading.grade ? { grade: heading.grade } : {}) };
-      current = heading;
-      text_[rows.indexOf(heading)] = [];
-    } else if (current?.change) {
-      if (tr) { // a skill table: a title row "Skill (Before) | Skill (After)", the texts, then optionally rows of effect labels
-        const [left = [], right = []] = tokens[i].cells;
-        const head = /^(.+?) \(Before\)$/.exec(left.join(' '));
-        const details = current.change.details ??= [];
-        if (head && right.join(' ').endsWith('(After)')) { details.push({ skill: head[1], before: '', after: '' }); fresh = true; }
-        else if (details.length > 0) {
-          const d = details[details.length - 1];
-          if (fresh) { d.before = left.join('\n'); d.after = right.join('\n'); fresh = false; }
-          else { const tags = (d.tags ??= { before: [], after: [] }); tags.before.push(...left); tags.after.push(...right); }
-        }
-      } else if (!t.startsWith('*')) text_[rows.indexOf(current)].push(t);
+  const walk = (src: Tok[], local: boolean): BalanceChange[] => {
+    const mine = rows.map((r) => ({ ...r, change: undefined as BalanceChange | undefined }));
+    const text_: Record<number, string[]> = {};
+    const folded = new Map<SkillChange, boolean>(); // the skill title carries the awakened / enhanced mark of its skill, which folds into it
+    let current: (typeof mine)[number] | undefined;
+    let fresh = false; // the next row of a skill table holds its before / after texts
+    for (let j = start; j < tokens.length; j++) {
+      const { tr, t } = tokens[j];
+      if (!tr && /^That concludes/.test(t)) break;
+      if (!tr && /^\d+(-\d+)*\.\s/.test(t)) { current = undefined; continue; }
+      const heading = !tr ? mine.find((r) => !r.change && names(r.full).includes(t.toLowerCase())) : undefined;
+      if (heading) {
+        heading.change = { kind: heading.kind, name: src[j].t, ...(heading.grade ? { grade: heading.grade } : {}) };
+        current = heading;
+        text_[mine.indexOf(heading)] = [];
+      } else if (current?.change) {
+        if (tr) { // a skill table: a title row "Skill (Before) | Skill (After)", the texts, then optionally rows of effect labels
+          const [left = [], right = []] = tokens[j].cells;
+          const [sl = [], sr = []] = src[j].cells;
+          const head = /^(.+?) \(Before\)$/.exec(left.join(' '));
+          const details = current.change.details ??= [];
+          if (head && right.join(' ').endsWith('(After)')) {
+            const entry: SkillChange = { skill: local ? sl.join(' ').replace(MARKER, '') : head[1], before: '', after: '' };
+            details.push(entry);
+            folded.set(entry, head[1] !== head[1].replace(/ \((Awakened|Skill Enhance)\)$/, ''));
+            fresh = true;
+          } else if (details.length > 0) {
+            const d = details[details.length - 1];
+            if (fresh) { d.before = sl.join('\n'); d.after = sr.join('\n'); fresh = false; }
+            else { const tags = (d.tags ??= { before: [], after: [] }); tags.before.push(...sl); tags.after.push(...sr); }
+          }
+        } else if (!t.startsWith('*')) text_[mine.indexOf(current)].push(src[j].t);
+      }
     }
-  }
-  const changes = rows.map((r, k): BalanceChange => {
-    const c = r.change ?? { kind: r.kind, name: r.full, ...(r.grade ? { grade: r.grade } : {}) };
-    // the awakened and enhanced versions of a skill fold into the skill
-    const skills = [...new Set((c.details ?? []).map((d) => d.skill.replace(/ \((Awakened|Skill Enhance)\)$/, '')))];
-    if (skills.length > 0) c.skills = skills;
-    const summary = (text_[k] ?? []).join(' ');
-    return summary ? { ...c, summary: clip(summary) } : c;
-  });
-  return { date, changes };
+    return mine.map((r, k): BalanceChange => {
+      const c = r.change ?? { kind: r.kind, name: r.full, ...(r.grade ? { grade: r.grade } : {}) };
+      // the awakened and enhanced versions of a skill fold into the skill
+      const skills = [...new Set((c.details ?? []).map((d) => (folded.get(d) ? (local ? d.skill.replace(TRAILING_GROUP, '') : d.skill.replace(/ \((Awakened|Skill Enhance)\)$/, '')) : d.skill)))];
+      if (skills.length > 0) c.skills = skills;
+      const summary = (text_[k] ?? []).join(' ');
+      return summary ? { ...c, summary: clip(summary) } : c;
+    });
+  };
+  const changes = walk(tokens, false);
+  if (!loc) return { date, changes };
+  if (!sameLayout) return { date, changes, local: undefined };
+  const local = walk(aligned!, true).map(({ skills, summary, details }): LocalChange => ({ ...(skills ? { skills } : {}), ...(summary ? { summary } : {}), ...(details ? { details } : {}) }));
+  // a post that does not give the same skills in the same order is not the same preview
+  const sameSkills = changes.every((c, k) => (c.details?.length ?? 0) === (local[k].details?.length ?? 0) && !!c.summary === !!local[k].summary);
+  return { date, changes, local: sameSkills ? local : undefined };
 }
+
 
 const readJson = async <T>(p: string): Promise<T | undefined> => {
   try { return JSON.parse(await readFile(p, 'utf8')) as T; } catch { return undefined; }
@@ -231,7 +288,25 @@ export async function refreshFeed(opts: {
       const parsed = parseBalance(unwrap<{ content: string }>(raw).content, preview.date);
       if (parsed) {
         const changes = parsed.changes.map((c) => { const k = catalog.get(keyOf(c)); return k ? { ...c, code: k.code, ...(k.job ? { job: k.job } : {}), ...(k.element ? { element: k.element } : {}) } : c; });
-        balance = { id: preview.id, title: preview.title, url: preview.url, posted: preview.date, date: parsed.date, changes };
+        const content = unwrap<{ content: string }>(raw).content;
+        const [, m, d] = /^\d+-(\d+)-(\d+)$/.exec(parsed.date)!;
+        const day = new RegExp(`(^|\\D)0?${+m}/0?${+d}(\\D|$)`); // "11/19" or "09/17" in the title
+        const l10n: Record<string, LocalBalance> = old?.balance?.id === preview.id ? { ...old.balance.l10n } : {}; // kept when a region cannot be read now
+        for (const [lang, c] of Object.entries(LOCAL_PREVIEW)) {
+          try {
+            const list = await client.get(`v3.0/article_group/BOARD/${c.board}/article/list`, {
+              interaction_type_code: 'VIEW', content_yn: 'N', summary_yn: 'N', sort_type_code: 'LATEST', translation_yn: 'N', page: '1', size: String(DEV_LIST),
+            });
+            const post = listPosts(list, 'dev', DEV_LIST).find((x) => c.title.test(x.title) && day.test(x.title));
+            if (!post) { log(`feed: no ${lang} balance preview for ${parsed.date}`); continue; }
+            const local = parseBalanceLocal(content, unwrap<{ content: string }>(await client.get('v3.0/article', { article_id: post.id, interaction_type_code: 'VIEW', translation_yn: 'N', request_id: 'CM' })).content, preview.date);
+            if (!local) { log(`feed: the ${lang} balance preview ${post.id} is not laid out like the English one`); continue; }
+            l10n[lang] = { title: post.title, url: `https://page.onstove.com/epicseven/${c.region}/view/${post.id}`, changes: local };
+          } catch (e) {
+            log(`feed: ${lang} balance preview failed: ${(e as Error).message}`);
+          }
+        }
+        balance = { id: preview.id, title: preview.title, url: preview.url, posted: preview.date, date: parsed.date, changes, ...(Object.keys(l10n).length > 0 ? { l10n } : {}) };
       } else log(`feed: balance preview ${preview.id} has no table of changes`);
     } catch (e) {
       log(`feed: balance preview ${preview.id} failed: ${(e as Error).message}`);

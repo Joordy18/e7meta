@@ -91,7 +91,8 @@ function SkillChanges({ details }: { details: SkillChange[] }) {
 
 /** The latest balance preview: who the developers change, which skills, and why, in their words. */
 function BalanceSection({ balance }: { balance: Balance }) {
-  const { t, rich, name } = useI18n();
+  const { t, rich, name, lang } = useI18n();
+  const local = balance.l10n?.[lang]; // the game's own post in this language (Japanese, Korean, Chinese), when there is one: the texts come from it
   const shownName = (c: Balance['changes'][number]) => (!c.code ? c.name : c.kind === 'hero' ? name.hero(c.code, c.name) : name.artifact(c.code, c.name));
   const live = balance.date <= new Date().toISOString().slice(0, 10); // the patch day has come
   return (
@@ -104,7 +105,7 @@ function BalanceSection({ balance }: { balance: Balance }) {
       <div className="panels">
         <section aria-label={t('home.balanceList')} className="panel wide-2">
           <ul className="changes">
-            {balance.changes.map((c) => (
+            {balance.changes.map((base, k) => { const c = { ...base, ...local?.changes[k] }; return (
               <li key={`${c.kind}-${c.name}`}>
                 {c.code && (c.kind === 'hero' ? <HeroIcon code={c.code} name={shownName(c)} decorative /> : <Icon src={artifactIcon(c.code)} className="hicon art" />)}
                 <div>
@@ -126,10 +127,10 @@ function BalanceSection({ balance }: { balance: Balance }) {
                   )}
                 </div>
               </li>
-            ))}
+            ); })}
           </ul>
           <p className="caption">
-            {rich('home.fullPreview', { title: balance.title, link: <a href={balance.url} target="_blank" rel="noopener noreferrer">{t('home.readPreview')}</a> })}
+            {rich('home.fullPreview', { title: local?.title ?? balance.title, link: <a href={local?.url ?? balance.url} target="_blank" rel="noopener noreferrer">{t('home.readPreview')}</a> })}
           </p>
         </section>
       </div>

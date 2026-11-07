@@ -23,4 +23,14 @@ describe('diffWords', () => {
   it('keeps line breaks out of the way: lines are just more words', () => {
     expect(diffWords('first line.\nsecond line.', 'first line. second line.')).toEqual([{ kind: 'same', text: 'first line. second line.' }]);
   });
+  it('cuts Japanese and Chinese at each character, since they have no spaces, and still glues the changed stretch back', () => {
+    expect(diffWords('100%の確率で睡眠を付与', '100%の確率で猛毒を付与')).toEqual([
+      { kind: 'same', text: '100%の確率で' }, { kind: 'del', text: '睡眠' }, { kind: 'add', text: '猛毒' }, { kind: 'same', text: 'を付与' },
+    ]);
+  });
+  it('keeps cutting Korean at spaces', () => {
+    expect(diffWords('1턴 간 수면을 발생', '2턴 간 수면을 발생')).toEqual([
+      { kind: 'del', text: '1턴' }, { kind: 'add', text: '2턴' }, { kind: 'same', text: '간 수면을 발생' },
+    ]);
+  });
 });

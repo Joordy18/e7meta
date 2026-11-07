@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import HomePage from '../src/pages/HomePage';
 import { I18nProvider } from '../src/i18n';
 import { fr } from '../src/i18n/fr';
+import { ko } from '../src/i18n/ko';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadIndex, loadModes, loadTrends, loadFeed, loadNames } from '../src/lib/data';
 import { guides } from '../src/lib/guides';
 import { sampleGuides } from './sampleGuides';
@@ -464,3 +465,44 @@ describe('HomePage: the rest', () => {
   });
 });
 
+
+describe('HomePage: balance changes in the language of the game\'s own post', () => {
+  const withKorean = (): NonNullable<Feed['balance']> => ({
+    ...balance('2099-11-19'),
+    l10n: {
+      ko: {
+        title: '11/19(목) 밸런스 조정 사전 안내', url: 'https://page.onstove.com/epicseven/kr/view/800',
+        changes: [
+          { skills: ['죽음의 연무'], summary: '레이는 수면을 더 안정적으로 유지합니다.', details: [{ skill: '죽음의 연무', before: '1턴 간 수면', after: '2턴 간 수면' }] },
+          { skills: ['빅토리카 스킬'], summary: '빅토리카가 더 강해집니다.' },
+          { summary: '양초가 더 많이 치유합니다.' },
+        ],
+      },
+    },
+  });
+
+  it('shows the texts of the post in the reader\'s language, with its title and link, and keeps the names and the order of the data', async () => {
+    localStorage.setItem('e7.lang', 'ko');
+    setup({ feed: { ...feed, balance: withKorean() } });
+    render(<I18nProvider><HomePage /></I18nProvider>);
+    const sec = await screen.findByRole('region', { name: ko['home.balance'] });
+    const rows = within(sec).getAllByRole('listitem');
+    expect(rows[0].textContent).toContain('죽음의 연무');
+    expect(rows[0].textContent).toContain('레이는 수면을 더 안정적으로 유지합니다.');
+    expect(rows[0].textContent).not.toContain('Ray will be harder to dispel.');
+    expect(within(rows[0]).getByRole('link', { name: 'Death Dealer Ray' }).getAttribute('href')).toBe('#/hero/c2090'); // the hero is the same
+    expect(rows[2].textContent).toContain('양초가 더 많이 치유합니다.');
+    const link = within(sec).getByRole('link', { name: ko['home.readPreview'] });
+    expect(link.getAttribute('href')).toBe('https://page.onstove.com/epicseven/kr/view/800');
+    expect(sec.textContent).toContain('11/19(목) 밸런스 조정 사전 안내');
+  });
+
+  it('keeps the English post for a language that has no post of its own', async () => {
+    localStorage.setItem('e7.lang', 'fr');
+    setup({ feed: { ...feed, balance: withKorean() } });
+    render(<I18nProvider><HomePage /></I18nProvider>);
+    const sec = await screen.findByRole('region', { name: fr['home.balance'] });
+    expect(sec.textContent).toContain('Ray will be harder to dispel.');
+    expect(within(sec).getByRole('link', { name: fr['home.readPreview'] }).getAttribute('href')).toBe('https://page.onstove.com/epicseven/global/view/9');
+  });
+});
