@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ElementIcon, HeroIcon, Icon, JobIcon } from '../components/Art';
 import PageNav from '../components/PageNav';
 import { useI18n, type Key } from '../i18n';
-import { artifactIcon } from '../lib/images';
+import { artifactIcon, setIcon } from '../lib/images';
 import { loadArenaIndex, loadArenaSeason, loadHeroes, loadFeed, loadIndex, loadModes, loadTrends, normalize } from '../lib/data';
 import { diffWords } from '../lib/diff';
 import { guides } from '../lib/guides';
@@ -328,7 +328,10 @@ export default function HomePage() {
                     <li key={`${b.hero}-${b.kind}-${b.code}`}>
                       <HeroIcon code={b.hero} name={name.hero(b.hero, b.name)} decorative />
                       <a href={`#/hero/${b.hero}`}>{name.hero(b.hero, b.name)}</a>
-                      <span>{b.kind === 'artifact' ? <a href={`#/artifact/${b.code}`}>{name.artifact(b.code, b.item)}</a> : name.set(b.code, b.item)}</span>
+                      <span className="item">
+                        <Icon src={b.kind === 'artifact' ? artifactIcon(b.code) : setIcon(b.code)} className="hicon art" />
+                        {b.kind === 'artifact' ? <a href={`#/artifact/${b.code}`}>{name.artifact(b.code, b.item)}</a> : name.set(b.code, b.item)}
+                      </span>
                       <strong className={b.after >= b.before ? 'delta up' : 'delta down'}>{b.before}% → {b.after}%</strong>
                     </li>
                   ))}

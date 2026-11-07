@@ -157,6 +157,8 @@ describe('HomePage: build shifts', () => {
     expect(within(rows[0]).getByRole('link', { name: 'Ann' }).getAttribute('href')).toBe('#/hero/a');
     expect(within(rows[0]).getByRole('link', { name: 'Lethal Whispers' }).getAttribute('href')).toBe('#/artifact/x');
     expect(within(rows[1]).queryByRole('link', { name: 'Speed Set' })).toBeNull(); // sets have no page
+    expect(rows[0].querySelector('img.art')?.getAttribute('src')).toContain('/artifact/x_ico.png'); // the item that moved has its icon, an artifact's and a set's
+    expect(rows[1].querySelector('img.art')?.getAttribute('src')).toContain('/sets/s1.png');
     expect(within(sec).getByText('2026-10-22 to 2026-10-29')).toBeTruthy();
     expect(within(sec).queryByText(/quiet week/i)).toBeNull();
   });

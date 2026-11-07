@@ -476,3 +476,5 @@ img.hicon.art { object-fit: contain; }
 .pairs-table thead th { position: sticky; top: 0; background: var(--panel); }
 .pairs-table table.targets:not(.draft) td:nth-child(4) { color: inherit; font-weight: 400; }
 .pairs-table table.targets:not(.draft) td.neg:nth-child(4) { color: var(--danger); }
+.shifts .item { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.shifts .item .hicon { width: 28px; height: 28px; }
