@@ -9,6 +9,8 @@ import ArenaPage from './pages/ArenaPage';
 import TiersPage from './pages/TiersPage';
 import ToolsPage from './pages/ToolsPage';
 import DraftPage from './pages/DraftPage';
+import AboutPage, { type AboutSection } from './pages/AboutPage';
+import Footer from './components/Footer';
 import { ArtifactPage } from './pages/GearPage';
 import Search from './components/Search';
 import LanguageMenu from './components/LanguageMenu';
@@ -18,12 +20,13 @@ const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 const GUIDE_ROUTE = /^#\/guides\/([^/?]+)$/;
 const MODE_ROUTE = /^#\/modes\/([^/?]+)$/;
 const ARTIFACT_ROUTE = /^#\/artifact\/([^/?]+)$/;
+const ABOUT_ROUTE = /^#\/about(?:\/(faq|data|limits|legal))?$/;
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 
 /** Which entry of the main menu a page belongs to (hero and artifact pages belong to Heroes). */
 const section = (hash: string) =>
-  /^#\/modes/.test(hash) ? 'modes' : /^#\/tiers/.test(hash) ? 'tiers' : /^#\/tools/.test(hash) ? 'tools' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
+  /^#\/about/.test(hash) ? 'about' : /^#\/modes/.test(hash) ? 'modes' : /^#\/tiers/.test(hash) ? 'tiers' : /^#\/tools/.test(hash) ? 'tools' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
     : /^#\/(heroes|hero\/|artifact\/)/.test(hash) ? 'heroes' : 'home';
 
 function Page({ hash }: { hash: string }) {
@@ -35,6 +38,8 @@ function Page({ hash }: { hash: string }) {
   if (mode) return <ModePage id={safeDecode(mode)} />;
   const artifact = ARTIFACT_ROUTE.exec(hash)?.[1];
   if (artifact) return <ArtifactPage code={safeDecode(artifact)} />;
+  const about = ABOUT_ROUTE.exec(hash);
+  if (about) return <AboutPage section={about[1] as AboutSection | undefined} />;
   if (hash === '#/guides') return <GuidesPage />;
   if (hash === '#/modes') return <ModesPage />;
   if (hash === '#/arena') return <ArenaPage />;
@@ -80,6 +85,7 @@ function Shell() {
         <LanguageMenu />
       </header>
       <main><Page hash={hash} /></main>
+      <Footer />
     </>
   );
 }
