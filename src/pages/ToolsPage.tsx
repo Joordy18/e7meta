@@ -13,6 +13,11 @@ export default function ToolsPage() {
           <p>{t('tools.draftText')}</p>
           <a className="tab" href="#/tools/draft">{t('tools.open')}</a>
         </li>
+        <li className="panel">
+          <a href="#/tools/team">{t('tools.teamTitle')}</a>
+          <p>{t('tools.teamText')}</p>
+          <a className="tab" href="#/tools/team">{t('tools.open')}</a>
+        </li>
       </ul>
     </div>
   );

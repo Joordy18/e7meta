@@ -497,3 +497,20 @@ img.hicon.art { object-fit: contain; }
 .foot a:hover { text-decoration: underline; }
 .about .status dd small { color: var(--mute); }
 .about .status .late { color: var(--danger); }
+
+/* team builder */
+.team .slot-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.team .draft-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.team .tab[aria-pressed='true'] { border-color: var(--blue); background: var(--raise); color: var(--text); }
+.team-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; margin: 12px 0; }
+.team-list ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.team-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 8px; background: var(--raise); border-radius: 10px; }
+.team-list .hero-cell { display: inline-flex; align-items: center; gap: 8px; padding: 0; background: none; border: 0; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.team-list strong { color: var(--gold); font-variant-numeric: tabular-nums; }
+.team-list small { color: var(--mute); }
+.team .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.team .chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.team .chip .hicon { width: 20px; height: 20px; }
+.team .chip[data-sign='+'] { color: #7ddc8a; }
+.team .chip[data-sign='-'] { color: var(--danger); }
+.team .chip.vs::before { content: 'vs'; color: var(--mute); font-size: 11px; }

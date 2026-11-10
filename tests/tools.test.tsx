@@ -20,7 +20,7 @@ describe('ToolsPage', () => {
     render(<ToolsPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Tools' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'RTA draft simulator' }).getAttribute('href')).toBe('#/tools/draft');
-    expect(screen.getByRole('link', { name: 'Open' }).getAttribute('href')).toBe('#/tools/draft');
+    expect(screen.getAllByRole('link', { name: 'Open' }).map((a) => a.getAttribute('href'))).toEqual(['#/tools/draft', '#/tools/team']);
   });
 });
 
