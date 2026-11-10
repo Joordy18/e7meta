@@ -38,7 +38,7 @@ export function buildHash(b: Build): string {
 }
 
 // Where the link preview is served (the `share/` folder, deployed on Vercel). Empty: "Copy link" gives the site's own address, which chat apps show without a picture.
-export const SHARE_BASE = '';
+export const SHARE_BASE = 'https://e7meta-share.vercel.app';
 
 /** The address to paste in a chat: it shows the card of the build as a preview, then sends whoever opens it to the site. `lang` is the one the card is written in. */
 export function shareLink(base: string, b: Build, lang: string): string {
