@@ -26,17 +26,32 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); history.replaceState(null, '', 
 
 const hero = () => screen.findByRole('combobox', { name: 'Hero' });
 const artifacts = () => screen.getByRole('combobox', { name: 'Artifact' });
+/** Types in a box and clicks the choice, as a person does. */
+const pick = (box: HTMLElement, typed: string, choice: string) => {
+  fireEvent.focus(box);
+  fireEvent.change(box, { target: { value: typed } });
+  fireEvent.click(screen.getByRole('option', { name: choice }));
+};
+const setButton = (name: RegExp) => screen.getByRole('button', { name }) as HTMLButtonElement;
 
 describe('BuildPage', () => {
-  it('asks for a hero, offers only the artifacts of its class and the universal ones, and shows the card', async () => {
+  it('asks for a hero, finds one by typing (also by its English name), offers only the artifacts of its class and the universal ones, and shows the card', async () => {
     render(<BuildPage />);
     expect(await screen.findByText('Pick a hero to start your build.')).toBeTruthy();
-    expect((artifacts() as HTMLSelectElement).disabled).toBe(true);
-    fireEvent.change(await hero(), { target: { value: 'c1' } });
-    expect(within(artifacts()).getAllByRole('option').map((o) => o.textContent)).toEqual(['No artifact', 'Any Charm', 'Mage Staff']);
-    fireEvent.change(artifacts(), { target: { value: 'a1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Speed Set' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Critical Set' }));
+    expect((artifacts() as HTMLInputElement).disabled).toBe(true);
+    const box = await hero();
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: 'zzz' } });
+    expect(screen.getByText('No match')).toBeTruthy();
+    pick(box, 'mage', 'Mage One');
+    expect((box as HTMLInputElement).value).toBe('Mage One');
+    fireEvent.focus(artifacts());
+    expect(within(screen.getByRole('listbox', { name: 'Artifact' })).getAllByRole('option').map((o) => o.textContent)).toEqual(['No artifact', 'Any Charm', 'Mage Staff']);
+    fireEvent.change(artifacts(), { target: { value: 'staff' } });
+    expect(within(screen.getByRole('listbox', { name: 'Artifact' })).getAllByRole('option').map((o) => o.textContent)).toEqual(['Mage Staff']);
+    fireEvent.click(screen.getByRole('option', { name: 'Mage Staff' }));
+    fireEvent.click(setButton(/^Speed Set/));
+    fireEvent.click(setButton(/^Critical Set/));
     fireEvent.change(screen.getByRole('textbox', { name: /^Note/ }), { target: { value: 'Speed 190+' } });
     const card = screen.getByRole('article', { name: 'Your build' });
     expect(within(card).getByRole('link', { name: 'Mage One' }).getAttribute('href')).toBe('#/hero/c1');
@@ -47,28 +62,35 @@ describe('BuildPage', () => {
 
   it('keeps the build in the address, and a link shows the same card', async () => {
     render(<BuildPage />);
-    fireEvent.change(await hero(), { target: { value: 'c2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Speed Set' }));
+    pick(await hero(), 'knight', 'Knight Two');
+    fireEvent.click(setButton(/^Speed Set/));
     await waitFor(() => expect(location.hash).toBe('#/tools/build?h=c2&s=set_speed'));
     cleanup();
     history.replaceState(null, '', '#/tools/build?h=c1&s=set_cri,set_speed&a=a3&n=Hello%20there');
     render(<BuildPage />);
     const card = await screen.findByRole('article', { name: 'Your build' });
-    expect(within(card).getByText('Critical Set + Speed Set')).toBeTruthy();
+    expect(within(card).getByText('Speed Set + Critical Set')).toBeTruthy();
     expect(within(card).getByText('Any Charm')).toBeTruthy();
     expect(within(card).getByText('Hello there')).toBeTruthy();
   });
 
-  it('takes at most three sets, removes a set when it is clicked again, and starts over', async () => {
+  it('stops at six pieces, greys out what no longer fits, takes a two-piece set twice, and removes a set from the chosen ones', async () => {
     render(<BuildPage />);
-    fireEvent.change(await hero(), { target: { value: 'c1' } });
-    for (const n of ['Speed Set', 'Critical Set', 'Att Set', 'Max Hp Set']) {
-      const b = screen.queryByRole('button', { name: n });
-      if (b) fireEvent.click(b);
-    }
-    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(3); // the fourth click was ignored
-    fireEvent.click(screen.getByRole('button', { name: /^Speed Set/  }));
-    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(2);
+    pick(await hero(), 'mage', 'Mage One');
+    fireEvent.click(setButton(/^Speed Set/));
+    expect(setButton(/^Speed Set/).disabled).toBe(true); // a second four-piece set does not fit
+    expect(setButton(/^Att Set/).disabled).toBe(true);
+    expect(setButton(/^Critical Set/).disabled).toBe(false);
+    expect(screen.getByText('4 of 6 pieces')).toBeTruthy();
+    fireEvent.click(setButton(/^Critical Set/));
+    expect(screen.getByText('6 of 6 pieces')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^(Speed|Critical|Att|Max Hp) Set/ }).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Speed Set' }));
+    expect(screen.getByText('2 of 6 pieces')).toBeTruthy();
+    fireEvent.click(setButton(/^Max Hp Set/));
+    fireEvent.click(setButton(/^Max Hp Set/));
+    expect(screen.getByText('6 of 6 pieces')).toBeTruthy();
+    expect(within(screen.getByRole('article', { name: 'Your build' })).getByText('Critical Set + Max Hp Set ×2')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
     await waitFor(() => expect(location.hash).toBe('#/tools/build'));
     expect(screen.getByText('Pick a hero to start your build.')).toBeTruthy();

@@ -442,7 +442,7 @@ export const en = {
   "build.hero": "Hero",
   "build.pickHero": "Pick a hero",
   "build.sets": "Gear sets",
-  "build.setsHelp": "Up to three, the one with the most pieces first (for example a 4-piece set, then a 2-piece one). Click a chosen set to remove it.",
+  "build.setsHelp": "A hero wears six pieces: a 4-piece set plus a 2-piece one, or three 2-piece sets (a 2-piece set can be taken twice). The number on each set is its pieces; a set that no longer fits is greyed out.",
   "build.artifact": "Artifact",
   "build.noArtifact": "No artifact",
   "build.note": "Note",
@@ -452,4 +452,7 @@ export const en = {
   "build.share": "The link holds the whole build and nothing is saved on a server: anyone who opens it sees what you see.",
   "build.empty": "Pick a hero to start your build.",
   "build.reset": "Start over",
+  "build.pieces": "{n} of 6 pieces",
+  "build.remove": "Remove {name}",
+  "build.noMatch": "No match",
 } as const;

@@ -444,7 +444,7 @@ export const de: Record<keyof typeof en, string> = {
   "build.hero": "Held",
   "build.pickHero": "Held wählen",
   "build.sets": "Ausrüstungssets",
-  "build.setsHelp": "Bis zu drei, das mit den meisten Teilen zuerst (zum Beispiel ein 4er-Set, dann ein 2er-Set). Klicke auf ein gewähltes Set, um es zu entfernen.",
+  "build.setsHelp": "Ein Held trägt sechs Teile: ein 4er-Set plus ein 2er-Set oder drei 2er-Sets (ein 2er-Set kann doppelt gewählt werden). Die Zahl auf jedem Set ist seine Teilezahl; ein Set, das nicht mehr passt, ist ausgegraut.",
   "build.artifact": "Artefakt",
   "build.noArtifact": "Kein Artefakt",
   "build.note": "Notiz",
@@ -454,4 +454,7 @@ export const de: Record<keyof typeof en, string> = {
   "build.share": "Der Link enthält den ganzen Build, nichts wird auf einem Server gespeichert: Wer ihn öffnet, sieht, was du siehst.",
   "build.empty": "Wähle einen Helden, um deinen Build zu beginnen.",
   "build.reset": "Neu beginnen",
+  "build.pieces": "{n} von 6 Teilen",
+  "build.remove": "{name} entfernen",
+  "build.noMatch": "Kein Treffer",
 };

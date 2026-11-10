@@ -444,7 +444,7 @@ export const zh: Record<keyof typeof en, string> = {
   "build.hero": "英雄",
   "build.pickHero": "選擇英雄",
   "build.sets": "裝備套裝",
-  "build.setsHelp": "最多三個，件數多的放前面（例如先 4 件套再 2 件套）。再點一次已選的套裝即可移除。",
+  "build.setsHelp": "英雄穿戴六件裝備：一個四件套加一個兩件套，或三個兩件套（兩件套可以選兩次）。每個套裝上的數字是所需件數，放不下的套裝會變灰。",
   "build.artifact": "神器",
   "build.noArtifact": "不選神器",
   "build.note": "備註",
@@ -454,4 +454,7 @@ export const zh: Record<keyof typeof en, string> = {
   "build.share": "連結包含完整的配置，不會儲存在伺服器上：開啟的人看到的和你一樣。",
   "build.empty": "選擇英雄開始製作你的配置。",
   "build.reset": "重新開始",
+  "build.pieces": "六件中的 {n} 件",
+  "build.remove": "移除 {name}",
+  "build.noMatch": "沒有符合的項目",
 };

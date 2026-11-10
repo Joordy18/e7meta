@@ -444,7 +444,7 @@ export const ja: Record<keyof typeof en, string> = {
   "build.hero": "ヒーロー",
   "build.pickHero": "ヒーローを選ぶ",
   "build.sets": "装備セット",
-  "build.setsHelp": "最大3つ。部位数の多いものを先に選びます（例：4セットのあとに2セット）。選んだセットをもう一度クリックすると外れます。",
+  "build.setsHelp": "ヒーローは6つの装備を着けます。4セット効果のセット＋2セット効果のセット、または2セット効果のセット3つ（2セット効果のセットは2回選べます）。各セットの数字は必要な部位数で、入りきらないセットは灰色になります。",
   "build.artifact": "アーティファクト",
   "build.noArtifact": "アーティファクトなし",
   "build.note": "メモ",
@@ -454,4 +454,7 @@ export const ja: Record<keyof typeof en, string> = {
   "build.share": "リンクにはビルドのすべてが含まれ、サーバーには何も保存されません。開いた人にもあなたと同じ内容が見えます。",
   "build.empty": "ヒーローを選んでビルドを作り始めましょう。",
   "build.reset": "やり直す",
+  "build.pieces": "6部位中{n}",
+  "build.remove": "{name}を外す",
+  "build.noMatch": "該当なし",
 };

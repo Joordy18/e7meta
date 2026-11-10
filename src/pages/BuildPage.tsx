@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ElementIcon, HeroFace, Icon, JobIcon } from '../components/Art';
+import { ElementIcon, HeroFace, HeroIcon, Icon, JobIcon } from '../components/Art';
 import { useI18n } from '../i18n';
-import { EMPTY, MAX_SETS, NOTE_MAX, SETS, buildHash, parseBuild, setFallbackName, type Build } from '../lib/build';
+import Picker from '../components/Picker';
+import { EMPTY, MAX_PIECES, NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, type Build } from '../lib/build';
 import { loadGear, loadHeroes, loadIndex, loadRtaBuilds } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
 import type { ArtifactInfo, HeroSummary } from '../shared/types';
@@ -46,7 +47,8 @@ export default function BuildPage() {
   const setName = (code: string) => name.set(code, setNames[code] ?? setFallbackName(code));
   // an artifact is for one class or for all (job "NN"); the one in a shared link stays offered even if it is not
   const options = artifacts.filter((a) => hero && (a.job === 'NN' || a.job === hero.job || a.code === b.artifact)).sort((x, y) => name.artifact(x.code, x.name).localeCompare(name.artifact(y.code, y.name), locale));
-  const toggleSet = (code: string) => setB((cur) => ({ ...cur, sets: cur.sets.includes(code) ? cur.sets.filter((c) => c !== code) : cur.sets.length < MAX_SETS ? [...cur.sets, code] : cur.sets }));
+  const used = piecesUsed(b.sets);
+  const worn = [...new Set(b.sets)].map((c) => [c, b.sets.filter((x) => x === c).length] as const); // a set taken twice is shown once, "x2"
   const copy = async () => {
     try { await navigator.clipboard.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
   };
@@ -63,7 +65,7 @@ export default function BuildPage() {
             {b.sets.length > 0 && (
               <div className="build-row">
                 <span className="build-label">{t('loadout.sets')}</span>
-                <span className="build-set">{b.sets.map((c) => <Icon key={c} src={setIcon(c)} />)}<strong>{b.sets.map(setName).join(' + ')}</strong></span>
+                <span className="build-set">{worn.map(([c]) => <Icon key={c} src={setIcon(c)} />)}<strong>{worn.map(([c, n]) => setName(c) + (n > 1 ? ` ×${n}` : '')).join(' + ')}</strong></span>
               </div>
             )}
             {b.artifact && (
@@ -84,36 +86,47 @@ export default function BuildPage() {
       ) : <p className="note">{t('build.empty')}</p>}
 
       <section className="panel build-editor">
-        <label className="field">
+        <div className="field">
           <span>{t('build.hero')}</span>
-          <select value={hero ? b.hero : ''} onChange={(e) => setB({ ...b, hero: e.target.value, artifact: '' })}>
-            <option value="">{t('build.pickHero')}</option>
-            {[...heroes].sort((x, y) => heroName(x).localeCompare(heroName(y), locale)).map((h) => <option key={h.code} value={h.code}>{heroName(h)}</option>)}
-          </select>
-        </label>
+          <Picker
+            label={t('build.hero')} value={hero ? b.hero : ''} placeholder={t('build.pickHero')} empty={t('build.noMatch')}
+            options={[...heroes].sort((x, y) => heroName(x).localeCompare(heroName(y), locale)).map((h) => ({ value: h.code, label: heroName(h), alt: h.name, icon: <HeroIcon code={h.code} name={heroName(h)} decorative /> }))}
+            onChange={(code) => setB({ ...b, hero: code, artifact: '' })}
+          />
+        </div>
         <div className="field" role="group" aria-label={t('build.sets')}>
           <span>{t('build.sets')}</span>
           <p className="caption">{t('build.setsHelp')}</p>
-          <ul className="set-grid">
-            {SETS.map((code) => {
-              const at = b.sets.indexOf(code);
-              return (
-                <li key={code}>
-                  <button type="button" className="draft-hero" data-state={at >= 0 ? 'you' : 'free'} aria-pressed={at >= 0} onClick={() => toggleSet(code)}>
-                    <Icon src={setIcon(code)} /><span>{setName(code)}</span>{at >= 0 && <em className="order">{at + 1}</em>}
+          <p className="caption" aria-live="polite">{t('build.pieces', { n: used })}</p>
+          {worn.length > 0 && (
+            <ul className="chips set-chosen">
+              {b.sets.map((c, k) => (
+                <li key={`${c}-${k}`}>
+                  <button type="button" className="chosen" aria-label={t('build.remove', { name: setName(c) })} onClick={() => setB((cur) => ({ ...cur, sets: removeSet(cur.sets, c) }))}>
+                    <Icon src={setIcon(c)} /><span>{setName(c)}</span><em>{piecesOf(c)}</em><span aria-hidden>×</span>
                   </button>
                 </li>
-              );
-            })}
+              ))}
+            </ul>
+          )}
+          <ul className="set-grid">
+            {SETS.map((code) => (
+              <li key={code}>
+                <button type="button" className="draft-hero" data-state="free" disabled={addSet(b.sets, code) === b.sets} onClick={() => setB((cur) => ({ ...cur, sets: addSet(cur.sets, code) }))}>
+                  <Icon src={setIcon(code)} /><span>{setName(code)}</span><em className="order">{piecesOf(code)}</em>
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
-        <label className="field">
+        <div className="field">
           <span>{t('build.artifact')}</span>
-          <select value={b.artifact} disabled={!hero} onChange={(e) => setB({ ...b, artifact: e.target.value })}>
-            <option value="">{t('build.noArtifact')}</option>
-            {options.map((a) => <option key={a.code} value={a.code}>{name.artifact(a.code, a.name)}</option>)}
-          </select>
-        </label>
+          <Picker
+            label={t('build.artifact')} value={b.artifact} placeholder={t('build.noArtifact')} none={t('build.noArtifact')} empty={t('build.noMatch')} disabled={!hero}
+            options={options.map((a) => ({ value: a.code, label: name.artifact(a.code, a.name), alt: a.name, icon: <Icon src={artifactIcon(a.code)} className="hicon art" /> }))}
+            onChange={(code) => setB({ ...b, artifact: code })}
+          />
+        </div>
         <label className="field">
           <span>{t('build.note')}</span>
           <textarea value={b.note} maxLength={NOTE_MAX} rows={3} placeholder={t('build.notePlaceholder')} onChange={(e) => setB({ ...b, note: e.target.value })} />

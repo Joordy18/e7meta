@@ -444,7 +444,7 @@ export const ko: Record<keyof typeof en, string> = {
   "build.hero": "영웅",
   "build.pickHero": "영웅 선택",
   "build.sets": "장비 세트",
-  "build.setsHelp": "최대 3개, 부위 수가 많은 것을 먼저 고르세요(예: 4세트 다음 2세트). 선택한 세트를 다시 클릭하면 제거됩니다.",
+  "build.setsHelp": "영웅은 장비 6개를 착용합니다. 4세트 + 2세트, 또는 2세트 3개(2세트는 두 번 고를 수 있습니다). 각 세트의 숫자는 필요한 장비 수이며, 더 들어가지 않는 세트는 흐리게 표시됩니다.",
   "build.artifact": "아티팩트",
   "build.noArtifact": "아티팩트 없음",
   "build.note": "메모",
@@ -454,4 +454,7 @@ export const ko: Record<keyof typeof en, string> = {
   "build.share": "링크에 빌드 전체가 들어 있고 서버에는 아무것도 저장되지 않습니다. 링크를 여는 사람에게도 같은 내용이 보입니다.",
   "build.empty": "영웅을 골라 빌드를 시작하세요.",
   "build.reset": "처음부터 다시",
+  "build.pieces": "6개 중 {n}개",
+  "build.remove": "{name} 제거",
+  "build.noMatch": "결과 없음",
 };
