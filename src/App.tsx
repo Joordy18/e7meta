@@ -10,6 +10,7 @@ import TiersPage from './pages/TiersPage';
 import ToolsPage from './pages/ToolsPage';
 import DraftPage from './pages/DraftPage';
 import TeamPage from './pages/TeamPage';
+import BuildPage from './pages/BuildPage';
 import AboutPage, { type AboutSection } from './pages/AboutPage';
 import Footer from './components/Footer';
 import { ArtifactPage } from './pages/GearPage';
@@ -23,6 +24,7 @@ const MODE_ROUTE = /^#\/modes\/([^/?]+)$/;
 const ARTIFACT_ROUTE = /^#\/artifact\/([^/?]+)$/;
 const ABOUT_ROUTE = /^#\/about(?:\/(faq|data|status|limits|legal))?$/;
 const TEAM_ROUTE = /^#\/tools\/team(?:\?.*)?$/; // the team is kept after ? so that the address shares it
+const BUILD_ROUTE = /^#\/tools\/build(?:\?.*)?$/; // so is the build
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 
@@ -49,6 +51,7 @@ function Page({ hash }: { hash: string }) {
   if (hash === '#/tools') return <ToolsPage />;
   if (hash === '#/tools/draft') return <DraftPage />;
   if (TEAM_ROUTE.test(hash)) return <TeamPage key={hash} />;
+  if (BUILD_ROUTE.test(hash)) return <BuildPage key={hash} />;
   if (hash === '#/heroes') return <HeroList />;
   return <HomePage />;
 }

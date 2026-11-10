@@ -40,7 +40,7 @@ export default function Search() {
 
   useEffect(() => { if (open) input.current?.focus(); else { setQuery(''); setActive(0); } }, [open]);
 
-  const pages = useMemo<PageLink[]>(() => [[t('nav.home'), '#/'], [t('nav.heroes'), '#/heroes'], [t('nav.modes'), '#/modes'], [t('nav.tiers'), '#/tiers'], [t('nav.rta'), '#/arena'], [t('nav.tools'), '#/tools'], [t('tools.draftTitle'), '#/tools/draft'], [t('tools.teamTitle'), '#/tools/team'], [t('nav.guides'), '#/guides'], [t('foot.about'), '#/about']], [t]);
+  const pages = useMemo<PageLink[]>(() => [[t('nav.home'), '#/'], [t('nav.heroes'), '#/heroes'], [t('nav.modes'), '#/modes'], [t('nav.tiers'), '#/tiers'], [t('nav.rta'), '#/arena'], [t('nav.tools'), '#/tools'], [t('tools.draftTitle'), '#/tools/draft'], [t('tools.teamTitle'), '#/tools/team'], [t('tools.buildTitle'), '#/tools/build'], [t('nav.guides'), '#/guides'], [t('foot.about'), '#/about']], [t]);
   const items = useMemo(() => buildSearchItems(data, name, pages), [data, name, pages]);
   const results = useMemo(() => searchItems(items, query, LIMIT), [items, query]);
 

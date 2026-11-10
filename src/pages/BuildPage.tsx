@@ -1,0 +1,127 @@
+import { useEffect, useState } from 'react';
+import { ElementIcon, HeroFace, Icon, JobIcon } from '../components/Art';
+import { useI18n } from '../i18n';
+import { EMPTY, MAX_SETS, NOTE_MAX, SETS, buildHash, parseBuild, setFallbackName, type Build } from '../lib/build';
+import { loadGear, loadHeroes, loadIndex, loadRtaBuilds } from '../lib/data';
+import { artifactIcon, setIcon } from '../lib/images';
+import type { ArtifactInfo, HeroSummary } from '../shared/types';
+
+type Load = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[]; artifacts: ArtifactInfo[]; setNames: Record<string, string> };
+
+/**
+ * Build maker: choose a hero, up to three gear sets, an artifact and a note. The build is kept in the address (`#/tools/build?h=…&s=…&a=…&n=…`, see lib/build.ts),
+ * so copying the address shares it: whoever opens it sees the same card, with nothing saved on a server.
+ */
+export default function BuildPage() {
+  const { t, name, locale } = useI18n();
+  const [load, setLoad] = useState<Load>({ status: 'loading' });
+  const [b, setB] = useState<Build>(() => parseBuild(location.hash));
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const period = (await loadIndex())?.periods[0];
+      if (!period) throw new Error('no data');
+      const [heroes, gear, builds] = await Promise.all([loadHeroes(period), loadGear(period).catch(() => null), loadRtaBuilds().catch(() => null)]);
+      if (live) setLoad({ status: 'ok', heroes, artifacts: Object.values(gear?.artifacts ?? {}), setNames: builds?.setNames ?? {} });
+    })().catch((e: unknown) => live && setLoad({ status: 'error', message: String(e) }));
+    return () => { live = false; };
+  }, []);
+  useEffect(() => { history.replaceState(null, '', buildHash(b)); }, [b]); // the build stays in the address without a new history entry
+
+  const head = (
+    <>
+      <h1 className="page-title">{t('tools.buildTitle')}</h1>
+      <p className="lede">{t('build.lede')}</p>
+    </>
+  );
+  if (load.status === 'loading') return <p className="note">{t('common.loading')}</p>;
+  if (load.status === 'error') return <p className="note error">{t('common.failed', { message: load.message })}</p>;
+  const { heroes, artifacts, setNames } = load;
+
+  const hero = heroes.find((h) => h.code === b.hero);
+  const artifact = artifacts.find((a) => a.code === b.artifact);
+  const heroName = (h: HeroSummary) => name.hero(h.code, h.name);
+  const setName = (code: string) => name.set(code, setNames[code] ?? setFallbackName(code));
+  // an artifact is for one class or for all (job "NN"); the one in a shared link stays offered even if it is not
+  const options = artifacts.filter((a) => hero && (a.job === 'NN' || a.job === hero.job || a.code === b.artifact)).sort((x, y) => name.artifact(x.code, x.name).localeCompare(name.artifact(y.code, y.name), locale));
+  const toggleSet = (code: string) => setB((cur) => ({ ...cur, sets: cur.sets.includes(code) ? cur.sets.filter((c) => c !== code) : cur.sets.length < MAX_SETS ? [...cur.sets, code] : cur.sets }));
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
+  };
+
+  return (
+    <div className="build-maker">
+      {head}
+      {hero ? (
+        <article className="panel build build-card" aria-label={t('build.card')}>
+          <HeroFace code={hero.code} name={heroName(hero)} className="face portrait" />
+          <div>
+            <h2><a href={`#/hero/${hero.code}`}>{heroName(hero)}</a></h2>
+            <p className="tags">{hero.grade}★ <ElementIcon element={hero.element} /> <JobIcon job={hero.job} /></p>
+            {b.sets.length > 0 && (
+              <div className="build-row">
+                <span className="build-label">{t('loadout.sets')}</span>
+                <span className="build-set">{b.sets.map((c) => <Icon key={c} src={setIcon(c)} />)}<strong>{b.sets.map(setName).join(' + ')}</strong></span>
+              </div>
+            )}
+            {b.artifact && (
+              <div className="build-row">
+                <span className="build-label">{t('loadout.artifacts')}</span>
+                <span className="art-tiles">
+                  <a href={`#/artifact/${b.artifact}`} className="art-tile" title={artifact?.description}>
+                    <Icon src={artifactIcon(b.artifact)} className="art-icon" />
+                    <span>{artifact ? name.artifact(artifact.code, artifact.name) : b.artifact}</span>
+                  </a>
+                </span>
+              </div>
+            )}
+            {b.note && <p className="build-note">{b.note}</p>}
+            <button type="button" className="tab" onClick={copy}>{copied ? t('build.copied') : t('build.copy')}</button>
+          </div>
+        </article>
+      ) : <p className="note">{t('build.empty')}</p>}
+
+      <section className="panel build-editor">
+        <label className="field">
+          <span>{t('build.hero')}</span>
+          <select value={hero ? b.hero : ''} onChange={(e) => setB({ ...b, hero: e.target.value, artifact: '' })}>
+            <option value="">{t('build.pickHero')}</option>
+            {[...heroes].sort((x, y) => heroName(x).localeCompare(heroName(y), locale)).map((h) => <option key={h.code} value={h.code}>{heroName(h)}</option>)}
+          </select>
+        </label>
+        <div className="field" role="group" aria-label={t('build.sets')}>
+          <span>{t('build.sets')}</span>
+          <p className="caption">{t('build.setsHelp')}</p>
+          <ul className="set-grid">
+            {SETS.map((code) => {
+              const at = b.sets.indexOf(code);
+              return (
+                <li key={code}>
+                  <button type="button" className="draft-hero" data-state={at >= 0 ? 'you' : 'free'} aria-pressed={at >= 0} onClick={() => toggleSet(code)}>
+                    <Icon src={setIcon(code)} /><span>{setName(code)}</span>{at >= 0 && <em className="order">{at + 1}</em>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <label className="field">
+          <span>{t('build.artifact')}</span>
+          <select value={b.artifact} disabled={!hero} onChange={(e) => setB({ ...b, artifact: e.target.value })}>
+            <option value="">{t('build.noArtifact')}</option>
+            {options.map((a) => <option key={a.code} value={a.code}>{name.artifact(a.code, a.name)}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span>{t('build.note')}</span>
+          <textarea value={b.note} maxLength={NOTE_MAX} rows={3} placeholder={t('build.notePlaceholder')} onChange={(e) => setB({ ...b, note: e.target.value })} />
+          <small>{b.note.length}/{NOTE_MAX}</small>
+        </label>
+        <p className="caption">{t('build.share')}</p>
+        <button type="button" className="tab" onClick={() => setB(EMPTY)}>{t('build.reset')}</button>
+      </section>
+    </div>
+  );
+}
