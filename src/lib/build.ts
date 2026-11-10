@@ -37,5 +37,14 @@ export function buildHash(b: Build): string {
   return `#/tools/build${q ? `?${q}` : ''}`;
 }
 
+// Where the link preview is served (the `share/` folder, deployed on Vercel). Empty: "Copy link" gives the site's own address, which chat apps show without a picture.
+export const SHARE_BASE = '';
+
+/** The address to paste in a chat: it shows the card of the build as a preview, then sends whoever opens it to the site. `lang` is the one the card is written in. */
+export function shareLink(base: string, b: Build, lang: string): string {
+  const q = [b.hero && `h=${b.hero}`, b.sets.length > 0 && `s=${b.sets.join(',')}`, b.artifact && `a=${b.artifact}`, b.note && `n=${encodeURIComponent(b.note)}`, `l=${lang}`].filter(Boolean).join('&');
+  return `${base.replace(/\/$/, '')}/b?${q}`;
+}
+
 /** "set_cri_dmg" -> "Cri Dmg Set": only for a set whose English name is not in the data. */
 export const setFallbackName = (setCode: string) => `${setCode.replace(/^set_/, '').split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')} Set`;

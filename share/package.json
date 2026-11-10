@@ -1,0 +1,9 @@
+{
+  "name": "e7meta-share",
+  "private": true,
+  "type": "module",
+  "description": "Link preview for E7 Meta builds (Open Graph page + PNG card), deployed on Vercel from this folder.",
+  "dependencies": {
+    "@vercel/og": "0.11.1"
+  }
+}

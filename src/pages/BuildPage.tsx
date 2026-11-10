@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ElementIcon, HeroFace, HeroIcon, Icon, JobIcon } from '../components/Art';
 import { useI18n } from '../i18n';
 import Picker from '../components/Picker';
-import { EMPTY, MAX_PIECES, NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, type Build } from '../lib/build';
+import { EMPTY, MAX_PIECES, NOTE_MAX, SETS, SHARE_BASE, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, shareLink, type Build } from '../lib/build';
 import { loadGear, loadHeroes, loadIndex, loadRtaBuilds } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
 import type { ArtifactInfo, HeroSummary } from '../shared/types';
@@ -14,7 +14,7 @@ type Load = { status: 'loading' } | { status: 'error'; message: string } | { sta
  * so copying the address shares it: whoever opens it sees the same card, with nothing saved on a server.
  */
 export default function BuildPage() {
-  const { t, name, locale } = useI18n();
+  const { t, name, locale, lang } = useI18n();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [b, setB] = useState<Build>(() => parseBuild(location.hash));
   const [copied, setCopied] = useState(false);
@@ -50,7 +50,7 @@ export default function BuildPage() {
   const used = piecesUsed(b.sets);
   const worn = [...new Set(b.sets)].map((c) => [c, b.sets.filter((x) => x === c).length] as const); // a set taken twice is shown once, "x2"
   const copy = async () => {
-    try { await navigator.clipboard.writeText(location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
+    try { await navigator.clipboard.writeText(SHARE_BASE ? shareLink(SHARE_BASE, b, lang) : location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
   };
 
   return (

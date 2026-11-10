@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName } from '../src/lib/build';
+import { NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, shareLink } from '../src/lib/build';
 
 describe('parseBuild / buildHash', () => {
   it('writes only what is filled in, and reads it back', () => {
@@ -26,6 +26,13 @@ describe('parseBuild / buildHash', () => {
     expect(addSet(['set_speed'], 'set_att')).toEqual(['set_speed']); // 4 + 4
     expect(addSet(['set_cri', 'set_def', 'set_res'], 'set_speed')).toHaveLength(3);
     expect(removeSet(['set_max_hp', 'set_max_hp', 'set_immune'], 'set_max_hp')).toEqual(['set_max_hp', 'set_immune']);
+  });
+  it('writes the link that shows a preview in a chat, and the preview server reads it back as the same build', () => {
+    const b = { hero: 'c1137', sets: ['set_max_hp', 'set_max_hp', 'set_immune'], artifact: 'efk03', note: 'Speed 190+ & more' };
+    const link = shareLink('https://share.example.app/', b, 'fr');
+    expect(link).toBe('https://share.example.app/b?h=c1137&s=set_max_hp,set_max_hp,set_immune&a=efk03&n=Speed%20190%2B%20%26%20more&l=fr');
+    expect(shareLink('https://share.example.app', { hero: 'c1', sets: [], artifact: '', note: '' }, 'en')).toBe('https://share.example.app/b?h=c1&l=en');
+    expect(parseBuild(`#/tools/build?${link.split('?')[1]}`)).toEqual(b);
   });
   it('lists every set once, and names an unknown one from its code', () => {
     expect(new Set(SETS).size).toBe(SETS.length);
