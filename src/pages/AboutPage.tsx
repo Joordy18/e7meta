@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
+import DataStatus from '../components/DataStatus';
 import PageNav from '../components/PageNav';
 import { useI18n, type Key } from '../i18n';
 
 export const REPO = 'https://github.com/Joordy18/e7meta';
-export const ABOUT_SECTIONS = ['faq', 'data', 'limits', 'legal'] as const;
+export const ABOUT_SECTIONS = ['faq', 'data', 'status', 'limits', 'legal'] as const;
 export type AboutSection = (typeof ABOUT_SECTIONS)[number];
 
 const count = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
@@ -49,6 +50,12 @@ export default function AboutPage({ section }: { section?: AboutSection }) {
           </dl>
           <h3>{t('about.methodTitle')}</h3>
           <ul>{count(4).map((n) => <li key={n}>{t(k(`about.m${n}`))}</li>)}</ul>
+        </section>
+
+        <section id="status">
+          <h2>{t('about.nav.status')}</h2>
+          <p className="lede">{t('about.statusLede')}</p>
+          <DataStatus />
         </section>
 
         <section id="limits">

@@ -495,3 +495,5 @@ img.hicon.art { object-fit: contain; }
 .foot nav { display: flex; flex-wrap: wrap; gap: 6px 18px; max-width: 1200px; margin: 0 auto; }
 .foot a { color: var(--text); text-decoration: none; }
 .foot a:hover { text-decoration: underline; }
+.about .status dd small { color: var(--mute); }
+.about .status .late { color: var(--danger); }

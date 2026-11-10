@@ -12,6 +12,7 @@ export default function Footer() {
       <nav>
         <a href="#/about">{t('foot.about')}</a>
         <a href="#/about/data">{t('foot.data')}</a>
+        <a href="#/about/status">{t('foot.status')}</a>
         <a href="#/about/legal">{t('foot.legal')}</a>
         <a href={REPO} {...external}>{t('foot.github')}</a>
         <a href="https://epic7.onstove.com" {...external}>{t('foot.official')}</a>

@@ -20,7 +20,7 @@ const HERO_ROUTE = /^#\/hero\/([^/?]+)$/;
 const GUIDE_ROUTE = /^#\/guides\/([^/?]+)$/;
 const MODE_ROUTE = /^#\/modes\/([^/?]+)$/;
 const ARTIFACT_ROUTE = /^#\/artifact\/([^/?]+)$/;
-const ABOUT_ROUTE = /^#\/about(?:\/(faq|data|limits|legal))?$/;
+const ABOUT_ROUTE = /^#\/about(?:\/(faq|data|status|limits|legal))?$/;
 
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 

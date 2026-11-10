@@ -17,7 +17,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); location.hash = ''; });
 describe('AboutPage', () => {
   it('has the four parts, every question with its answer, and every source of the data', () => {
     render(<AboutPage />);
-    for (const id of ['faq', 'data', 'limits', 'legal']) expect(document.getElementById(id)).not.toBeNull();
+    for (const id of ['faq', 'data', 'status', 'limits', 'legal']) expect(document.getElementById(id)).not.toBeNull();
     expect(screen.getAllByRole('group').length).toBeGreaterThanOrEqual(9); // one <details> per question
     expect(screen.getByText(en['about.q1'])).toBeTruthy();
     expect(screen.getByText(en['about.src3Title'])).toBeTruthy(); // RTA battles
