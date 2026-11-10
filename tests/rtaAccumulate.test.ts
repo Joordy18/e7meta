@@ -140,6 +140,22 @@ describe('collectRta: accumulating', () => {
     expect(logs.some((m) => /2 new/.test(m) && /4 in total/.test(m))).toBe(true);
   });
 
+  it('keeps the battles read so far when a run is cut short (the scheduled task has a time limit)', async () => {
+    const mine = raw(1, '2026-11-01 10:00:00', A, B);
+    const foe = (n: number) => ({ ...raw(10 + n, `2026-11-01 0${n}:00:00`, B, ['f1', 'f2', 'f3', 'f4', 'f5']), matchPlayerNicknameno: 500 + n, enemy_world_code: 'world_kor' });
+    const first = { ...mine, matchPlayerNicknameno: 501, enemy_world_code: 'world_kor' };
+    const second = { ...raw(2, '2026-11-01 11:00:00', A, B.map((c) => `${c}y`)), matchPlayerNicknameno: 502, enemy_world_code: 'world_kor' };
+    const f = fake({ pages: { 101: [[first, second]], 501: [[foe(1)]], 502: [[foe(2)]] }, rankings: { all: [101] } });
+    const crash = (m: string) => { if (/opponent failed/.test(m)) throw new Error('killed'); };
+    // the first opponent is read and kept; the second one fails and the log callback stands for the process being killed there
+    const get = f.client.get.bind(f.client);
+    (f.client as unknown as { get: unknown }).get = async (path: string, p: Record<string, string>) => { if (p.nick_no === '502') throw new Error('down'); return get(path, p); };
+    await expect(run(f.client, crash)).rejects.toThrow('killed');
+    const store = await loadStore(storeDir, 'pvp_rta_ss21');
+    expect(store.battles.length).toBeGreaterThanOrEqual(3); // the ranked player's two battles and the first opponent's
+    expect(existsSync(join(dir, 'rta', 'stats.json'))).toBe(false); // the statistics are written only by a run that ends
+  });
+
   it('counts a battle once although each of its two players has a record of it, with its own id', async () => {
     const mine = raw(10, '2026-11-01 10:00:00', A, B, { win: true });
     const theirs = raw(20, '2026-11-01 10:00:00', B, A, { win: false });

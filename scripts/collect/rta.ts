@@ -178,11 +178,15 @@ export async function collectRta(opts: {
   // The players the ranked ones faced play more heroes than the top itself. The most met are read the same way; a failure there costs only that player.
   const isRanked = new Set(ranked.map((r) => `${r.world}:${r.nick}`));
   const extra = [...foes.entries()].filter(([k]) => !isRanked.has(k)).map(([, f]) => f).sort((a, b) => b.seen - a.seen).slice(0, opponents);
+  let added = 0;
+  // Kept as it goes (the ranked players' battles now, each opponent's right after): a run cut short (the scheduled task has a time limit) loses nothing it had read
+  const keep = async () => { added += fresh.size; await appendBattles(store, [...fresh.values()]); fresh.clear(); };
+  await keep();
   let extraOk = 0;
   for (const p of extra) {
     try { await read(p); extraOk++; } catch (e) { log(`rta: an opponent failed: ${(e as Error).message}`); }
+    await keep();
   }
-  await appendBattles(store, [...fresh.values()]);
   if (store.battles.length === 0) {
     log('rta: no battle of the current season found, nothing written');
     return 'failed';
@@ -197,7 +201,7 @@ export async function collectRta(opts: {
   await writeFile(join(outDir, 'rta', 'stats.json'), JSON.stringify(stats));
   await writeBuilds({ outDir, season: season.season_code, battles: store.battles, now });
   await writePairs({ outDir, season: season.season_code, battles: store.battles, now });
-  log(`rta: ${fresh.size} new battles, ${store.battles.length} in total, from ${stats.players} players (${extraOk} opponents), ${Object.keys(stats.heroes).length} heroes`);
+  log(`rta: ${added} new battles, ${store.battles.length} in total, from ${stats.players} players (${extraOk} opponents), ${Object.keys(stats.heroes).length} heroes`);
   return 'written';
 }
 

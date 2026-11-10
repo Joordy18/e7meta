@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient } from './api';
@@ -54,8 +54,16 @@ export async function collectNames(opts: {
   for (const lang of langs) {
     try {
       const names = await fetchLang(client, lang, now());
+      const file = join(outDir, 'names', `${lang}.json`);
+      const had = await readFile(file, 'utf8').then((t) => JSON.parse(t) as NamesFile, () => null);
+      // the API sometimes answers with a cut list (ko came back with 300 heroes of 393): never replace a fuller file by a shorter one
+      for (const part of ['heroes', 'artifacts', 'sets'] as const) {
+        const got = Object.keys(names[part]).length;
+        const before = Object.keys(had?.[part] ?? {}).length;
+        if (got < before) throw new Error(`only ${got} ${part}, the saved file has ${before}: kept`);
+      }
       await mkdir(join(outDir, 'names'), { recursive: true });
-      await writeFile(join(outDir, 'names', `${lang}.json`), JSON.stringify(names));
+      await writeFile(file, JSON.stringify(names));
       log(`names: ${lang}: ${Object.keys(names.heroes).length} heroes, ${Object.keys(names.artifacts).length} artifacts, ${Object.keys(names.sets).length} sets`);
     } catch (e) {
       failed++;

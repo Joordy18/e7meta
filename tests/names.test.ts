@@ -91,6 +91,16 @@ describe('collectNames', () => {
     }
   });
 
+  it('keeps the file it had when the API answers with a shorter list (ko once came back with 300 heroes of 393)', async () => {
+    mkdirSync(join(dir, 'names'));
+    const full = { lang: 'fr', updated: 'old', heroes: Object.fromEntries(Array.from({ length: 500 }, (_, i) => [`h${i}`, 'x'])), artifacts: {}, sets: {} };
+    writeFileSync(join(dir, 'names', 'fr.json'), JSON.stringify(full));
+    const logs: string[] = [];
+    expect(await collectNames({ outDir: dir, client: fake().client, langs: ['fr'], log: (m) => logs.push(m) })).toBe('failed');
+    expect(read().updated).toBe('old');
+    expect(logs.some((m) => /only 392 heroes.*has 500/.test(m))).toBe(true);
+  });
+
   it('still writes the languages that worked when another one fails', async () => {
     let call = 0;
     const { client } = fake();
