@@ -245,7 +245,7 @@ export async function refreshFeed(opts: {
       posts.push(...(old?.posts.filter((p) => p.board === board) ?? []));
     }
   }
-  if (loaded === 0 && !old) return 'failed';
+  if (loaded === 0) return 'failed'; // nothing was read: the saved file keeps its own date, so the data status shows it is late
 
   const periods = (await readJson<{ periods: string[] }>(join(outDir, 'index.json')))?.periods ?? [];
   const [to, from] = periods;

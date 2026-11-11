@@ -50,7 +50,7 @@ export async function refreshLimited(opts: { outDir: string; client: Client; log
       log(`limited: board ${id} (${board}) failed: ${(e as Error).message}`);
     }
   }
-  if (read === 0 && !old) return 'failed';
+  if (read === 0) return 'failed'; // nothing was read: the saved file keeps its own date, so the data status shows it is late
   const modes: LimitedFile['modes'] = {};
   for (const m of LIMITED) {
     const list = (found.get(m.id) ?? []).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, KEEP);

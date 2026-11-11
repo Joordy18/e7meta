@@ -1,4 +1,6 @@
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { appendFile, mkdir } from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 
 export type Deck = {
@@ -26,18 +28,21 @@ const remember = (store: Store, b: Battle) => {
 /**
  * The battles kept so far for a season: one JSON line each in <dir>/<season>.jsonl. It lives next to the data but outside public/ and git:
  * it is the raw material (decks, builds, leagues) of the statistics, which are what gets published.
- * A damaged line (a write cut short) is skipped, the rest is kept.
+ * A damaged line (a write cut short) is skipped, the rest is kept. The file is read line by line (it outgrows what one string can hold), and only a
+ * missing file means an empty store: any other error stops the run, so a store that cannot be read is never taken for an empty one.
  */
 export async function loadStore(dir: string, season: string): Promise<Store> {
   const store: Store = { path: join(dir, `${season}.jsonl`), battles: [], seqs: new Set(), keys: new Set() };
-  let text = '';
-  try { text = await readFile(store.path, 'utf8'); } catch { return store; }
-  for (const line of text.split('\n')) {
-    if (!line.trim()) continue;
-    try {
-      const b = JSON.parse(line) as Battle;
-      if (b && b.seq && Array.isArray(b.decks) && b.decks.length === 2) remember(store, { ...b, seqs: b.seqs ?? [b.seq] });
-    } catch { /* damaged line */ }
+  try {
+    for await (const line of createInterface({ input: createReadStream(store.path, 'utf8'), crlfDelay: Infinity })) {
+      if (!line.trim()) continue;
+      try {
+        const b = JSON.parse(line) as Battle;
+        if (b && b.seq && Array.isArray(b.decks) && b.decks.length === 2) remember(store, { ...b, seqs: b.seqs ?? [b.seq] });
+      } catch { /* damaged line */ }
+    }
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
   }
   return store;
 }

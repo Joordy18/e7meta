@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rm, stat } from 'node:fs/promises';
+import { writeFileAtomic } from './atomic';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createClient, unwrap } from './api';
@@ -20,6 +21,7 @@ const OPPONENTS = 600; // most opponents of those players read too (the most met
 const BATTLES = 100; // most recent battles per player (the API keeps 100)
 const PAGE = 10; // rows per page, fixed by the API
 const MIN_PLAYERS_OK = 0.8; // below this share of players loaded, the run is not trusted
+const MAX_STREAK = 25; // players failing one after the other: the API is down or hanging
 const STORE = 'data-private/rta'; // the raw battles, outside public/ and git
 
 type RawDeck = { hero_list?: { hero_code: string; first_pick?: number; ban?: number }[]; preban_list?: string[] };
@@ -101,9 +103,27 @@ export function listPlayers(raw: unknown): { nick: number; world: string; tier?:
  * known, so a daily run asks for little. The statistics cover everything kept for the season. One request at a time through the client's delay.
  * 'failed' when no battle was found or too many players could not be loaded; then nothing is written.
  */
-export async function collectRta(opts: {
+export type RtaOptions = {
   outDir: string; storeDir?: string; client: Client; players?: number; opponents?: number; deep?: boolean; battles?: number; log?: (m: string) => void; now?: () => string;
-}): Promise<'written' | 'failed'> {
+};
+
+const LOCK_STALE_MS = 6 * 3600 * 1000; // longer than the scheduled task may run (4 h): an older lock is the trace of a run that was killed
+/** One run at a time on a store: two would each append the battles the other had not read yet, and every later count would hold them twice. */
+async function lock(dir: string): Promise<(() => Promise<void>) | null> {
+  const path = join(dir, '.lock');
+  await mkdir(dir, { recursive: true });
+  try { if (Date.now() - (await stat(path)).mtimeMs > LOCK_STALE_MS) await rm(path, { force: true }); } catch { /* no lock */ }
+  try { await (await open(path, 'wx')).close(); } catch { return null; }
+  return () => rm(path, { force: true });
+}
+
+export async function collectRta(opts: RtaOptions): Promise<'written' | 'failed'> {
+  const release = await lock(opts.storeDir ?? STORE);
+  if (!release) { (opts.log ?? (() => {}))('rta: another run is in progress on this store, nothing done'); return 'failed'; }
+  try { return await collectRtaRun(opts); } finally { await release(); }
+}
+
+async function collectRtaRun(opts: RtaOptions): Promise<'written' | 'failed'> {
   const { outDir, storeDir = STORE, client, players = PLAYERS, opponents = OPPONENTS, deep = false, battles: perPlayer = BATTLES, log = () => {}, now = () => new Date().toISOString().slice(0, 10) } = opts;
   const lang = { lang: 'en' };
   let season: { season_code: string; name: string };
@@ -165,10 +185,12 @@ export async function collectRta(opts: {
     }
   };
   let failed = 0;
+  let streak = 0; // failures in a row: when the API hangs each one costs a minute, so the run gives up long before the task's time limit
   for (const p of ranked) {
-    try { await read(p, true); } catch (e) {
+    try { await read(p, true); streak = 0; } catch (e) {
       failed++;
       log(`rta: a player failed: ${(e as Error).message}`);
+      if (++streak >= MAX_STREAK) { log(`rta: ${streak} players failed in a row, nothing written`); return 'failed'; }
     }
   }
   if (ranked.length === 0 || (ranked.length - failed) / ranked.length < MIN_PLAYERS_OK) {
@@ -192,13 +214,19 @@ export async function collectRta(opts: {
     return 'failed';
   }
 
+  // the store only grows: fewer battles than the published statistics were made from means the store was not read whole, and shrunken statistics are not published
+  const before = await readFile(join(outDir, 'rta', 'stats.json'), 'utf8').then((t) => JSON.parse(t) as RtaStats).catch(() => null);
+  if (before && before.code === season.season_code && before.battles > store.battles.length) {
+    log(`rta: the store holds ${store.battles.length} battles, the published statistics ${before.battles}: nothing written`);
+    return 'failed';
+  }
   const days = store.battles.map((b) => b.date.slice(0, 10)).filter(Boolean).sort();
   const stats: RtaStats = {
     season: season.name, code: season.season_code, updated: now(), players: ranked.length - failed + extraOk, battles: store.battles.length,
     ...(days.length > 0 ? { since: days[0], until: days[days.length - 1] } : {}), heroes: tally(store.battles),
   };
   await mkdir(join(outDir, 'rta'), { recursive: true });
-  await writeFile(join(outDir, 'rta', 'stats.json'), JSON.stringify(stats));
+  await writeFileAtomic(join(outDir, 'rta', 'stats.json'), JSON.stringify(stats));
   await writeBuilds({ outDir, season: season.season_code, battles: store.battles, now });
   await writePairs({ outDir, season: season.season_code, battles: store.battles, now });
   log(`rta: ${added} new battles, ${store.battles.length} in total, from ${stats.players} players (${extraOk} opponents), ${Object.keys(stats.heroes).length} heroes`);

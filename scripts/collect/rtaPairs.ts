@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
+import { writeFileAtomic } from './atomic';
 import { join } from 'node:path';
 import type { Battle } from './rtaStore';
 import type { RtaHeroPairs, RtaHeroTable, RtaPairs, RtaPairEntry, RtaTable } from '../../src/shared/types';
@@ -99,6 +100,6 @@ export async function writePairs(opts: { outDir: string; season: string; battles
   const pairs: RtaPairs = { ...head, heroes: buildPairs(battles) };
   const table: RtaTable = { ...head, heroes: buildTable(battles) };
   await mkdir(join(outDir, 'rta'), { recursive: true });
-  await writeFile(join(outDir, 'rta', 'pairs.json'), JSON.stringify(pairs));
-  await writeFile(join(outDir, 'rta', 'table.json'), JSON.stringify(table));
+  await writeFileAtomic(join(outDir, 'rta', 'pairs.json'), JSON.stringify(pairs));
+  await writeFileAtomic(join(outDir, 'rta', 'table.json'), JSON.stringify(table));
 }

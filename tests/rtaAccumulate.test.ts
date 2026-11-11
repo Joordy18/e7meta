@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { battleKey, collectRta, parseBattle } from '../scripts/collect/rta';
@@ -78,6 +78,11 @@ describe('the store of battles', () => {
     expect((await loadStore(dir, 'pvp_rta_ss22')).battles).toHaveLength(1);
   });
 
+  it('stops on a store it cannot read instead of taking it for an empty one', async () => {
+    mkdirSync(join(dir, 'broken.jsonl')); // a directory where the file should be: reading it fails, and that is not "no battles yet"
+    await expect(loadStore(dir, 'broken')).rejects.toThrow();
+  });
+
   it('skips a damaged line instead of losing the rest', async () => {
     const store = await loadStore(dir, 's');
     await appendBattles(store, [parseBattle(raw(1, '2026-11-04 09:00:00', A, B))!]);
@@ -121,6 +126,36 @@ describe('collectRta: accumulating', () => {
     return { client: client as unknown as ReturnType<typeof createClient>, calls, rankingCalls };
   }
   const run = (client: ReturnType<typeof createClient>, log?: (m: string) => void) => collectRta({ outDir: dir, storeDir, client, now: () => '2026-11-06', ...(log ? { log } : {}) });
+
+  it('does not run twice on one store, and frees it afterwards', async () => {
+    const one = raw(1, '2026-11-01 10:00:00', A, B);
+    mkdirSync(storeDir, { recursive: true });
+    writeFileSync(join(storeDir, '.lock'), '');
+    const logs: string[] = [];
+    expect(await run(fake({ pages: { 101: [[one]] } }).client, (m) => logs.push(m))).toBe('failed');
+    expect(logs.some((m) => /another run is in progress/.test(m))).toBe(true);
+    rmSync(join(storeDir, '.lock'));
+    expect(await run(fake({ pages: { 101: [[one]] } }).client)).toBe('written');
+    expect(existsSync(join(storeDir, '.lock'))).toBe(false);
+  });
+
+  it('does not publish statistics made from fewer battles than the ones already published', async () => {
+    mkdirSync(join(dir, 'rta'), { recursive: true });
+    writeFileSync(join(dir, 'rta', 'stats.json'), JSON.stringify({ code: 'pvp_rta_ss21', battles: 999 }));
+    const logs: string[] = [];
+    expect(await run(fake({ pages: { 101: [[raw(1, '2026-11-01 10:00:00', A, B)]] } }).client, (m) => logs.push(m))).toBe('failed');
+    expect(logs.some((m) => /nothing written/.test(m))).toBe(true);
+    expect(stats().battles).toBe(999); // untouched
+  });
+
+  it('gives up when players fail one after the other, instead of waiting for them all', async () => {
+    const pages = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [101 + i, [[]]]));
+    const f = fake({ pages, failAll: true });
+    const logs: string[] = [];
+    expect(await run(f.client, (m) => logs.push(m))).toBe('failed');
+    expect(f.calls).toHaveLength(25);
+    expect(logs.some((m) => /25 players failed in a row/.test(m))).toBe(true);
+  });
 
   it('keeps the battles of every run, and a later run asks only for what is new', async () => {
     const a1 = raw(1, '2026-11-01 10:00:00', A, B);
