@@ -39,6 +39,12 @@ describe('share preview', () => {
     expect(r?.artifact).toBeNull(); // an object's own key is not an artifact
   });
 
+  it('cuts the note by characters: a half emoji would make the redirect address impossible to write', () => {
+    const c = parseCard(new URLSearchParams('h=c1&n=' + 'a'.repeat(139) + '%F0%9F%98%80%F0%9F%98%80'));
+    expect([...c.note]).toHaveLength(140);
+    expect(() => siteLink('https://x.test/', c)).not.toThrow();
+  });
+
   it('sends a person to the same build on the site', () => {
     const c = parseCard(new URLSearchParams('h=c1137&s=set_speed&a=efk03&n=Speed%20190%2B'));
     expect(siteLink('https://x.test/e7meta/', c)).toBe('https://x.test/e7meta/#/tools/build?h=c1137&s=set_speed&a=efk03&n=Speed%20190%2B');

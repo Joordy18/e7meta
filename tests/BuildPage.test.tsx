@@ -110,6 +110,31 @@ describe('BuildPage', () => {
     expect(within(card).getByText('Mage Staff')).toBeTruthy();
   });
 
+  it('keeps the artifact when the new hero can wear it too, and drops it when it cannot', async () => {
+    render(<BuildPage />);
+    pick(await hero(), 'mage', 'Mage One');
+    pick(artifacts(), 'charm', 'Any Charm'); // for every class
+    pick(await hero(), 'knight', 'Knight Two');
+    expect(within(screen.getByRole('article', { name: 'Your build' })).getByText('Any Charm')).toBeTruthy();
+    pick(await hero(), 'mage', 'Mage One');
+    pick(artifacts(), 'staff', 'Mage Staff'); // the mage's own
+    pick(await hero(), 'knight', 'Knight Two');
+    expect(within(screen.getByRole('article', { name: 'Your build' })).queryByText('Mage Staff')).toBeNull();
+  });
+
+  it('shows the link to copy by hand when the clipboard is not available', async () => {
+    const real = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    try {
+      render(<BuildPage />);
+      pick(await hero(), 'mage', 'Mage One');
+      fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+      expect((await screen.findByRole('textbox', { name: 'Copy link' }) as HTMLInputElement).value).toMatch(/^https:\/\/e7meta-share\.vercel\.app\/b\?h=c1/);
+    } finally {
+      if (real) Object.defineProperty(navigator, 'clipboard', real); else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
   it('does not trust an address: a hero that does not exist shows no card', async () => {
     history.replaceState(null, '', '#/tools/build?h=nope&s=set_speed');
     render(<BuildPage />);

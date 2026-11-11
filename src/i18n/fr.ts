@@ -459,4 +459,7 @@ export const fr: Record<keyof typeof en, string> = {
   "build.noMatch": "Aucun résultat",
   "build.useTop": "Partir du build le plus joué",
   "hero.rtaFew": "Seulement {games} parties dans l’échantillon, moins de {min} : le taux de victoire est retiré et les autres taux ne sont qu’un indice.",
+  "build.more": "Continuez à taper pour affiner la liste",
+  "team.vs": "contre",
+  "about.statusNone": "Aucune date de collecte n’a pu être lue : les fichiers de données sont peut-être absents.",
 };

@@ -459,4 +459,7 @@ export const zh: Record<keyof typeof en, string> = {
   "build.noMatch": "沒有符合的項目",
   "build.useTop": "從最常用的配裝開始",
   "hero.rtaFew": "樣本中只有 {games} 場，少於 {min} 場：不顯示勝率，其他比率僅供參考。",
+  "build.more": "繼續輸入以縮小清單",
+  "team.vs": "對",
+  "about.statusNone": "無法讀取任何收集日期：資料檔案可能不存在。",
 };

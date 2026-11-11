@@ -36,9 +36,15 @@ describe('parseBuild / buildHash', () => {
   it('turns a most-worn combination (each set once) into the sets of a full build', () => {
     expect(fromCombo(['set_speed', 'set_immune'])).toEqual(['set_speed', 'set_immune']);
     expect(fromCombo(['set_max_hp', 'set_immune'])).toEqual(['set_max_hp', 'set_max_hp', 'set_immune']); // four pieces of the first one
-    expect(fromCombo(['set_max_hp'])).toEqual(['set_max_hp', 'set_max_hp', 'set_max_hp']);
+    expect(fromCombo(['set_max_hp'])).toEqual(['set_max_hp']); // one two-piece set alone may be a partial build: not guessed to be three
     expect(fromCombo(['set_speed'])).toEqual(['set_speed']); // a four-piece set alone stays as it is
     expect(fromCombo([])).toEqual([]);
+  });
+  it('cuts a note by characters, so an emoji at the limit is whole or gone and the address can always be written', () => {
+    const b = parseBuild('#/tools/build?h=c1&n=' + 'a'.repeat(139) + '%F0%9F%98%80%F0%9F%98%80');
+    expect([...b.note]).toHaveLength(NOTE_MAX);
+    expect(() => buildHash(b)).not.toThrow();
+    expect(() => shareLink('https://x.test', b, 'en')).not.toThrow();
   });
   it('lists every set once, and names an unknown one from its code', () => {
     expect(new Set(SETS).size).toBe(SETS.length);

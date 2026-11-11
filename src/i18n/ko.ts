@@ -459,4 +459,7 @@ export const ko: Record<keyof typeof en, string> = {
   "build.noMatch": "결과 없음",
   "build.useTop": "가장 많이 쓰는 빌드로 시작",
   "hero.rtaFew": "표본에 {games}경기뿐이며 {min}경기 미만입니다. 승률은 제외했고 다른 비율은 참고용입니다.",
+  "build.more": "계속 입력하면 목록이 좁혀집니다",
+  "team.vs": "vs",
+  "about.statusNone": "수집 날짜를 읽을 수 없습니다. 데이터 파일이 없을 수 있습니다.",
 };

@@ -457,4 +457,7 @@ export const en = {
   "build.noMatch": "No match",
   "build.useTop": "Start from the most played build",
   "hero.rtaFew": "Only {games} games in the sample, fewer than {min}: the win rate is left out and the other rates are only a hint.",
+  "build.more": "Keep typing to narrow the list",
+  "team.vs": "vs",
+  "about.statusNone": "No collection date could be read: the data files may be missing.",
 } as const;

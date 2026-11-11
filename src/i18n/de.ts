@@ -459,4 +459,7 @@ export const de: Record<keyof typeof en, string> = {
   "build.noMatch": "Kein Treffer",
   "build.useTop": "Mit dem meistgespielten Build beginnen",
   "hero.rtaFew": "Nur {games} Spiele in der Stichprobe, weniger als {min}: Die Siegquote wird weggelassen und die übrigen Quoten sind nur ein Anhaltspunkt.",
+  "build.more": "Weitertippen, um die Liste einzugrenzen",
+  "team.vs": "gegen",
+  "about.statusNone": "Es konnte kein Erfassungsdatum gelesen werden: Die Datendateien fehlen möglicherweise.",
 };

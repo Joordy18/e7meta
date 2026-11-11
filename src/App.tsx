@@ -33,7 +33,7 @@ const section = (hash: string) =>
   /^#\/about/.test(hash) ? 'about' : /^#\/modes/.test(hash) ? 'modes' : /^#\/tiers/.test(hash) ? 'tiers' : /^#\/tools/.test(hash) ? 'tools' : /^#\/arena/.test(hash) ? 'arena' : /^#\/guides/.test(hash) ? 'guides'
     : /^#\/(heroes|hero\/|artifact\/)/.test(hash) ? 'heroes' : 'home';
 
-function Page({ hash }: { hash: string }) {
+function Page({ hash, nav }: { hash: string; nav: number }) {
   const hero = HERO_ROUTE.exec(hash)?.[1];
   if (hero) return <HeroPage code={safeDecode(hero)} />;
   const guide = GUIDE_ROUTE.exec(hash)?.[1];
@@ -50,8 +50,8 @@ function Page({ hash }: { hash: string }) {
   if (hash === '#/tiers') return <TiersPage />;
   if (hash === '#/tools') return <ToolsPage />;
   if (hash === '#/tools/draft') return <DraftPage />;
-  if (TEAM_ROUTE.test(hash)) return <TeamPage key={hash} />;
-  if (BUILD_ROUTE.test(hash)) return <BuildPage key={hash} />;
+  if (TEAM_ROUTE.test(hash)) return <TeamPage key={nav} />;
+  if (BUILD_ROUTE.test(hash)) return <BuildPage key={nav} />;
   if (hash === '#/heroes') return <HeroList />;
   return <HomePage />;
 }
@@ -63,14 +63,15 @@ export default function App() {
 function Shell() {
   const { t } = useI18n();
   const [hash, setHash] = useState(location.hash);
+  const [nav, setNav] = useState(0); // counts the real navigations: those pages keep their state in the address (replaceState, no event), so going back to the address they were opened with must still start them over
   const [latest, setLatest] = useState<string | null>(null);
 
   useEffect(() => {
-    const onHash = () => setHash(location.hash);
+    const onHash = () => { setHash(location.hash); setNav((n) => n + 1); };
     addEventListener('hashchange', onHash);
     return () => removeEventListener('hashchange', onHash);
   }, []);
-  useEffect(() => { window.scrollTo?.(0, 0); }, [hash]); // a new page starts at the top
+  useEffect(() => { window.scrollTo?.(0, 0); document.querySelector('nav a[aria-current]')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }); }, [hash]); // a new page starts at the top, and the menu shows where we are (on a phone it scrolls sideways)
   useEffect(() => { loadIndex().then((i) => setLatest(i?.periods[0] ?? null)).catch(() => {}); }, []);
 
   return (
@@ -90,7 +91,7 @@ function Shell() {
         {latest && <span className="week">{t('app.dataWeek', { date: latest })}</span>}
         <LanguageMenu />
       </header>
-      <main><Page hash={hash} /></main>
+      <main><Page hash={hash} nav={nav} /></main>
       <Footer />
     </>
   );

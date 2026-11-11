@@ -33,7 +33,7 @@ export function parseCard(q: URLSearchParams): Card {
     hero: code(q.get('h')),
     sets: parseSets(q.get('s') ?? ''),
     artifact: code(q.get('a')),
-    note: (q.get('n') ?? '').slice(0, NOTE_MAX),
+    note: [...(q.get('n') ?? '')].slice(0, NOTE_MAX).join(''), // by characters, not UTF-16 units: a half emoji would make encodeURIComponent throw
     lang: LANGS.includes(lang) ? lang : 'en',
   };
 }

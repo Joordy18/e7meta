@@ -459,4 +459,7 @@ export const ja: Record<keyof typeof en, string> = {
   "build.noMatch": "該当なし",
   "build.useTop": "最も使われているビルドから始める",
   "hero.rtaFew": "サンプルの試合数は{games}件のみで、{min}件未満です。勝率は表示せず、他の割合はあくまで目安です。",
+  "build.more": "入力を続けると絞り込めます",
+  "team.vs": "対",
+  "about.statusNone": "収集日を読み取れませんでした。データファイルがない可能性があります。",
 };

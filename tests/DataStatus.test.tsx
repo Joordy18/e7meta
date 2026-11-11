@@ -19,6 +19,10 @@ describe('daysAgo', () => {
   });
 });
 
+describe('daysAgo, a date that cannot be read', () => {
+  it('counts as late, never as fresh', () => { expect(daysAgo('', Date.now())).toBe(Infinity); expect(daysAgo('soon') > 2).toBe(true); });
+});
+
 describe('DataStatus', () => {
   it('shows when each source was collected, marks a daily one that went quiet, and leaves out a file that is missing', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });

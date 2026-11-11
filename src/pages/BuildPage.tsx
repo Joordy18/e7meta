@@ -18,6 +18,7 @@ export default function BuildPage() {
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [b, setB] = useState<Build>(() => parseBuild(location.hash));
   const [copied, setCopied] = useState(false);
+  const [manual, setManual] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -52,8 +53,9 @@ export default function BuildPage() {
   const topSets = top?.sets.combos[0]?.sets;
   const topArtifact = top?.artifacts.top[0]?.code;
   const worn = [...new Set(b.sets)].map((c) => [c, b.sets.filter((x) => x === c).length] as const); // a set taken twice is shown once, "x2"
+  const link = SHARE_BASE ? shareLink(SHARE_BASE, b, lang) : location.href;
   const copy = async () => {
-    try { await navigator.clipboard.writeText(SHARE_BASE ? shareLink(SHARE_BASE, b, lang) : location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
+    try { await navigator.clipboard.writeText(link); setManual(false); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setManual(true); } // no clipboard (a plain http page, a refusal): the link is shown to copy by hand
   };
 
   return (
@@ -83,7 +85,8 @@ export default function BuildPage() {
               </div>
             )}
             {b.note && <p className="build-note">{b.note}</p>}
-            <button type="button" className="tab" onClick={copy}>{copied ? t('build.copied') : t('build.copy')}</button>
+            <button type="button" className="tab" onClick={copy} aria-live="polite">{copied ? t('build.copied') : t('build.copy')}</button>
+            {manual && <input className="share-link" readOnly value={link} aria-label={t('build.copy')} onFocus={(e) => e.target.select()} autoFocus />}
           </div>
         </article>
       ) : <p className="note">{t('build.empty')}</p>}
@@ -92,9 +95,13 @@ export default function BuildPage() {
         <div className="field">
           <span>{t('build.hero')}</span>
           <Picker
-            label={t('build.hero')} value={hero ? b.hero : ''} placeholder={t('build.pickHero')} empty={t('build.noMatch')}
+            label={t('build.hero')} value={hero ? b.hero : ''} placeholder={t('build.pickHero')} empty={t('build.noMatch')} more={t('build.more')}
             options={[...heroes].sort((x, y) => heroName(x).localeCompare(heroName(y), locale)).map((h) => ({ value: h.code, label: heroName(h), alt: h.name, icon: <HeroIcon code={h.code} name={heroName(h)} decorative /> }))}
-            onChange={(code) => setB({ ...b, hero: code, artifact: '' })}
+            onChange={(code) => setB((cur) => {
+              const to = heroes.find((h) => h.code === code);
+              const kept = artifacts.find((a) => a.code === cur.artifact); // the artifact stays when the new hero can wear it too (same class, or an artifact for all)
+              return { ...cur, hero: code, artifact: kept && to && (kept.job === 'NN' || kept.job === to.job) ? cur.artifact : '' };
+            })}
           />
         </div>
         <div className="field" role="group" aria-label={t('build.sets')}>
@@ -126,7 +133,7 @@ export default function BuildPage() {
         <div className="field">
           <span>{t('build.artifact')}</span>
           <Picker
-            label={t('build.artifact')} value={b.artifact} placeholder={t('build.noArtifact')} none={t('build.noArtifact')} empty={t('build.noMatch')} disabled={!hero}
+            label={t('build.artifact')} value={b.artifact} placeholder={t('build.noArtifact')} none={t('build.noArtifact')} empty={t('build.noMatch')} more={t('build.more')} disabled={!hero}
             options={options.map((a) => ({ value: a.code, label: name.artifact(a.code, a.name), alt: a.name, icon: <Icon src={artifactIcon(a.code)} className="hicon art" /> }))}
             onChange={(code) => setB({ ...b, artifact: code })}
           />

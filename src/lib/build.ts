@@ -22,11 +22,11 @@ export const removeSet = (sets: string[], setCode: string) => { const i = sets.i
 const LETTERS = 'abcdefghijklmnopqrstuvwx'; // a link names a set by its place in SETS
 /**
  * The most worn combination of a hero in the RTA data lists each set once, so "Health x2 + Immunity" reads as ["set_max_hp", "set_immune"] (four pieces):
- * while the first set is a two-piece one and pieces are missing, it is taken again.
+ * while the first set is a two-piece one and pieces are missing, it is taken again. One two-piece set alone is left as it is: it may be a partial build, not three of the same.
  */
 export function fromCombo(combo: string[]): string[] {
   let sets = combo.reduce(addSet, [] as string[]);
-  while (sets.length > 0 && piecesOf(sets[0]) === 2 && piecesUsed(sets) < MAX_PIECES) sets = [sets[0], ...sets]; // all two-piece sets here, so it stays in order
+  while (sets.length > 1 && piecesOf(sets[0]) === 2 && piecesUsed(sets) < MAX_PIECES) sets = [sets[0], ...sets]; // all two-piece sets here, so it stays in order
   return sets;
 }
 
@@ -39,7 +39,7 @@ const code = (v: string | null | undefined) => (v && CODE.test(v) ? v : '');
 export function parseBuild(hash: string): Build {
   const p = new URLSearchParams(hash.split('?')[1] ?? '');
   const sets = (p.get('s') ?? '').split(',').reduce(addSet, [] as string[]); // an address with more than six pieces keeps what fits
-  return { hero: code(p.get('h')), sets, artifact: code(p.get('a')), note: (p.get('n') ?? '').slice(0, NOTE_MAX) };
+  return { hero: code(p.get('h')), sets, artifact: code(p.get('a')), note: [...(p.get('n') ?? '')].slice(0, NOTE_MAX).join('') } // by characters: cutting a pair of UTF-16 units in two would leave a half emoji that encodeURIComponent refuses;
 }
 
 /** The address of a build: only what is filled in. */

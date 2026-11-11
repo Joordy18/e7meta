@@ -7,7 +7,7 @@ const DAY = 86_400_000;
 const LATE_AFTER = 2; // the collection runs daily: more than two days without news means it did not run
 
 /** Whole days between a "YYYY-MM-DD" date and now (0 today). */
-export const daysAgo = (date: string, now = Date.now()) => Math.floor((now - Date.parse(date)) / DAY);
+export const daysAgo = (date: string, now = Date.now()) => { const d = Math.floor((now - Date.parse(date)) / DAY); return Number.isNaN(d) ? Infinity : d; }; // a date that cannot be read counts as late
 
 type Status = { week?: string; rta?: RtaStats; posts?: string; limited?: string };
 
@@ -24,10 +24,11 @@ export default function DataStatus() {
     return () => { live = false; };
   }, []);
   if (!s) return <p className="note">{t('common.loading')}</p>;
+  if (!s.week && !s.rta && !s.posts && !s.limited) return <p className="note error">{t('about.statusNone')}</p>; // every file failed: exactly what this page is for
 
   const collected = (date: string) => {
     const days = daysAgo(date);
-    return <small>{t('about.statusDate', { date })}{days > LATE_AFTER && <> · <strong className="late">{t('about.statusLate', { days })}</strong></>}</small>;
+    return <small>{t('about.statusDate', { date })}{days > LATE_AFTER && <> · <strong className="late">{t('about.statusLate', { days: Number.isFinite(days) ? days : '?' })}</strong></>}</small>;
   };
   return (
     <dl className="sources status">

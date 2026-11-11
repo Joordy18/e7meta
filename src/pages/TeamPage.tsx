@@ -89,7 +89,7 @@ export default function TeamPage() {
       })}
       {s.vs.map((l) => {
         const tip = t('team.vsTip', { edge: fmt(l.edge), hero: shown(l.code), games: l.games });
-        return <span key={`v${l.code}`} className="chip vs" data-sign={l.edge > 0 ? '+' : '-'} role="img" aria-label={tip} title={tip}><HeroIcon code={l.code} name={shown(l.code)} decorative />{fmt(l.edge)}</span>;
+        return <span key={`v${l.code}`} className="chip vs" data-sign={l.edge > 0 ? '+' : '-'} role="img" aria-label={tip} title={tip}><em className="chip-vs">{t('team.vs')}</em><HeroIcon code={l.code} name={shown(l.code)} decorative />{fmt(l.edge)}</span>;
       })}
     </span>
   );
