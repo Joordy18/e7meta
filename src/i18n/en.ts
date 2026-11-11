@@ -455,4 +455,6 @@ export const en = {
   "build.pieces": "{n} of 6 pieces",
   "build.remove": "Remove {name}",
   "build.noMatch": "No match",
+  "build.useTop": "Start from the most played build",
+  "hero.rtaFew": "Only {games} games in the sample, fewer than {min}: the win rate is left out and the other rates are only a hint.",
 } as const;

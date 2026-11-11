@@ -457,4 +457,6 @@ export const ko: Record<keyof typeof en, string> = {
   "build.pieces": "6개 중 {n}개",
   "build.remove": "{name} 제거",
   "build.noMatch": "결과 없음",
+  "build.useTop": "가장 많이 쓰는 빌드로 시작",
+  "hero.rtaFew": "표본에 {games}경기뿐이며 {min}경기 미만입니다. 승률은 제외했고 다른 비율은 참고용입니다.",
 };

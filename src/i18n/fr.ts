@@ -457,4 +457,6 @@ export const fr: Record<keyof typeof en, string> = {
   "build.pieces": "{n} pièces sur 6",
   "build.remove": "Retirer {name}",
   "build.noMatch": "Aucun résultat",
+  "build.useTop": "Partir du build le plus joué",
+  "hero.rtaFew": "Seulement {games} parties dans l’échantillon, moins de {min} : le taux de victoire est retiré et les autres taux ne sont qu’un indice.",
 };

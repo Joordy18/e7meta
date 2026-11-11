@@ -20,6 +20,16 @@ export const addSet = (sets: string[], setCode: string) =>
 export const removeSet = (sets: string[], setCode: string) => { const i = sets.indexOf(setCode); return i < 0 ? sets : sets.filter((_, j) => j !== i); };
 
 const LETTERS = 'abcdefghijklmnopqrstuvwx'; // a link names a set by its place in SETS
+/**
+ * The most worn combination of a hero in the RTA data lists each set once, so "Health x2 + Immunity" reads as ["set_max_hp", "set_immune"] (four pieces):
+ * while the first set is a two-piece one and pieces are missing, it is taken again.
+ */
+export function fromCombo(combo: string[]): string[] {
+  let sets = combo.reduce(addSet, [] as string[]);
+  while (sets.length > 0 && piecesOf(sets[0]) === 2 && piecesUsed(sets) < MAX_PIECES) sets = [sets[0], ...sets]; // all two-piece sets here, so it stays in order
+  return sets;
+}
+
 export const EMPTY: Build = { hero: '', sets: [], artifact: '', note: '' };
 const CODE = /^[a-z0-9_]{1,32}$/i; // hero, artifact and set codes: anything else in an address is dropped
 

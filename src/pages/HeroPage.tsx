@@ -5,7 +5,7 @@ import { useI18n, type Key } from '../i18n';
 import PageNav from '../components/PageNav';
 import Bars from '../components/Bars';
 import { NotFoundError, heroModeUsage, loadArenaIndex, loadArenaSeason, loadHero, loadHeroes, loadIndex, loadModes, loadRta, loadRtaBuilds, loadRtaPairs, loadRtaTable, loadSkills, loadTeams, type ModeUsage } from '../lib/data';
-import { heroRta, type RtaRow } from '../lib/rta';
+import { MIN_PLAYED, heroRta, type RtaRow } from '../lib/rta';
 import { artifactIcon, setIcon, skillIcon } from '../lib/images';
 import { TIERS, heroArena, type HeroArenaRow } from '../lib/arena';
 import { heroTeams, teammates, type HeroTeam, type Teammate } from '../lib/modes';
@@ -203,13 +203,14 @@ export default function HeroPage({ code }: { code: string }) {
     let live = true;
     Promise.resolve(loadRta())
       .then((r) => {
-        const row = r ? heroRta(r, h.hero.code) : undefined;
+        const row = r ? (heroRta(r, h.hero.code) ?? heroRta(r, h.hero.code, 1)) : undefined; // a hero with a few games is shown with a warning, not hidden
         if (live && r && row) setRtaSample({ season: r.season, battles: r.battles, players: r.players, since: r.since, until: r.until, row });
       })
       .catch(() => {});
     return () => { live = false; };
   }, [h?.hero.code]);
 
+  const few = !!rtaSample && rtaSample.row.played > 0 && rtaSample.row.played < MIN_PLAYED; // too few games for a win rate
   const shownNames = new Map([...names].map(([c, n]) => [c, name.hero(c, n)])); // heroes of the teams, in the language
   // partners and matchups come from the same accumulated battles: no file, or nothing clear for this hero, just hides the section
   useEffect(() => {
@@ -309,13 +310,14 @@ export default function HeroPage({ code }: { code: string }) {
                     <tbody>
                       <tr>
                         <td>{rtaSample.row.pick}%</td>
-                        <td>{rtaSample.row.win === null ? '—' : `${rtaSample.row.win}%`}</td>
+                        <td>{rtaSample.row.win === null || few ? '—' : `${rtaSample.row.win}%`}</td>
                         <td>{rtaSample.row.ban}%</td>
                         <td>{rtaSample.row.preban}%</td>
                         <td>{rtaSample.row.first}%</td>
                       </tr>
                     </tbody>
                   </table>
+                  {few && <p className="note">{t('hero.rtaFew', { games: rtaSample.row.played, min: MIN_PLAYED })}</p>}
                   <p className="caption">
                     {rich('hero.rtaCaption', { battles: rtaSample.battles.toLocaleString(locale), players: rtaSample.players, games: rtaSample.row.played, link: <a href="#/arena">{t('hero.rtaAllHeroes')}</a> })}
                   </p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, shareLink } from '../src/lib/build';
+import { NOTE_MAX, SETS, addSet, buildHash, parseBuild, piecesOf, piecesUsed, fromCombo, removeSet, setFallbackName, shareLink } from '../src/lib/build';
 
 describe('parseBuild / buildHash', () => {
   it('writes only what is filled in, and reads it back', () => {
@@ -32,6 +32,13 @@ describe('parseBuild / buildHash', () => {
     expect(shareLink('https://share.example.app/', b, 'fr')).toBe('https://share.example.app/b?h=c1137&s=bbd&a=efk03&n=Speed%20190%2B%20%26%20more&l=fr');
     expect(shareLink('https://share.example.app', { hero: 'c2016', sets: ['set_speed', 'set_penetrate'], artifact: 'ef412', note: '' }, 'en')).toBe('https://share.example.app/b?h=c2016&s=ae&a=ef412');
     expect(shareLink('https://share.example.app', { hero: '', sets: [], artifact: '', note: '' }, 'en')).toBe('https://share.example.app/b');
+  });
+  it('turns a most-worn combination (each set once) into the sets of a full build', () => {
+    expect(fromCombo(['set_speed', 'set_immune'])).toEqual(['set_speed', 'set_immune']);
+    expect(fromCombo(['set_max_hp', 'set_immune'])).toEqual(['set_max_hp', 'set_max_hp', 'set_immune']); // four pieces of the first one
+    expect(fromCombo(['set_max_hp'])).toEqual(['set_max_hp', 'set_max_hp', 'set_max_hp']);
+    expect(fromCombo(['set_speed'])).toEqual(['set_speed']); // a four-piece set alone stays as it is
+    expect(fromCombo([])).toEqual([]);
   });
   it('lists every set once, and names an unknown one from its code', () => {
     expect(new Set(SETS).size).toBe(SETS.length);

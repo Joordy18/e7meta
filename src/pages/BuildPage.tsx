@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { ElementIcon, HeroFace, HeroIcon, Icon, JobIcon } from '../components/Art';
 import { useI18n } from '../i18n';
 import Picker from '../components/Picker';
-import { EMPTY, MAX_PIECES, NOTE_MAX, SETS, SHARE_BASE, addSet, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, shareLink, type Build } from '../lib/build';
+import { EMPTY, MAX_PIECES, NOTE_MAX, SETS, SHARE_BASE, addSet, fromCombo, buildHash, parseBuild, piecesOf, piecesUsed, removeSet, setFallbackName, shareLink, type Build } from '../lib/build';
 import { loadGear, loadHeroes, loadIndex, loadRtaBuilds } from '../lib/data';
 import { artifactIcon, setIcon } from '../lib/images';
-import type { ArtifactInfo, HeroSummary } from '../shared/types';
+import type { ArtifactInfo, HeroSummary, RtaBuilds } from '../shared/types';
 
-type Load = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[]; artifacts: ArtifactInfo[]; setNames: Record<string, string> };
+type Load = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; heroes: HeroSummary[]; artifacts: ArtifactInfo[]; setNames: Record<string, string>; worn: RtaBuilds['heroes'] };
 
 /**
  * Build maker: choose a hero, up to three gear sets, an artifact and a note. The build is kept in the address (`#/tools/build?h=…&s=…&a=…&n=…`, see lib/build.ts),
@@ -25,7 +25,7 @@ export default function BuildPage() {
       const period = (await loadIndex())?.periods[0];
       if (!period) throw new Error('no data');
       const [heroes, gear, builds] = await Promise.all([loadHeroes(period), loadGear(period).catch(() => null), loadRtaBuilds().catch(() => null)]);
-      if (live) setLoad({ status: 'ok', heroes, artifacts: Object.values(gear?.artifacts ?? {}), setNames: builds?.setNames ?? {} });
+      if (live) setLoad({ status: 'ok', heroes, artifacts: Object.values(gear?.artifacts ?? {}), setNames: builds?.setNames ?? {}, worn: builds?.heroes ?? {} });
     })().catch((e: unknown) => live && setLoad({ status: 'error', message: String(e) }));
     return () => { live = false; };
   }, []);
@@ -39,7 +39,7 @@ export default function BuildPage() {
   );
   if (load.status === 'loading') return <p className="note">{t('common.loading')}</p>;
   if (load.status === 'error') return <p className="note error">{t('common.failed', { message: load.message })}</p>;
-  const { heroes, artifacts, setNames } = load;
+  const { heroes, artifacts, setNames, worn: wornBy } = load;
 
   const hero = heroes.find((h) => h.code === b.hero);
   const artifact = artifacts.find((a) => a.code === b.artifact);
@@ -48,6 +48,9 @@ export default function BuildPage() {
   // an artifact is for one class or for all (job "NN"); the one in a shared link stays offered even if it is not
   const options = artifacts.filter((a) => hero && (a.job === 'NN' || a.job === hero.job || a.code === b.artifact)).sort((x, y) => name.artifact(x.code, x.name).localeCompare(name.artifact(y.code, y.name), locale));
   const used = piecesUsed(b.sets);
+  const top = hero ? wornBy[hero.code] : undefined; // what the hero wore most in the RTA battles counted
+  const topSets = top?.sets.combos[0]?.sets;
+  const topArtifact = top?.artifacts.top[0]?.code;
   const worn = [...new Set(b.sets)].map((c) => [c, b.sets.filter((x) => x === c).length] as const); // a set taken twice is shown once, "x2"
   const copy = async () => {
     try { await navigator.clipboard.writeText(SHARE_BASE ? shareLink(SHARE_BASE, b, lang) : location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address bar still holds the link */ }
@@ -97,6 +100,7 @@ export default function BuildPage() {
         <div className="field" role="group" aria-label={t('build.sets')}>
           <span>{t('build.sets')}</span>
           <p className="caption">{t('build.setsHelp')}</p>
+          {topSets && <button type="button" className="tab" onClick={() => setB((cur) => ({ ...cur, sets: fromCombo(topSets), artifact: topArtifact && artifacts.some((a) => a.code === topArtifact) ? topArtifact : cur.artifact }))}>{t('build.useTop')}</button>}
           <p className="caption" aria-live="polite">{t('build.pieces', { n: used })}</p>
           {worn.length > 0 && (
             <ul className="chips set-chosen">

@@ -547,9 +547,15 @@ describe('HeroPage', () => {
       });
     });
 
-    it('is left out when the hero has too few games, or without a sample', async () => {
+    it('says so, and leaves the win rate out, when the hero has only a few games; a hero never played is not shown', async () => {
       vi.mocked(loadHero).mockResolvedValue(snapshot);
       vi.mocked(loadRta).mockResolvedValue(rta({ c1176: { pick: 4, played: 4, win: 4, first: 0, ban: 0, preban: 0 } }));
+      render(<HeroPage code="c1176" />);
+      const block = await screen.findByRole('region', { name: 'RTA, top players' });
+      expect(within(within(block).getByRole('table', { name: 'RTA, top players' })).getAllByRole('cell').map((c) => c.textContent)).toEqual(['0.4%', '—', '0%', '0%', '0%']);
+      expect(within(block).getByText(/Only 4 games in the sample, fewer than 20/)).toBeTruthy();
+      cleanup();
+      vi.mocked(loadRta).mockResolvedValue(rta({}));
       render(<HeroPage code="c1176" />);
       await screen.findByRole('heading', { name: 'Setsuka' });
       expect(screen.queryByRole('region', { name: 'RTA, top players' })).toBeNull();

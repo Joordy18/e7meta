@@ -96,6 +96,20 @@ describe('BuildPage', () => {
     expect(screen.getByText('Pick a hero to start your build.')).toBeTruthy();
   });
 
+  it('starts from what the hero wore most in the RTA battles, when there is data for it', async () => {
+    vi.mocked(loadRtaBuilds).mockResolvedValue({ code: 's', updated: 'x', setNames: { set_speed: 'Speed Set', set_max_hp: 'Health Set' }, artifactNames: {},
+      heroes: { c1: { sets: { n: 30, combos: [{ sets: ['set_speed', 'set_max_hp'], n: 20 }] }, artifacts: { n: 30, top: [{ code: 'a1', n: 25 }] } } } });
+    render(<BuildPage />);
+    expect(screen.queryByRole('button', { name: 'Start from the most played build' })).toBeNull(); // no hero yet
+    pick(await hero(), 'knight', 'Knight Two');
+    expect(screen.queryByRole('button', { name: 'Start from the most played build' })).toBeNull(); // no data for this hero
+    pick(await hero(), 'mage', 'Mage One');
+    fireEvent.click(screen.getByRole('button', { name: 'Start from the most played build' }));
+    const card = screen.getByRole('article', { name: 'Your build' });
+    expect(within(card).getByText('Speed Set + Health Set')).toBeTruthy();
+    expect(within(card).getByText('Mage Staff')).toBeTruthy();
+  });
+
   it('does not trust an address: a hero that does not exist shows no card', async () => {
     history.replaceState(null, '', '#/tools/build?h=nope&s=set_speed');
     render(<BuildPage />);

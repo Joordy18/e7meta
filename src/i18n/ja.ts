@@ -457,4 +457,6 @@ export const ja: Record<keyof typeof en, string> = {
   "build.pieces": "6部位中{n}",
   "build.remove": "{name}を外す",
   "build.noMatch": "該当なし",
+  "build.useTop": "最も使われているビルドから始める",
+  "hero.rtaFew": "サンプルの試合数は{games}件のみで、{min}件未満です。勝率は表示せず、他の割合はあくまで目安です。",
 };
