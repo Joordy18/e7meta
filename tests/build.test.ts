@@ -27,12 +27,11 @@ describe('parseBuild / buildHash', () => {
     expect(addSet(['set_cri', 'set_def', 'set_res'], 'set_speed')).toHaveLength(3);
     expect(removeSet(['set_max_hp', 'set_max_hp', 'set_immune'], 'set_max_hp')).toEqual(['set_max_hp', 'set_immune']);
   });
-  it('writes the link that shows a preview in a chat, and the preview server reads it back as the same build', () => {
+  it('writes a short link for the preview: sets as letters, language only when it is not English', () => {
     const b = { hero: 'c1137', sets: ['set_max_hp', 'set_max_hp', 'set_immune'], artifact: 'efk03', note: 'Speed 190+ & more' };
-    const link = shareLink('https://share.example.app/', b, 'fr');
-    expect(link).toBe('https://share.example.app/b?h=c1137&s=set_max_hp,set_max_hp,set_immune&a=efk03&n=Speed%20190%2B%20%26%20more&l=fr');
-    expect(shareLink('https://share.example.app', { hero: 'c1', sets: [], artifact: '', note: '' }, 'en')).toBe('https://share.example.app/b?h=c1&l=en');
-    expect(parseBuild(`#/tools/build?${link.split('?')[1]}`)).toEqual(b);
+    expect(shareLink('https://share.example.app/', b, 'fr')).toBe('https://share.example.app/b?h=c1137&s=bbd&a=efk03&n=Speed%20190%2B%20%26%20more&l=fr');
+    expect(shareLink('https://share.example.app', { hero: 'c2016', sets: ['set_speed', 'set_penetrate'], artifact: 'ef412', note: '' }, 'en')).toBe('https://share.example.app/b?h=c2016&s=ae&a=ef412');
+    expect(shareLink('https://share.example.app', { hero: '', sets: [], artifact: '', note: '' }, 'en')).toBe('https://share.example.app/b');
   });
   it('lists every set once, and names an unknown one from its code', () => {
     expect(new Set(SETS).size).toBe(SETS.length);

@@ -19,6 +19,7 @@ export const addSet = (sets: string[], setCode: string) =>
   SETS.includes(setCode) && piecesUsed(sets) + piecesOf(setCode) <= MAX_PIECES ? [...sets, setCode].sort((a, b) => piecesOf(b) - piecesOf(a)) : sets;
 export const removeSet = (sets: string[], setCode: string) => { const i = sets.indexOf(setCode); return i < 0 ? sets : sets.filter((_, j) => j !== i); };
 
+const LETTERS = 'abcdefghijklmnopqrstuvwx'; // a link names a set by its place in SETS
 export const EMPTY: Build = { hero: '', sets: [], artifact: '', note: '' };
 const CODE = /^[a-z0-9_]{1,32}$/i; // hero, artifact and set codes: anything else in an address is dropped
 
@@ -40,10 +41,14 @@ export function buildHash(b: Build): string {
 // Where the link preview is served (the `share/` folder, deployed on Vercel). Empty: "Copy link" gives the site's own address, which chat apps show without a picture.
 export const SHARE_BASE = 'https://e7meta-share.vercel.app';
 
-/** The address to paste in a chat: it shows the card of the build as a preview, then sends whoever opens it to the site. `lang` is the one the card is written in. */
+/**
+ * The address to paste in a chat: it shows the card of the build as a preview, then sends whoever opens it to the site. It is kept short: each set is one letter
+ * (its place in SETS, so a set the game adds goes at the end of SETS), and the language is only written when it is not English (the card is written in it).
+ */
 export function shareLink(base: string, b: Build, lang: string): string {
-  const q = [b.hero && `h=${b.hero}`, b.sets.length > 0 && `s=${b.sets.join(',')}`, b.artifact && `a=${b.artifact}`, b.note && `n=${encodeURIComponent(b.note)}`, `l=${lang}`].filter(Boolean).join('&');
-  return `${base.replace(/\/$/, '')}/b?${q}`;
+  const letters = b.sets.map((c) => LETTERS[SETS.indexOf(c)] ?? '').join('');
+  const q = [b.hero && `h=${b.hero}`, letters && `s=${letters}`, b.artifact && `a=${b.artifact}`, b.note && `n=${encodeURIComponent(b.note)}`, lang !== 'en' && `l=${lang}`].filter(Boolean).join('&');
+  return `${base.replace(/\/$/, '')}/b${q ? `?${q}` : ''}`;
 }
 
 /** "set_cri_dmg" -> "Cri Dmg Set": only for a set whose English name is not in the data. */

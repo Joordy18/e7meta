@@ -3,6 +3,7 @@ import type { Images, Pic } from './layout';
 
 // The game's public guide CDN, the same pictures the site shows.
 const BASE = 'https://static-pubcomm.onstove.com/event/live/epic7/guide';
+export const sheetUrl = 'https://static-pubcomm.onstove.com/live/epic7/brand/images/guide/icon_spr.png'; // the element and class icons
 export const portraitUrl = (code: string) => `${BASE}/images/hero/portrait/${code}.png`;
 export const setIconUrl = (code: string) => `${BASE}/wearingStatus/images/sets/${code}.png`;
 export const artifactIconUrl = (code: string) => `${BASE}/wearingStatus/images/artifact/${code}_ico.png`;
@@ -21,6 +22,6 @@ async function dataUri(url: string): Promise<Pic | null> {
 }
 
 export async function loadImages(r: Resolved): Promise<Images> {
-  const [portrait, artifact, ...sets] = await Promise.all([dataUri(portraitUrl(r.code)), r.artifact ? dataUri(artifactIconUrl(r.artifact.code)) : null, ...r.sets.map(([c]) => dataUri(setIconUrl(c)))]);
-  return { portrait, artifact, sets: Object.fromEntries(r.sets.map(([c], i) => [c, sets[i]])) };
+  const [sheet, portrait, artifact, ...sets] = await Promise.all([dataUri(sheetUrl), dataUri(portraitUrl(r.code)), r.artifact ? dataUri(artifactIconUrl(r.artifact.code)) : null, ...r.sets.map(([c]) => dataUri(setIconUrl(c)))]);
+  return { sheet, portrait, artifact, sets: Object.fromEntries(r.sets.map(([c], i) => [c, sets[i]])) };
 }

@@ -12,13 +12,26 @@ const CODE = /^[a-z0-9_]{1,32}$/i;
 const NOTE_MAX = 140;
 const MAX_SETS = 6; // up to six pieces, so at most six listings
 
+// The sets in the order of src/lib/build.ts, whose position is the letter a link uses for them ("ac" = set_speed, set_cri); a set added later goes at the end. tests/share.test.ts checks both lists are the same.
+export const SETS = [
+  'set_speed', 'set_max_hp', 'set_cri', 'set_immune', 'set_penetrate', 'set_acc', 'set_att', 'set_cri_dmg', 'set_res', 'set_def', 'set_counter', 'set_vampire',
+  'set_scar', 'set_shield', 'set_torrent', 'set_chase', 'set_revenge', 'set_coop', 'set_might', 'set_weak', 'set_opener', 'set_rage', 'set_revenant', 'set_riposte',
+];
+const LETTERS = 'abcdefghijklmnopqrstuvwx';
+
+/** The sets of a link: short letters ("aeb"), or the full codes separated by commas (the older links, and the site's own addresses). */
+function parseSets(v: string): string[] {
+  const list = v.startsWith('set_') ? v.split(',').filter((c) => CODE.test(c)) : [...v].flatMap((ch) => (LETTERS.includes(ch) ? [SETS[LETTERS.indexOf(ch)]] : []));
+  return list.slice(0, MAX_SETS);
+}
+
 const code = (v: string | null) => (v && CODE.test(v) ? v : '');
 
 export function parseCard(q: URLSearchParams): Card {
   const lang = q.get('l') as Lang;
   return {
     hero: code(q.get('h')),
-    sets: (q.get('s') ?? '').split(',').filter((c) => CODE.test(c)).slice(0, MAX_SETS),
+    sets: parseSets(q.get('s') ?? ''),
     artifact: code(q.get('a')),
     note: (q.get('n') ?? '').slice(0, NOTE_MAX),
     lang: LANGS.includes(lang) ? lang : 'en',

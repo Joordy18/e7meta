@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { parseBuild } from '../src/lib/build';
-import { parseCard, previewPage, resolve, setsText, siteLink } from '../share/lib/card';
+import { SETS, parseBuild, shareLink } from '../src/lib/build';
+import { SETS as SERVER_SETS, parseCard, previewPage, resolve, setsText, siteLink } from '../share/lib/card';
 import { cardLayout } from '../share/lib/layout';
 
 const json = async (p: string) => JSON.parse(await readFile(`public/${p}`, 'utf8')); // from the project root, where vitest runs
@@ -16,6 +16,17 @@ describe('share preview', () => {
     }
     expect(parseCard(new URLSearchParams('l=ja')).lang).toBe('en'); // the card font has Latin letters only
     expect(parseCard(new URLSearchParams('n=' + 'a'.repeat(500))).note).toHaveLength(140);
+  });
+
+  it('reads the short link the site writes, and the older full one', () => {
+    expect(SERVER_SETS).toEqual(SETS); // a set's letter is its place in the list, on both sides
+    const b = { hero: 'c1137', sets: ['set_speed', 'set_max_hp', 'set_riposte'], artifact: 'efk03', note: 'Speed 190+ & more' };
+    for (const lang of ['en', 'fr']) {
+      const link = shareLink('https://share.example.app', b, lang);
+      expect(parseCard(new URL(link).searchParams)).toEqual({ ...b, lang });
+    }
+    expect(parseCard(new URLSearchParams('s=set_speed,set_cri')).sets).toEqual(['set_speed', 'set_cri']);
+    expect(parseCard(new URLSearchParams('s=a!zc')).sets).toEqual(['set_speed', 'set_cri']); // what is not a set's letter is dropped
   });
 
   it('sends a person to the same build on the site', () => {
@@ -42,7 +53,7 @@ describe('share preview', () => {
     expect(html).toContain('summary_large_image');
     expect(html).toContain('http-equiv="refresh" content="0;url=https://s.test/#/a?b=1&#38;c=&#34;2&#34;"');
     const r = await resolve(parseCard(new URLSearchParams('h=c1137&s=set_speed&n=A%20note')), json);
-    const tree = JSON.stringify(cardLayout(r!, { portrait: null, sets: {}, artifact: null }));
+    const tree = JSON.stringify(cardLayout(r!, { sheet: null, portrait: null, sets: {}, artifact: null }));
     expect(tree).toContain('ae-KARINA');
     expect(tree).toContain('A note');
   });

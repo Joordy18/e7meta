@@ -1,7 +1,7 @@
 import { setsText, type Resolved } from './card';
 
 export type Pic = { src: string; w: number; h: number }; // a data: URI and its size
-export type Images = { portrait: Pic | null; sets: Record<string, Pic | null>; artifact: Pic | null }; // null when the picture could not be fetched
+export type Images = { sheet: Pic | null; portrait: Pic | null; sets: Record<string, Pic | null>; artifact: Pic | null }; // null when the picture could not be fetched
 type Style = Record<string, string | number>;
 type El = { type: string; props: { style?: Style; children?: unknown; src?: string; width?: number; height?: number } };
 
@@ -9,6 +9,20 @@ const C = { ink: '#0c1018', panel: '#141a26', raise: '#1b2332', line: '#26304a',
 const el = (type: string, style: Style, children?: unknown, extra: Partial<El['props']> = {}): El => ({ type, props: { style, children, ...extra } });
 const text = (s: string, style: Style) => el('div', { display: 'flex', ...style }, s);
 const img = (src: string, w: number, h: number, style: Style = {}) => el('img', { width: w, height: h, objectFit: 'contain', ...style }, undefined, { src, width: w, height: h });
+// The element and class icons are cut out of the game's guide sheet (460 x 260), at the boxes site/src/styles.css uses.
+const ELEMENT_Y: Record<string, number> = { dark: 0, fire: 54, ice: 106, wind: 159, light: 212 };
+const JOB_X: Record<string, number> = { mage: 52, knight: 99, assassin: 145, ranger: 192, manauser: 236, warrior: 283 };
+const SCALE = 1.15;
+const sprite = (sheet: Pic, x: number, y: number, w: number, h: number) =>
+  el('div', { display: 'flex', position: 'relative', width: w * SCALE, height: h * SCALE, overflow: 'hidden' },
+    el('img', { position: 'absolute', left: -x * SCALE, top: -y * SCALE, width: 460 * SCALE, height: 260 * SCALE }, undefined, { src: sheet.src, width: 460 * SCALE, height: 260 * SCALE }));
+/** `grade` gold stars, drawn as a picture (the card font has no star). */
+const stars = (grade: number) => {
+  const star = '<polygon points="12,1.5 15,9 23,9.5 17,14.5 19,22.5 12,18 5,22.5 7,14.5 1,9.5 9,9" fill="#f2b84b"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${grade * 28}" height="28" viewBox="0 0 ${grade * 28} 28">${Array.from({ length: grade }, (_, i) => `<g transform="translate(${i * 28 + 2} 2)">${star}</g>`).join('')}</svg>`;
+  return img(`data:image/svg+xml;base64,${btoa(svg)}`, grade * 28, 28);
+};
+
 const FACE = 400;
 /** The face of a full-length portrait: the same framing as the site (a picture 3.5 times the square, centred a third of the way up). */
 const face = (p: Pic) => {
@@ -38,7 +52,9 @@ export function cardLayout(r: Resolved, images: Images): El {
     el('div', { display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }, [
       el('div', { display: 'flex', flexDirection: 'column', gap: 22 }, [
         text(r.name, { fontSize: 66, fontWeight: 700, lineHeight: 1.05 }),
-        text(`${r.grade}-star · ${cap(r.job)} · ${cap(r.element)}`, { fontSize: 28, color: C.mute }),
+        el('div', { display: 'flex', alignItems: 'center', gap: 18 }, images.sheet && r.element in ELEMENT_Y && r.job in JOB_X
+          ? [stars(r.grade), sprite(images.sheet, 0, ELEMENT_Y[r.element], 41, 41), sprite(images.sheet, JOB_X[r.job], 0, 44, 42)]
+          : [text(`${r.grade}-star · ${cap(r.job)} · ${cap(r.element)}`, { fontSize: 28, color: C.mute })]),
         ...rows,
         r.note ? text(r.note, { fontSize: 30, color: C.text, lineHeight: 1.3, marginTop: 6, padding: '14px 18px', background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, lineClamp: 3 }) : null,
       ].filter(Boolean)),
