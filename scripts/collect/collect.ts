@@ -7,7 +7,7 @@ import { fetchModes } from './modes';
 import { fetchTeams } from './teams';
 import { refreshTrends } from './trends';
 import { mapDetail, mapExclusive, mapHeroList, mapPeriod, mapSetNames, mapShares, mapSkills } from './map';
-import type { HeroSnapshot, HeroSummary, Index, Modes, Period, Teams } from '../../src/shared/types';
+import type { Gear, HeroSnapshot, HeroSummary, Index, Modes, Period, Teams } from '../../src/shared/types';
 
 type Client = ReturnType<typeof createClient>;
 const LANG = 'en'; // the product is in English; names in the data come in this language
@@ -74,28 +74,36 @@ async function refreshModes(client: Client, snapDir: string, huntPeriod: Period,
   };
   let modes = force ? undefined : await readJson<Modes>(modesPath);
   let fresh = false;
-  if (modes?.key !== huntPeriod.start) {
-    modes = await fetchModes(client, huntPeriod, log);
-    if (!modes) return;
-    await writeJson(modesPath, modes);
-    fresh = true;
+  // a file written with failed calls (`failed`) is asked for again on later runs, and replaced only by a more complete one
+  const stale = modes?.key !== huntPeriod.start;
+  if (stale || modes?.failed) {
+    const fetched = await fetchModes(client, huntPeriod, log);
+    if (stale && !fetched) return;
+    if (fetched && (stale || (fetched.failed ?? 0) < (modes?.failed ?? 0))) {
+      modes = fetched;
+      await writeJson(modesPath, modes);
+      fresh = true;
+    }
   }
+  if (!modes) return;
   const teams = force || fresh ? undefined : await readJson<Teams>(teamsPath);
-  if (teams?.key === modes.key) return;
+  if (teams?.key === modes.key && !teams.failed) return;
   const fetched = await fetchTeams(client, modes, log);
-  if (fetched) await writeJson(teamsPath, fetched);
+  if (fetched && (!teams || teams.key !== modes.key || (fetched.failed ?? 0) < (teams.failed ?? 0))) await writeJson(teamsPath, fetched);
 }
 
 /** gear.json (artifact and set catalog) belongs to the gear-ranking period: refetched when missing, forced or from another period. */
 async function refreshGear(client: Client, snapDir: string, key: string, log: (m: string) => void, force: boolean) {
   const path = join(snapDir, 'gear.json');
+  let previous: Gear | undefined;
   if (!force) {
     try {
-      if (JSON.parse(await readFile(path, 'utf8'))?.key === key) return;
+      previous = JSON.parse(await readFile(path, 'utf8')) as Gear;
+      if (previous?.key === key && !previous.failed) return; // whole for this period; one with failed lookups (`failed`) is asked for again
     } catch { /* missing or unreadable: fetch it */ }
   }
   const gear = await fetchGear(client, key, log);
-  if (gear) await writeJson(path, gear);
+  if (gear && (previous?.key !== key || (gear.failed ?? 0) < (previous.failed ?? 0))) await writeJson(path, gear);
 }
 
 export async function collect(opts: {

@@ -20,6 +20,7 @@ const base = { world_code: 'world_global', lang_code: 'en' };
  * Returns undefined when no list could be fetched.
  */
 export async function fetchModes(client: Client, huntPeriod: Period, log: (m: string) => void): Promise<Modes | undefined> {
+  let failed = 0; // list and rift calls that failed: the file records how many, so a later run fetches again until it is whole (a missing period is no failure: the expedition API has none)
   const periodOf = async (path: string): Promise<Period | undefined> => {
     try { return mapPeriod(await client.get(path, { world_code: 'world_global' })); } catch (e) {
       log(`modes: no period for ${path}: ${(e as Error).message}`);
@@ -31,7 +32,6 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
   const expeditionPeriod = await periodOf('expedition/last-update-time');
 
   const lists: ModeList[] = [];
-  let failed = 0;
   const add = async (
     id: string, mode: ModeList['mode'], group: string, variant: string, title: string, period: Period | undefined,
     path: string, params: Record<string, string>, field: 'specific_gravity' | 'success_rate',
@@ -67,12 +67,12 @@ export async function fetchModes(client: Client, huntPeriod: Period, log: (m: st
   }
 
   let rift: Modes['rift'];
-  try { rift = mapRift(await client.get('crack/info', base)); } catch (e) { log(`modes: rift info failed: ${(e as Error).message}`); }
+  try { rift = mapRift(await client.get('crack/info', base)); } catch (e) { failed++; log(`modes: rift info failed: ${(e as Error).message}`); }
 
   if (lists.length === 0) {
     log('modes: nothing fetched, modes.json not written');
     return undefined;
   }
   log(`modes: ${lists.length} lists${failed ? `, ${failed} failed` : ''}`);
-  return { key: huntPeriod.start, lists, ...(rift ? { rift } : {}) };
+  return { key: huntPeriod.start, lists, ...(rift ? { rift } : {}), ...(failed ? { failed } : {}) };
 }

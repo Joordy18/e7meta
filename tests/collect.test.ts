@@ -10,7 +10,8 @@ const heroListFx = fx('hero-list');
 const ok = (value: unknown) => ({ code: 0, message: 'OK', value });
 
 type Opts = { total?: number; wearingStart?: string; failHeroes?: string[]; failDetail?: boolean; emptyDetail?: boolean;
-  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean; noTeams?: boolean; noGear?: boolean };
+  repeatPage?: boolean; endless?: boolean; failAll?: boolean; emptyEquipFor?: string[]; noModes?: boolean; noTeams?: boolean; noGear?: boolean;
+  failOn?: (path: string, params: Record<string, string>) => boolean }; // makes single calls fail (a flaky API), unlike noModes/noTeams/noGear which fail a whole kind
 
 /** Fake client serving the fixtures by path; hero-list is served 50 per page like the real API. */
 function fake(o: Opts = {}) {
@@ -19,6 +20,7 @@ function fake(o: Opts = {}) {
   const client = {
     async get(path: string, params: Record<string, string>) {
       calls.push({ path, params });
+      if (o.failOn?.(path, params)) throw new Error('flaky');
       if (path === 'wearing-status/last-update-time') {
         const v = fx('last-update-time').value;
         return ok({ ...v, ...(o.wearingStart ? { week_start_date: o.wearingStart } : {}) });
@@ -349,6 +351,49 @@ describe('collect', () => {
       await collect({ outDir: dir, client: again.client });
       expect(again.calls.some((c) => c.path.includes('ranking'))).toBe(false);
       expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(true);
+    });
+  });
+
+  describe('partial results are fetched again', () => {
+    const rankingCalls = (calls: { path: string }[]) => calls.filter((c) => /ranking/.test(c.path) && !c.path.startsWith('wearing-status/hero'));
+    const floor = (...floors: string[]) => (p: string, q: Record<string, string>) => p === 'abyss/hero-ranking/all' && floors.includes(q.floor);
+
+    it('modes: a list that failed is asked for again on a later run, then the file is whole and left alone', async () => {
+      await collect({ outDir: dir, client: fake({ failOn: floor('120') }).client });
+      expect(read('2026-10-22', 'modes.json')).toMatchObject({ failed: 1 });
+      expect(read('2026-10-22', 'modes.json').lists).toHaveLength(61);
+      expect(await collect({ outDir: dir, client: fake().client })).toBe('skipped');
+      expect(read('2026-10-22', 'modes.json').lists).toHaveLength(62);
+      expect(read('2026-10-22', 'modes.json').failed).toBeUndefined();
+      const again = fake();
+      await collect({ outDir: dir, client: again.client });
+      expect(rankingCalls(again.calls)).toHaveLength(0);
+    });
+
+    it('modes: a retry that fails more does not replace the file', async () => {
+      await collect({ outDir: dir, client: fake({ failOn: floor('120') }).client });
+      const before = readFileSync(join(dir, '2026-10-22', 'modes.json'), 'utf8');
+      await collect({ outDir: dir, client: fake({ failOn: floor('120', '110') }).client });
+      expect(readFileSync(join(dir, '2026-10-22', 'modes.json'), 'utf8')).toBe(before);
+    });
+
+    it('teams: lookups that failed are asked for again, without refetching the modes', async () => {
+      await collect({ outDir: dir, client: fake({ failOn: (p, q) => p === 'hunt/hero-team-ranking' && q.hero_code === 'c1145' }).client });
+      expect(read('2026-10-22', 'teams.json').failed).toBeGreaterThan(0);
+      const { client, calls } = fake();
+      expect(await collect({ outDir: dir, client })).toBe('skipped');
+      expect(read('2026-10-22', 'teams.json').failed).toBeUndefined();
+      expect(read('2026-10-22', 'teams.json').lists['hunt-1-13']['c1145']).toBeDefined();
+      expect(calls.some((c) => c.path === 'hunt/hero-ranking/all')).toBe(false);
+    });
+
+    it('gear: hero lookups that failed are asked for again', async () => {
+      await collect({ outDir: dir, client: fake({ failOn: (p) => p === 'wearing-status/artifact-hero-ranking' }).client });
+      expect(read('2026-10-22', 'gear.json').failed).toBeGreaterThan(0);
+      await collect({ outDir: dir, client: fake().client });
+      const g = read('2026-10-22', 'gear.json');
+      expect(g.failed).toBeUndefined();
+      expect(Object.values(g.artifacts as Record<string, { heroes: unknown[] }>).some((a) => a.heroes.length > 0)).toBe(true);
     });
   });
 

@@ -50,5 +50,5 @@ export async function fetchTeams(client: Client, modes: Modes, log: (m: string) 
     return undefined;
   }
   log(`teams: ${calls - failed}/${calls} calls ok`);
-  return { key: modes.key, lists };
+  return { key: modes.key, lists, ...(failed ? { failed } : {}) };
 }

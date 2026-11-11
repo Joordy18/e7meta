@@ -36,11 +36,11 @@ export type ModeList = {
   heroes: ModeEntry[]; // highest share first
 };
 export type RiftInfo = { title: string; description: string; start: string; end: string; elements: string[] };
-export type Modes = { key: string; lists: ModeList[]; rift?: RiftInfo }; // key = hunt period start the lists were fetched for
+export type Modes = { key: string; lists: ModeList[]; rift?: RiftInfo; failed?: number }; // key = hunt period start the lists were fetched for
 
 // The best teams (up to 4 heroes) that include a given hero, per mode list. Shares are global: the same team has the same share whichever hero you start from.
 export type Team = { share: number; heroes: string[] }; // hero codes, share in %
-export type Teams = { key: string; lists: Record<string, Record<string, Team[]>> }; // list id -> hero code -> teams, best first
+export type Teams = { key: string; lists: Record<string, Record<string, Team[]>>; failed?: number }; // list id -> hero code -> teams, best first
 
 // Artifact catalog, with the heroes wearing each most (same period as the gear ranking)
 export type ArtifactValue = { level1: string; max: string }; // what the nth "@" of the description stands for
@@ -51,7 +51,7 @@ export type ArtifactInfo = {
   values: ArtifactValue[];
   heroes: ModeEntry[]; // highest share first
 };
-export type Gear = { key: string; artifacts: Record<string, ArtifactInfo> };
+export type Gear = { key: string; artifacts: Record<string, ArtifactInfo>; failed?: number };
 
 // World Arena (RTA, the draft mode): the developers' season infographics. One file per season, rates in %.
 export type ArenaTier = 'champion' | 'warlord' | 'emperor' | 'legend'; // "this league and above"

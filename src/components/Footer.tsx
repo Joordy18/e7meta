@@ -1,7 +1,16 @@
+import type { MouseEvent } from 'react';
 import { useI18n } from '../i18n';
 import { REPO } from '../pages/AboutPage';
 
 const external = { target: '_blank', rel: 'noreferrer' } as const;
+
+/** A link to the address already open raises no hashchange, so the page would not move: scroll to the part (or the top) here. */
+const here = (id?: string) => (e: MouseEvent<HTMLAnchorElement>) => {
+  if (location.hash !== `#/about${id ? `/${id}` : ''}`) return;
+  e.preventDefault();
+  if (id) document.getElementById(id)?.scrollIntoView?.({ block: 'start' });
+  else window.scrollTo?.(0, 0);
+};
 
 /** Bottom of every page: the pages about the site, the places the data comes from, and the "unofficial" notice. */
 export default function Footer() {
@@ -10,10 +19,10 @@ export default function Footer() {
     <footer className="foot" aria-label={t('foot.label')}>
       <p>{t('foot.disclaimer')}</p>
       <nav>
-        <a href="#/about">{t('foot.about')}</a>
-        <a href="#/about/data">{t('foot.data')}</a>
-        <a href="#/about/status">{t('foot.status')}</a>
-        <a href="#/about/legal">{t('foot.legal')}</a>
+        <a href="#/about" onClick={here()}>{t('foot.about')}</a>
+        <a href="#/about/data" onClick={here('data')}>{t('foot.data')}</a>
+        <a href="#/about/status" onClick={here('status')}>{t('foot.status')}</a>
+        <a href="#/about/legal" onClick={here('legal')}>{t('foot.legal')}</a>
         <a href={REPO} {...external}>{t('foot.github')}</a>
         <a href="https://epic7.onstove.com" {...external}>{t('foot.official')}</a>
         <a href="https://page.onstove.com/epicseven/global" {...external}>{t('foot.community')}</a>

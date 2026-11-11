@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import AboutPage, { REPO } from '../src/pages/AboutPage';
 import App from '../src/App';
 import Footer from '../src/components/Footer';
@@ -45,6 +45,25 @@ describe('Footer', () => {
     expect(within(foot).getByText(en['foot.disclaimer'])).toBeTruthy();
     const hrefs = within(foot).getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual(expect.arrayContaining(['#/about', '#/about/data', '#/about/legal', REPO, 'https://epic7.onstove.com', 'https://epic7db.com']));
+  });
+});
+
+describe('Footer, a link to the address already open', () => {
+  it('scrolls to the part, since the address does not change and the page would stay put', () => {
+    location.hash = '#/about/status';
+    render(<><AboutPage /><Footer /></>);
+    scrolled = [];
+    fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('link', { name: en['foot.status'] }));
+    expect(scrolled).toEqual(['status']);
+    expect(location.hash).toBe('#/about/status');
+  });
+
+  it('leaves a link to another address to the browser', () => {
+    location.hash = '#/about/status';
+    render(<><AboutPage /><Footer /></>);
+    scrolled = [];
+    fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('link', { name: en['foot.legal'] }));
+    expect(scrolled).toEqual([]);
   });
 });
 

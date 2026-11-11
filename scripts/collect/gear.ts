@@ -41,5 +41,5 @@ export async function fetchGear(client: Client, key: string, log: (m: string) =>
     log('gear: empty catalog, gear.json not written');
     return undefined;
   }
-  return { key, artifacts };
+  return { key, artifacts, ...(failed ? { failed } : {}) };
 }

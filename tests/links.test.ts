@@ -15,6 +15,9 @@ describe('epic7dbUrl', () => {
     expect(epic7dbUrl('Baal & Sezan')).toBe('https://epic7db.com/heroes/baal-and-sezan');
     expect(epic7dbUrl('Ainos 2.0')).toBe('https://epic7db.com/heroes/ainos-20');
   });
+  it('knows the heroes the fan site names differently from the game', () => {
+    expect(epic7dbUrl('Immortal Wukong')).toBe('https://epic7db.com/heroes/immortal-king-wukong');
+  });
   it('turns other punctuation into dashes', () => {
     expect(epic7dbUrl('Bellona (Lone Moon)')).toBe('https://epic7db.com/heroes/bellona-lone-moon');
   });
