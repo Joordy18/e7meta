@@ -67,6 +67,9 @@ describe('ArtifactPage', () => {
     vi.mocked(loadGear).mockResolvedValue(gear);
     render(<ArtifactPage code="nope" />);
     expect(await screen.findByText('Unknown artifact')).toBeTruthy();
+    cleanup();
+    render(<ArtifactPage code="constructor" />); // an object's own keys are not artifacts either
+    expect(await screen.findByText('Unknown artifact')).toBeTruthy();
     expect(screen.getByRole('link', { name: /All heroes/ }).getAttribute('href')).toBe('#/heroes');
   });
 

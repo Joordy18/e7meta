@@ -1,4 +1,4 @@
-import { SITE, parseCard, previewPage, resolve, setsText, siteLink } from '../lib/card';
+import { SITE, cardQuery, parseCard, previewPage, resolve, setsText, siteLink } from '../lib/card';
 
 export const config = { runtime: 'edge' };
 
@@ -15,6 +15,6 @@ export default async function handler(req: Request): Promise<Response> {
   }).catch(() => null);
   const title = resolved ? `${resolved.name} build` : 'E7 Meta build maker';
   const description = resolved ? [setsText(resolved), resolved.artifact?.name, resolved.note].filter(Boolean).join(' · ') : 'Put together a build for a hero and share it with a link.';
-  const image = resolved ? `${url.origin}/api/og${url.search}` : '';
-  return new Response(previewPage({ title, description, image, target, url: url.href }), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+  const image = resolved ? `${url.origin}/api/og?${cardQuery(card)}` : '';
+  return new Response(previewPage({ title, description, image, target, url: url.href }), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': resolved ? 'public, max-age=300, s-maxage=3600' : 'public, max-age=0, s-maxage=30' } }); // a failed lookup is kept for seconds only
 }

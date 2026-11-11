@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { SETS, parseBuild, shareLink } from '../src/lib/build';
-import { SETS as SERVER_SETS, parseCard, previewPage, resolve, setsText, siteLink } from '../share/lib/card';
+import { SETS as SERVER_SETS, cardQuery, parseCard, previewPage, resolve, setsText, siteLink } from '../share/lib/card';
 import { cardLayout } from '../share/lib/layout';
 
 const json = async (p: string) => JSON.parse(await readFile(`public/${p}`, 'utf8')); // from the project root, where vitest runs
@@ -27,6 +27,16 @@ describe('share preview', () => {
     }
     expect(parseCard(new URLSearchParams('s=set_speed,set_cri')).sets).toEqual(['set_speed', 'set_cri']);
     expect(parseCard(new URLSearchParams('s=a!zc')).sets).toEqual(['set_speed', 'set_cri']); // what is not a set's letter is dropped
+  });
+
+  it('only knows real sets, and writes the card address from what it understood (extra parameters change nothing)', async () => {
+    expect(parseCard(new URLSearchParams('s=set_speed,set_nope,set_cri')).sets).toEqual(['set_speed', 'set_cri']);
+    const a = parseCard(new URLSearchParams('h=c1137&s=set_speed&x=1&junk=2&n=Hi'));
+    const b = parseCard(new URLSearchParams('n=Hi&h=c1137&s=a&y=3'));
+    expect(cardQuery(a)).toBe('h=c1137&s=a&n=Hi');
+    expect(cardQuery(a)).toBe(cardQuery(b));
+    const r = await resolve(parseCard(new URLSearchParams('h=c1137&a=constructor')), json);
+    expect(r?.artifact).toBeNull(); // an object's own key is not an artifact
   });
 
   it('sends a person to the same build on the site', () => {

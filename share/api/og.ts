@@ -13,7 +13,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (!res.ok) throw new Error(`${p}: ${res.status}`);
     return res.json();
   }).catch(() => null);
-  if (!resolved) return new Response('Unknown hero', { status: 404 });
+  if (!resolved) return new Response('Unknown hero', { status: 404, headers: { 'Cache-Control': 'public, max-age=0, s-maxage=30' } });
   const card = new ImageResponse(cardLayout(resolved, await loadImages(resolved)) as never, { width: 1200, height: 630, headers: { 'Cache-Control': 'public, max-age=3600, s-maxage=86400' } });
   return card;
 }

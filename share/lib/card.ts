@@ -21,7 +21,7 @@ const LETTERS = 'abcdefghijklmnopqrstuvwx';
 
 /** The sets of a link: short letters ("aeb"), or the full codes separated by commas (the older links, and the site's own addresses). */
 function parseSets(v: string): string[] {
-  const list = v.startsWith('set_') ? v.split(',').filter((c) => CODE.test(c)) : [...v].flatMap((ch) => (LETTERS.includes(ch) ? [SETS[LETTERS.indexOf(ch)]] : []));
+  const list = v.startsWith('set_') ? v.split(',').filter((c) => SETS.includes(c)) : [...v].flatMap((ch) => (LETTERS.includes(ch) ? [SETS[LETTERS.indexOf(ch)]] : []));
   return list.slice(0, MAX_SETS);
 }
 
@@ -37,6 +37,10 @@ export function parseCard(q: URLSearchParams): Card {
     lang: LANGS.includes(lang) ? lang : 'en',
   };
 }
+
+/** The address of the card for this build: only what was understood, so a link with extra or odd parameters is the same card (and the same cache entry) as the plain one. */
+export const cardQuery = (c: Card) =>
+  [c.hero && `h=${c.hero}`, c.sets.length > 0 && `s=${c.sets.map((x) => LETTERS[SETS.indexOf(x)]).join('')}`, c.artifact && `a=${c.artifact}`, c.note && `n=${encodeURIComponent(c.note)}`, c.lang !== 'en' && `l=${c.lang}`].filter(Boolean).join('&');
 
 /** The same build on the site (what a person is sent to). */
 export function siteLink(site: string, c: Card): string {
@@ -61,7 +65,7 @@ export async function resolve(c: Card, json: Json): Promise<Resolved | null> {
   if (!hero) return null;
   const counts = new Map<string, number>();
   for (const s of c.sets) counts.set(s, (counts.get(s) ?? 0) + 1);
-  const art = c.artifact ? gear?.artifacts?.[c.artifact] : undefined;
+  const art = c.artifact && Object.hasOwn(gear?.artifacts ?? {}, c.artifact) ? gear.artifacts[c.artifact] : undefined; // not 'constructor' and the like
   return {
     code: hero.code, grade: hero.grade, job: hero.job, element: hero.element,
     name: names?.heroes?.[hero.code] ?? hero.name,

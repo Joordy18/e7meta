@@ -3,3 +3,4 @@ collect.log
 dist
 node_modules
 data-private
+.vercel

@@ -63,7 +63,7 @@ export function ArtifactPage({ code }: { code: string }) {
   const { t, name } = useI18n();
   const labels = useLabels();
   const state = useGear();
-  const a = state.status === 'ok' ? state.gear.artifacts[code] : undefined;
+  const a = state.status === 'ok' && Object.hasOwn(state.gear.artifacts, code) ? state.gear.artifacts[code] : undefined; // a code like 'constructor' is not an artifact
   const varies = !!a && a.values.length > 0 && a.description.includes('@');
   return (
     <Frame state={state} missing={state.status === 'ok' && !a ? t('gear.unknown') : null}>
